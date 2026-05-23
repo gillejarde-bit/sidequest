@@ -1,0 +1,9 @@
+{
+  "name": "sidequest",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -F web dev",
+    "build": "pnpm -F web build",
+    "lint": "pnpm -F web lint"
+  }
+}

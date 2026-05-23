@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #58CC02;
+  --color-secondary: #6C63FF;
+  --color-accent: #FF6B6B;
+  --color-surface: #FAFAF8;
+  --color-dark: #1A1A2E;
+  --color-muted: #A8A8B3;
+
+  --font-sans: "DM Sans", sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: #FAFAF8;
+    --foreground: #1A1A2E;
+  }
+  
+  .dark {
+    --background: #1A1A2E;
+    --foreground: #FAFAF8;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
