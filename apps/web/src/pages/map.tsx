@@ -156,7 +156,7 @@ export function MapPage() {
       ['Food', 'Outdoors', 'Nightlife', 'Gems', 'Culture', 'Fitness', 'Gaming'].includes(f)
     )
     const filtered = categoryFilters.length > 0
-      ? locations.filter(l => categoryFilters.map(f => f.toLowerCase()).includes(l.category.toLowerCase()))
+      ? locations.filter(l => l.category && categoryFilters.map(f => f.toLowerCase()).includes(l.category.toLowerCase()))
       : locations
 
     return {
