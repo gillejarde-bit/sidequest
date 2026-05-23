@@ -1,0 +1,3 @@
+{
+  "installCommand": "npm install --ignore-scripts --legacy-peer-deps"
+}

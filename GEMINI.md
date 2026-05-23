@@ -6,10 +6,10 @@ Sidequest turns everyday hangouts into living quests on a real-world map. Users 
 Create Quest → Invite Friends → Show Up → Complete → Earn XP → Level Up → Discover More
 
 ## Tech Stack
-- Frontend: Vite + React 18 + TypeScript (strict mode, no "any"), Tailwind CSS v4, shadcn/ui, Framer Motion, Zustand, TanStack Query v5, TanStack Router, react-maplibre (vis.gl)
-- Map tiles: https://www.mapbox.com/ (Wait, using OpenFreeMap in practice for free tiles)
+- Frontend: Vite + React 18 + TypeScript (strict mode, no "any"), Tailwind CSS v4, shadcn/ui, Framer Motion, Zustand, TanStack Query v5, TanStack Router, react-map-gl (Mapbox)
+- Map tiles: Mapbox GL JS
 - Backend: Supabase (Postgres + PostGIS, Auth, Realtime, Storage, Edge Functions)
-- External APIs: OpenFreeMap, Nominatim, Overpass API, Google Gemini API
+- External APIs: Mapbox, Nominatim, Overpass API, Google Gemini API
 - Hosting: Cloudflare Pages
 - Package Manager: pnpm
 
@@ -24,6 +24,7 @@ Create Quest → Invite Friends → Show Up → Complete → Earn XP → Level U
 8. Mobile-first: design for 375px viewport. Scale up, not down.
 9. One feature per agent session. Finish it before starting next.
 10. Package manager is pnpm only.
+11. All migrations must use DROP ... IF EXISTS before CREATE statements. All profile/user inserts must include ON CONFLICT (id) DO NOTHING. Migrations must be safe to run multiple times (idempotent).
 
 ## Design System: Playful Minimalism
 - Philosophy: Minimal UI, maximum delight.

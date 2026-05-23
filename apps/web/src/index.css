@@ -36,3 +36,7 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
+  display: none !important;
+}

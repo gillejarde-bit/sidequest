@@ -1,7 +1,8 @@
-# MapLibre React Skill
+# Mapbox React Skill
 
 ## Map Instance
-- Access the map instance via `useRef` and `useMap()` hook from `@vis.gl/react-maplibre`. Do NOT store the map instance in `useState`.
+- Access the map instance via `useRef<MapRef>(null)` and `useMap()` hook from `react-map-gl`. Do NOT store the map instance in `useState`.
+- Clean up channels on unmount.
 
 ## Markers: Symbol Layer vs HTML Marker
 - For 1-10 static points: `<Marker>` (HTML) is acceptable.
@@ -14,6 +15,7 @@
 ## Clustering
 - Enable clustering on the `<Source cluster={true} clusterRadius={50} clusterMaxZoom={14}>` for datasets with >100 features.
 
-## Tiles
-- Use OpenFreeMap style URL: `https://tiles.openfreemap.org/styles/liberty`
-- Nominatim geocoding: Cache results and respect 1 req/sec limit.
+## Tiles & Map Style
+- Use Mapbox Studio custom style URL via `.env.local` (`VITE_MAPBOX_STYLE`).
+- Mapbox Token MUST be accessed via `import.meta.env.VITE_MAPBOX_TOKEN`.
+- Throttle location broadcasts to 10s.
