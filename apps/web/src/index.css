@@ -7,6 +7,9 @@
   --color-surface: #FAFAF8;
   --color-dark: #1A1A2E;
   --color-muted: #A8A8B3;
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
   --font-sans: "DM Sans", sans-serif;
 }
@@ -15,11 +18,13 @@
   :root {
     --background: #FAFAF8;
     --foreground: #1A1A2E;
+    --border: #E2E8F0;
   }
   
   .dark {
     --background: #1A1A2E;
     --foreground: #FAFAF8;
+    --border: #2D3748;
   }
 }
 
