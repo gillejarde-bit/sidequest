@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent } from 'react-map-gl'
+import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent, Marker } from 'react-map-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
@@ -12,19 +12,9 @@ import { FilterBar } from '../components/map/FilterBar'
 import { BottomSheet } from '../components/map/BottomSheet'
 import { SearchBar } from '../components/map/SearchBar'
 import { useMapStore } from '../stores/mapStore'
+import { useAuthStore } from '../stores/auth'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface LocationRow {
-  id: string
-  name: string
-  category: string
-  description: string
-  address: string
-  is_hidden_gem: boolean
-  lat: number
-  lng: number
-}
 
 interface QuestRow {
   id: string
@@ -48,20 +38,12 @@ interface SelectedLocation {
 
 // ─── Category Colors ──────────────────────────────────────────────────────────
 
-const CATEGORY_COLORS: Record<string, string> = {
-  food: '#FF6B6B',
-  outdoors: '#58CC02',
-  nightlife: '#9B59B6',
-  fitness: '#E67E22',
-  culture: '#3498DB',
-  gaming: '#E91E63',
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MapPage() {
   const mapRef = useRef<MapRef>(null)
   const navigate = useNavigate()
+  const { profile } = useAuthStore()
 
   const userLoc = useGeolocation()
   const friendsMap = useFriendPresence({
@@ -70,7 +52,6 @@ export function MapPage() {
     heading: userLoc.heading,
   })
 
-  const [locations, setLocations] = useState<LocationRow[]>([])
   const [quests, setQuests] = useState<QuestRow[]>([])
   const [gems, setGems] = useState<any[]>([])
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
@@ -89,15 +70,6 @@ export function MapPage() {
 
   useEffect(() => {
     async function fetchData() {
-      // ISSUE 3 FIX: Use RPC to extract lat/lng from PostGIS geography column
-      const { data: locData, error: locError } = await supabase.rpc('get_locations_with_coords')
-      if (locError) {
-        console.error('[Map] locations fetch error:', locError)
-      } else {
-        console.log('[Map] locations loaded:', locData?.length)
-        setLocations((locData as LocationRow[]) ?? [])
-      }
-
       const { data: questData, error: questError } = await supabase.rpc('get_my_quests' as any, { filter_status: null })
       if (questError) {
         console.error('[Map] quests fetch error:', questError)
@@ -121,11 +93,6 @@ export function MapPage() {
     const map = mapRef.current?.getMap()
     if (!map || !mapLoaded) return
 
-    // Category-specific: if any category filter is active, filter POIs
-    const categoryFilters = activeFilters.filter(f =>
-      ['Food', 'Outdoors', 'Nightlife', 'Gems'].includes(f)
-    )
-
     const simpleLayerToggles: Array<{ filter: string; layerId: string }> = [
       { filter: 'Quests', layerId: 'quests-layer' },
       { filter: 'Friends', layerId: 'friends-layer' },
@@ -138,11 +105,6 @@ export function MapPage() {
         map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
       }
     })
-
-    if (map.getLayer('locations-layer')) {
-      const locVisible = activeFilters.length === 0 || categoryFilters.length > 0
-      map.setLayoutProperty('locations-layer', 'visibility', locVisible ? 'visible' : 'none')
-    }
 
     if (map.getLayer('gems-layer')) {
       const gemsVisible = activeFilters.length === 0 || activeFilters.includes('Gems')
@@ -172,17 +134,6 @@ export function MapPage() {
 
   // ── GeoJSON Sources ────────────────────────────────────────────────────────
 
-  const userGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: userLoc.lat !== null && userLoc.lng !== null
-      ? [{
-          type: 'Feature' as const,
-          geometry: { type: 'Point' as const, coordinates: [userLoc.lng, userLoc.lat] },
-          properties: {}
-        }]
-      : []
-  }), [userLoc.lat, userLoc.lng])
-
   const friendsGeoJSON = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: Array.from(friendsMap.values()).map(f => ({
@@ -191,30 +142,6 @@ export function MapPage() {
       properties: { username: f.username, level: f.level }
     }))
   }), [friendsMap])
-
-  const locationsGeoJSON = useMemo(() => {
-    // If category filters are active, filter down
-    const categoryFilters = activeFilters.filter(f =>
-      ['Food', 'Outdoors', 'Nightlife', 'Gems', 'Culture', 'Fitness', 'Gaming'].includes(f)
-    )
-    const filtered = categoryFilters.length > 0
-      ? locations.filter(l => l.category && categoryFilters.map(f => f.toLowerCase()).includes(l.category.toLowerCase()))
-      : locations
-
-    return {
-      type: 'FeatureCollection' as const,
-      features: filtered.map(l => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [l.lng, l.lat] },
-        properties: {
-          id: l.id,
-          name: l.name,
-          category: l.category,
-          description: l.description,
-        }
-      }))
-    }
-  }, [locations, activeFilters])
 
   const questsGeoJSON = useMemo(() => ({
     type: 'FeatureCollection' as const,
@@ -267,18 +194,7 @@ export function MapPage() {
     const coords = (feature.geometry as GeoJSON.Point).coordinates
     const layerId = feature.layer?.id
 
-    if (layerId === 'locations-layer') {
-      setSelectedLocation({
-        id: props?.id,
-        name: props?.name,
-        category: props?.category,
-        description: props?.description,
-        lat: coords[1],
-        lng: coords[0],
-      })
-      setSelectedQuest(null)
-      setSelectedGem(null)
-    } else if (layerId === 'quests-layer') {
+    if (layerId === 'quests-layer') {
       setSelectedQuest({
         id: props?.id,
         name: props?.name,
@@ -384,7 +300,7 @@ export function MapPage() {
         }}
         onMouseEnter={handleMapMouseEnter}
         onMouseLeave={handleMapMouseLeave}
-        interactiveLayerIds={['locations-layer', 'quests-layer', 'gems-layer']}
+        interactiveLayerIds={['quests-layer', 'gems-layer']}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
@@ -404,60 +320,29 @@ export function MapPage() {
           }}
         />
 
-        {/* ISSUE 2 FIX: Custom blue user dot */}
-        <Source id="user-location" type="geojson" data={userGeoJSON}>
-          {/* Pulse ring */}
-          <Layer
-            id="user-dot-pulse"
-            type="circle"
-            paint={{
-              'circle-radius': 20,
-              'circle-color': '#4A90D9',
-              'circle-opacity': 0.15,
-            }}
-          />
-          {/* Solid dot */}
-          <Layer
-            id="user-dot"
-            type="circle"
-            paint={{
-              'circle-radius': 10,
-              'circle-color': '#4A90D9',
-              'circle-stroke-width': 3,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 1,
-            }}
-          />
-        </Source>
-
-        {/* ISSUE 3 FIX: Location POIs using circle layer (no custom images needed) */}
-        <Source id="locations-source" type="geojson" data={locationsGeoJSON}>
-          <Layer
-            id="locations-layer"
-            type="circle"
-            minzoom={10}
-            paint={{
-              'circle-radius': [
-                'interpolate', ['linear'], ['zoom'],
-                10, 5,
-                15, 10,
-              ],
-              'circle-color': [
-                'match', ['get', 'category'],
-                'food', CATEGORY_COLORS.food,
-                'outdoors', CATEGORY_COLORS.outdoors,
-                'nightlife', CATEGORY_COLORS.nightlife,
-                'fitness', CATEGORY_COLORS.fitness,
-                'culture', CATEGORY_COLORS.culture,
-                'gaming', CATEGORY_COLORS.gaming,
-                '#6C63FF',
-              ],
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 0.9,
-            }}
-          />
-        </Source>
+        {/* User Location Marker */}
+        {userLoc.lat !== null && userLoc.lng !== null && (
+          <Marker longitude={userLoc.lng} latitude={userLoc.lat} anchor="center">
+            <div className="relative flex items-center justify-center">
+              {/* Pulse ring */}
+              <motion.div 
+                animate={{ scale: [1, 2], opacity: [0.3, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                className="absolute w-12 h-12 bg-blue-500 rounded-full"
+              />
+              {/* Avatar / Person Icon */}
+              <div className="w-10 h-10 bg-white rounded-full p-0.5 shadow-lg relative z-10 border-2 border-blue-500">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="You" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {profile?.display_name?.[0]?.toUpperCase() || profile?.username?.[0]?.toUpperCase() || 'You'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Marker>
+        )}
 
         {/* Quests */}
         <Source id="quests-source" type="geojson" data={questsGeoJSON}>
@@ -546,7 +431,7 @@ export function MapPage() {
       />
 
       {/* Empty state */}
-      {quests.length === 0 && locations.length === 0 && (
+      {quests.length === 0 && gems.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

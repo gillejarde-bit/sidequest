@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronLeft, Moon, Sun, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronLeft, Moon, Sun, Settings as SettingsIcon, MapPin } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { motion } from 'framer-motion'
 
 export function SettingsPage() {
-  const { theme, toggleTheme } = useSettingsStore()
+  const { theme, toggleTheme, shareLocation, toggleShareLocation } = useSettingsStore()
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -51,6 +51,33 @@ export function SettingsPage() {
                 layout
                 className="w-6 h-6 bg-white rounded-full shadow-md"
                 animate={{ x: theme === 'dark' ? 24 : 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Share Location</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Let friends see where you are</p>
+              </div>
+            </div>
+            
+            {/* iOS Style Toggle */}
+            <button 
+              onClick={toggleShareLocation}
+              className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ease-in-out ${shareLocation ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              <motion.div 
+                layout
+                className="w-6 h-6 bg-white rounded-full shadow-md"
+                animate={{ x: shareLocation ? 24 : 0 }}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
               />
             </button>
