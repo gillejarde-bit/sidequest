@@ -3,6 +3,7 @@ import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent } fro
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
+import { useSettingsStore } from '../stores/settingsStore'
 import { supabase } from '../lib/supabase'
 
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -78,6 +79,10 @@ export function MapPage() {
   const [mapLoaded, setMapLoaded] = useState(false)
 
   const { activeFilters } = useMapStore()
+  const { theme } = useSettingsStore()
+
+  // Track if map style is ready to accept config properties
+  const [styleLoaded, setStyleLoaded] = useState(false)
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -340,26 +345,28 @@ export function MapPage() {
           latitude: 36.1699,
           zoom: 12,
         }}
-        mapStyle="mapbox://styles/mapbox/light-v11"
+        mapStyle="mapbox://styles/mapbox/standard"
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
-        onLoad={(e) => {
+        onLoad={() => {
           setMapLoaded(true)
-          const map = e.target
-          // Hide Mapbox default POIs
-          const style = map.getStyle()
-          if (style && style.layers) {
-            style.layers.forEach((layer) => {
-              if (
-                layer.id.includes('poi') || 
-                layer.id.includes('place') || 
-                layer.id.includes('transit-label')
-              ) {
-                map.setLayoutProperty(layer.id, 'visibility', 'none')
-              }
-            })
+        }}
+        onStyleData={() => {
+          const map = mapRef.current?.getMap()
+          if (map && map.isStyleLoaded() && !styleLoaded) {
+            setStyleLoaded(true)
+          }
+          if (map && map.isStyleLoaded()) {
+            try {
+              map.setConfigProperty('basemap', 'theme', 'monochrome')
+              map.setConfigProperty('basemap', 'lightPreset', theme === 'dark' ? 'night' : 'dawn')
+              map.setConfigProperty('basemap', 'showPointOfInterestLabels', false)
+              map.setConfigProperty('basemap', 'showPlaceLabels', false)
+            } catch (err) {
+              console.log('Mapbox Standard config not fully available yet', err)
+            }
           }
         }}
         onMouseEnter={handleMapMouseEnter}

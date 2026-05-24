@@ -5,7 +5,7 @@ import { Onboarding } from './onboarding'
 import { FriendsPage } from './friends'
 import { QuestsPage } from './quests'
 import { supabase } from '../lib/supabase'
-import { Map as MapIcon, Users, User, Swords, Plus } from 'lucide-react'
+import { Map as MapIcon, Users, User, Swords, Plus, Settings as SettingsIcon } from 'lucide-react'
 import { usePendingRequests } from '../hooks/useFriends'
 
 function BottomNav() {
@@ -42,6 +42,9 @@ function BottomNav() {
       </Link>
       <Link to="/profile/$id" params={{ id: user.id }} className={`flex flex-col items-center gap-1 transition-colors ${pathname.startsWith('/profile') ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
         <User className="w-6 h-6" />
+      </Link>
+      <Link to="/settings" className={`flex flex-col items-center gap-1 transition-colors ${pathname === '/settings' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+        <SettingsIcon className="w-6 h-6" />
       </Link>
     </div>
   )
@@ -168,6 +171,14 @@ import { QuestDetail } from './quest/detail'
 import { GemsFeedPage } from './gems'
 import { GemNominationPage } from './gems/nominate'
 import { GemDetailPage } from './gems/$id'
+import { SettingsPage } from './settings'
+
+export const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  beforeLoad: requireAuth,
+  component: SettingsPage
+})
 
 export const questDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -210,6 +221,7 @@ export const routeTree = rootRoute.addChildren([
   gemsRoute,
   gemNominateRoute,
   gemDetailRoute,
+  settingsRoute,
 ])
 
 export const router = createRouter({ routeTree })
