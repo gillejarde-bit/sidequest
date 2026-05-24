@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -9,8 +9,8 @@ import { CheckInButton } from '../../components/quest/CheckInButton'
 import { QuestChat } from '../../components/quest/QuestChat'
 import { format, isToday } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import Map, { Marker } from 'react-map-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import { supabase } from '../../lib/supabase'
 
 const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
@@ -30,7 +30,6 @@ export function QuestDetail() {
   const { data, isLoading } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!data?.location?.osm_id) return
@@ -62,45 +61,6 @@ export function QuestDetail() {
     }
   }, [data?.location?.osm_id])
 
-  useEffect(() => {
-    if (!data?.location || !mapContainerRef.current) return
-
-    // Mini Map initialization
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: 'https://api.maptiler.com/maps/streets-v2/style.json?key=' + import.meta.env.VITE_MAPTILER_KEY, // Fallback if no mapbox
-      center: [data.location.lng, data.location.lat],
-      zoom: 15,
-      interactive: false
-    })
-
-    // If we have mapbox token, use Mapbox Light
-    if (import.meta.env.VITE_MAPBOX_TOKEN) {
-      map.setStyle(`https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`)
-      
-      map.on('style.load', () => {
-        // Strip out POIs for naked map
-        const style = map.getStyle()
-        if (style && style.layers) {
-          style.layers.forEach((layer) => {
-            if (layer.id.includes('poi') || layer.id.includes('place') || layer.id.includes('transit-label')) {
-              map.setLayoutProperty(layer.id, 'visibility', 'none')
-            }
-          })
-        }
-      })
-    }
-
-    const el = document.createElement('div')
-    el.className = 'w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg'
-    
-    new maplibregl.Marker(el)
-      .setLngLat([data.location.lng, data.location.lat])
-      .addTo(map)
-
-    return () => map.remove()
-  }, [data?.location])
-
   if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
   if (!data) return <div className="p-8 text-center">Quest not found</div>
 
@@ -125,11 +85,9 @@ export function QuestDetail() {
             className="w-full h-full object-cover"
           />
         ) : location ? (
-          <img 
-            src={`https://api.mapbox.com/styles/v1/mapbox/${theme === 'dark' ? 'dark-v11' : 'light-v11'}/static/pin-s+58CC02(${location.lng},${location.lat})/${location.lng},${location.lat},15,0/800x400?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`}
-            alt="Map"
-            className="w-full h-full object-cover"
-          />
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+            <span className="text-white/50 font-bold text-lg tracking-widest uppercase">Secret Location</span>
+          </div>
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 via-gray-50/20 dark:via-gray-900/20 to-transparent transition-colors duration-300" />
       </div>
@@ -258,7 +216,29 @@ export function QuestDetail() {
         {/* 5. MINI MAP */}
         <div className="space-y-3">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
-            <div ref={mapContainerRef} className="w-full h-[180px]" />
+            <div className="w-full h-[180px] pointer-events-none">
+              <Map
+                initialViewState={{
+                  longitude: location.lng,
+                  latitude: location.lat,
+                  zoom: 15
+                }}
+                mapStyle={theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
+                mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                interactive={false}
+                onLoad={(e) => {
+                  const map = e.target;
+                  try {
+                    map.setLayoutProperty('poi-label', 'visibility', 'none');
+                    map.setLayoutProperty('transit-label', 'visibility', 'none');
+                  } catch (err) {}
+                }}
+              >
+                <Marker longitude={location.lng} latitude={location.lat}>
+                  <div className="w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg" />
+                </Marker>
+              </Map>
+            </div>
             <a 
               href={`https://maps.google.com/?q=${location.lat},${location.lng}`} 
               target="_blank" 
@@ -281,7 +261,7 @@ export function QuestDetail() {
         {is_creator && (
           <div className="space-y-3 pb-8">
             <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider ml-2">Danger Zone</h3>
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-red-100 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden transition-colors">
               <AnimatePresence mode="wait">
                 {!showDeleteConfirm ? (
                   <motion.button
@@ -290,7 +270,7 @@ export function QuestDetail() {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors"
+                    className="w-full py-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
                   >
                     Delete Quest
                   </motion.button>
@@ -302,13 +282,13 @@ export function QuestDetail() {
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-3"
                   >
-                    <p className="text-sm text-red-600 font-bold text-center">
+                    <p className="text-sm text-red-600 dark:text-red-400 font-bold text-center">
                       Are you absolutely sure? This cannot be undone.
                     </p>
                     <div className="flex gap-3">
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                        className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         Cancel
                       </button>
