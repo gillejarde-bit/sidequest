@@ -167,21 +167,7 @@ export function MapPage() {
     return () => cancelAnimationFrame(animationId);
   }, [mapLoaded]);
 
-  // ── MAPBOX CONFIGURATION SYNC ─────────────────────────────────────────────
-  
-  useEffect(() => {
-    const map = mapRef.current?.getMap()
-    if (map && mapLoaded && styleLoaded && map.isStyleLoaded()) {
-      try {
-        map.setConfigProperty('basemap', 'theme', 'monochrome')
-        map.setConfigProperty('basemap', 'lightPreset', theme === 'dark' ? 'night' : 'dawn')
-        map.setConfigProperty('basemap', 'showPointOfInterestLabels', false)
-        map.setConfigProperty('basemap', 'showPlaceLabels', false)
-      } catch (err) {
-        console.log('Mapbox Standard config not fully available yet', err)
-      }
-    }
-  }, [theme, mapLoaded, styleLoaded])
+
 
   // ── GeoJSON Sources ────────────────────────────────────────────────────────
 
@@ -360,8 +346,9 @@ export function MapPage() {
           longitude: -115.1398,
           latitude: 36.1699,
           zoom: 12,
+          pitch: 60, // Added pitch for 3D buildings
         }}
-        mapStyle="mapbox://styles/mapbox/standard"
+        mapStyle={theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={true}
         style={{ width: '100%', height: '100%' }}
@@ -380,6 +367,22 @@ export function MapPage() {
         interactiveLayerIds={['locations-layer', 'quests-layer', 'gems-layer']}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
+
+        {/* 3D Buildings */}
+        <Layer
+          id="3d-buildings"
+          source="composite"
+          source-layer="building"
+          filter={['==', 'extrude', 'true']}
+          type="fill-extrusion"
+          minzoom={15}
+          paint={{
+            'fill-extrusion-color': theme === 'dark' ? '#1f2937' : '#f3f4f6',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 0.8
+          }}
+        />
 
         {/* ISSUE 2 FIX: Custom blue user dot */}
         <Source id="user-location" type="geojson" data={userGeoJSON}>
