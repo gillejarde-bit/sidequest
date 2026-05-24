@@ -66,7 +66,7 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
           ref={inputRef}
           type="text"
           placeholder="Search for a location..."
-          className="w-full bg-[#1A1A2E]/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl py-3 pl-12 pr-4 text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-gray-500"
+          className="w-full bg-white/90 dark:bg-[#1A1A2E]/90 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-2xl py-3 pl-12 pr-4 text-gray-900 dark:text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
         />
         <div className="absolute left-4 text-gray-400">
           {!isReady ? (

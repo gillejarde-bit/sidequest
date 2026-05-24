@@ -167,6 +167,22 @@ export function MapPage() {
     return () => cancelAnimationFrame(animationId);
   }, [mapLoaded]);
 
+  // ── MAPBOX CONFIGURATION SYNC ─────────────────────────────────────────────
+  
+  useEffect(() => {
+    const map = mapRef.current?.getMap()
+    if (map && mapLoaded && styleLoaded && map.isStyleLoaded()) {
+      try {
+        map.setConfigProperty('basemap', 'theme', 'monochrome')
+        map.setConfigProperty('basemap', 'lightPreset', theme === 'dark' ? 'night' : 'dawn')
+        map.setConfigProperty('basemap', 'showPointOfInterestLabels', false)
+        map.setConfigProperty('basemap', 'showPlaceLabels', false)
+      } catch (err) {
+        console.log('Mapbox Standard config not fully available yet', err)
+      }
+    }
+  }, [theme, mapLoaded, styleLoaded])
+
   // ── GeoJSON Sources ────────────────────────────────────────────────────────
 
   const userGeoJSON = useMemo(() => ({
@@ -358,16 +374,6 @@ export function MapPage() {
           if (map && map.isStyleLoaded() && !styleLoaded) {
             setStyleLoaded(true)
           }
-          if (map && map.isStyleLoaded()) {
-            try {
-              map.setConfigProperty('basemap', 'theme', 'monochrome')
-              map.setConfigProperty('basemap', 'lightPreset', theme === 'dark' ? 'night' : 'dawn')
-              map.setConfigProperty('basemap', 'showPointOfInterestLabels', false)
-              map.setConfigProperty('basemap', 'showPlaceLabels', false)
-            } catch (err) {
-              console.log('Mapbox Standard config not fully available yet', err)
-            }
-          }
         }}
         onMouseEnter={handleMapMouseEnter}
         onMouseLeave={handleMapMouseLeave}
@@ -524,9 +530,9 @@ export function MapPage() {
           transition={{ delay: 1.5 }}
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center z-0"
         >
-          <div className="bg-dark/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-gray-800 shadow-xl">
-            <h3 className="text-white font-bold text-lg">No quests nearby... yet.</h3>
-            <p className="text-gray-400 text-sm mt-1">Be the first to start an adventure 🧭</p>
+          <div className="bg-white/90 dark:bg-[#1A1A2E]/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl">
+            <h3 className="text-gray-900 dark:text-white font-bold text-lg">No quests nearby... yet.</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Be the first to start an adventure 🧭</p>
           </div>
         </motion.div>
       )}

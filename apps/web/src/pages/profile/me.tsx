@@ -6,7 +6,8 @@ import { useXP } from '../../hooks/useXP';
 import { XPBar } from '../../components/xp/XPBar';
 import { BadgeGrid } from '../../components/xp/BadgeGrid';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy } from 'lucide-react';
+import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
 
 const PRESET_COLORS = ['#6C63FF', '#58CC02', '#FF6B6B', '#FFD93D', '#3498DB', '#E67E22'];
@@ -144,6 +145,12 @@ export function MeProfile() {
           >
             <Edit2 size={20} />
           </button>
+          <Link 
+            to="/settings"
+            className="p-2 rounded-full bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm transition-colors"
+          >
+            <SettingsIcon size={20} />
+          </Link>
         </div>
 
         <div className="relative">

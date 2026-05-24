@@ -21,7 +21,7 @@ export function FilterBar() {
               className={`relative isolate px-4 py-2 rounded-full text-sm font-semibold transition-colors shadow-sm backdrop-blur-md overflow-hidden ${
                 isActive 
                   ? 'text-white border-transparent' 
-                  : 'bg-dark/80 text-gray-300 border-gray-700 hover:bg-dark border'
+                  : 'bg-white/90 dark:bg-[#1A1A2E]/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#1A1A2E] border'
               }`}
             >
               {isActive && (
