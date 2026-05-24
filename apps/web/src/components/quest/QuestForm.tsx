@@ -53,6 +53,7 @@ export function QuestForm() {
     const lng = params.get('lng')
     const queryName = params.get('name')
     const queryCategory = params.get('category')
+    const queryPlaceId = params.get('place_id')
 
     if (queryName) {
       setName(queryName)
@@ -67,7 +68,7 @@ export function QuestForm() {
         address: queryName,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
-        place_id: 'pre-selected'
+        place_id: queryPlaceId || ''
       })
       if (inputRef.current) inputRef.current.value = queryName
     }

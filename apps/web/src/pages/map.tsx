@@ -364,11 +364,22 @@ export function MapPage() {
         onClick={handleMapClick}
         onLoad={() => {
           setMapLoaded(true)
+          const map = mapRef.current?.getMap()
+          if (map) {
+            try {
+              map.setLayoutProperty('poi-label', 'visibility', 'none')
+              map.setLayoutProperty('transit-label', 'visibility', 'none')
+            } catch(e) {}
+          }
         }}
         onStyleData={() => {
           const map = mapRef.current?.getMap()
           if (map && map.isStyleLoaded() && !styleLoaded) {
             setStyleLoaded(true)
+            try {
+              map.setLayoutProperty('poi-label', 'visibility', 'none')
+              map.setLayoutProperty('transit-label', 'visibility', 'none')
+            } catch(e) {}
           }
         }}
         onMouseEnter={handleMapMouseEnter}
@@ -574,6 +585,7 @@ export function MapPage() {
                 lng: selectedLocation.lng,
                 name: selectedLocation.name,
                 category: selectedLocation.category,
+                place_id: selectedLocation.id, // we saved place_id in selectedLocation.id for search results
               } as any,
             })
           } else if (selectedQuest) {

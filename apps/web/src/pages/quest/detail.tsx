@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
 import { RSVPButton } from '../../components/quest/RSVPButton'
 import { CheckInButton } from '../../components/quest/CheckInButton'
@@ -25,6 +26,7 @@ const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
 export function QuestDetail() {
   const { id } = useParams({ from: '/quest/$id' })
   const { } = useAuthStore()
+  const { theme } = useSettingsStore()
   const { data, isLoading } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
@@ -109,11 +111,11 @@ export function QuestDetail() {
   const showCheckIn = isParticipant && !user_attended && isToday(new Date(quest.starts_at))
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-[100px]">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-[100px] transition-colors duration-300">
       {/* 1. HERO IMAGE (Google Places Photo or Mapbox Fallback) */}
-      <div className="relative h-[200px] w-full bg-gray-200 overflow-hidden">
-        <button onClick={() => window.history.back()} className="absolute top-safe-4 left-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">
-          <ChevronLeft className="w-6 h-6 text-gray-900 pr-1" />
+      <div className="relative h-[200px] w-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+        <button onClick={() => window.history.back()} className="absolute top-safe-4 left-4 z-10 w-10 h-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-colors">
+          <ChevronLeft className="w-6 h-6 text-gray-900 dark:text-white pr-1" />
         </button>
         
         {placeDetails?.photos?.[0] ? (
@@ -124,18 +126,18 @@ export function QuestDetail() {
           />
         ) : location ? (
           <img 
-            src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s+58CC02(${location.lng},${location.lat})/${location.lng},${location.lat},15,0/800x400?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`}
+            src={`https://api.mapbox.com/styles/v1/mapbox/${theme === 'dark' ? 'dark-v11' : 'light-v11'}/static/pin-s+58CC02(${location.lng},${location.lat})/${location.lng},${location.lat},15,0/800x400?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`}
             alt="Map"
             className="w-full h-full object-cover"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-gray-50/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 via-gray-50/20 dark:via-gray-900/20 to-transparent transition-colors duration-300" />
       </div>
 
       {/* 2. QUEST INFO */}
       <div className="px-6 -mt-6 relative z-10 space-y-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 leading-tight mb-3">{quest.name}</h1>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white leading-tight mb-3">{quest.name}</h1>
           <div className="flex flex-wrap gap-2 mb-6">
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colors.bg} ${colors.text}`}>
               {quest.category}
@@ -154,35 +156,35 @@ export function QuestDetail() {
             )}
           </div>
 
-          <div className="space-y-4 bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+          <div className="space-y-4 bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <a href={`https://maps.google.com/?q=${location.lat},${location.lng}`} target="_blank" rel="noreferrer" className="flex items-start gap-3 hover:opacity-70 active:scale-95 transition-all">
-              <div className="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
                 <MapPin className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-bold text-gray-900">{location.name}</p>
-                <p className="text-sm text-gray-500 line-clamp-1">Tap for directions</p>
+                <p className="font-bold text-gray-900 dark:text-white">{location.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">Tap for directions</p>
               </div>
             </a>
 
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-bold text-gray-900">{format(new Date(quest.starts_at), "EEEE, MMMM d")}</p>
-                <p className="text-sm text-gray-500">{format(new Date(quest.starts_at), "h:mm a")}</p>
+                <p className="font-bold text-gray-900 dark:text-white">{format(new Date(quest.starts_at), "EEEE, MMMM d")}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{format(new Date(quest.starts_at), "h:mm a")}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div className="flex-1 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-gray-900">{data.attendee_count} attending</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-bold text-gray-900 dark:text-white">{data.attendee_count} attending</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {quest.max_party_size ? `Max party size: ${quest.max_party_size}` : 'Unlimited party size'}
                   </p>
                 </div>
@@ -192,21 +194,21 @@ export function QuestDetail() {
         </div>
 
         {quest.description && (
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{quest.description}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{quest.description}</p>
           </div>
         )}
 
         {/* 3. CREATOR */}
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider ml-2">Organized by</h3>
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <Link to="/profile/$id" params={{ id: creator.id }} className="block p-4 active:bg-gray-50">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
+            <Link to="/profile/$id" params={{ id: creator.id }} className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
               <div className="flex items-center gap-3">
-                <img src={creator.avatar_url || ''} alt="" className="w-12 h-12 rounded-full object-cover bg-gray-100" />
+                <img src={creator.avatar_url || ''} alt="" className="w-12 h-12 rounded-full object-cover bg-gray-100 dark:bg-gray-700" />
                 <div>
-                  <h4 className="font-bold text-gray-900">{creator.display_name || creator.username}</h4>
-                  <p className="text-sm text-gray-500">Level {creator.level || 1} Host</p>
+                  <h4 className="font-bold text-gray-900 dark:text-white">{creator.display_name || creator.username}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Level {creator.level || 1} Host</p>
                 </div>
               </div>
             </Link>
@@ -217,10 +219,10 @@ export function QuestDetail() {
         <div className="space-y-3">
           <div className="flex justify-between items-end ml-2">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">The Party</h3>
-            <span className="text-xs font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{data.attendee_count} going</span>
+            <span className="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{data.attendee_count} going</span>
           </div>
           
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
               {attendees && attendees.map((att: any, i: number) => (
                 <motion.div 
@@ -231,22 +233,22 @@ export function QuestDetail() {
                   className="snap-start shrink-0 text-center w-16"
                 >
                   <Link to="/profile/$id" params={{ id: att.user_id }}>
-                    <div className="w-14 h-14 mx-auto bg-gray-100 rounded-full mb-1 overflow-hidden">
+                    <div className="w-14 h-14 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full mb-1 overflow-hidden">
                       {att.avatar_url ? (
                         <img src={att.avatar_url} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">
+                        <div className="w-full h-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">
                           {att.username[0].toUpperCase()}
                         </div>
                       )}
                     </div>
-                    <p className="text-[10px] font-medium text-gray-600 truncate">{att.display_name || att.username}</p>
+                    <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate">{att.display_name || att.username}</p>
                   </Link>
                 </motion.div>
               ))}
             </div>
             {is_creator && data.invited && data.invited.length > data.attendee_count && (
-              <div className="mt-3 text-xs text-center text-gray-400 font-medium border-t border-gray-100 pt-3">
+              <div className="mt-3 text-xs text-center text-gray-400 dark:text-gray-500 font-medium border-t border-gray-100 dark:border-gray-700 pt-3">
                 + {data.invited.length - data.attendee_count} pending invites
               </div>
             )}
@@ -255,13 +257,13 @@ export function QuestDetail() {
 
         {/* 5. MINI MAP */}
         <div className="space-y-3">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
             <div ref={mapContainerRef} className="w-full h-[180px]" />
             <a 
               href={`https://maps.google.com/?q=${location.lat},${location.lng}`} 
               target="_blank" 
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-4 bg-white text-primary font-bold active:bg-gray-50 border-t border-gray-100"
+              className="flex items-center justify-center gap-2 w-full py-4 bg-white dark:bg-gray-800 text-primary font-bold hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700 transition-colors"
             >
               <Navigation className="w-4 h-4" />
               Get Directions
@@ -330,7 +332,7 @@ export function QuestDetail() {
       </div>
 
       {/* BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3 transition-colors">
         {showCheckIn && (
           <CheckInButton 
             questId={quest.id} 
