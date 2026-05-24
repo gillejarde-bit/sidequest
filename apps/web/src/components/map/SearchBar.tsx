@@ -16,6 +16,7 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<any>(null)
   const [isReady, setIsReady] = useState(false)
+  const [hasSearch, setHasSearch] = useState(false)
 
   useEffect(() => {
     // Check if script is already loaded
@@ -46,7 +47,7 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
     setIsReady(true)
 
     autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
-      fields: ['geometry', 'name'],
+      fields: ['geometry', 'name', 'formatted_address', 'rating', 'user_ratings_total', 'website', 'photos', 'types', 'place_id'],
     })
 
     autocompleteRef.current.addListener('place_changed', () => {
@@ -54,9 +55,18 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
       if (place.geometry?.location) {
         const lat = place.geometry.location.lat()
         const lng = place.geometry.location.lng()
-        onLocationSelect(lat, lng)
+        setHasSearch(true)
+        onLocationSelect(lat, lng, place)
       }
     })
+  }
+
+  const handleClear = () => {
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
+    setHasSearch(false)
+    onLocationSelect(0, 0, null) // Signify clear
   }
 
   return (
@@ -75,6 +85,14 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
             <Search className="h-5 w-5" />
           )}
         </div>
+        {hasSearch && (
+          <button 
+            onClick={handleClear}
+            className="absolute right-4 p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        )}
       </div>
     </div>
   )

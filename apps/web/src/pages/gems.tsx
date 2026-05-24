@@ -18,23 +18,23 @@ export function GemsFeedPage() {
   )
 
   return (
-    <div className="min-h-screen bg-black pb-20 pt-16">
-      <div className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/80 px-4 py-3 backdrop-blur-xl">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-20 pt-16">
+      <div className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200 dark:border-white/10 bg-white/80 dark:bg-gray-900/80 px-4 py-3 backdrop-blur-xl transition-colors duration-300">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Compass className="h-6 w-6 text-indigo-500" />
             Hidden Gems
           </h1>
           <div className="flex items-center gap-2">
             <Link
               to="/gems/nominate"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white transition-colors hover:bg-gray-200 dark:hover:bg-white/20"
             >
               <Plus className="h-5 w-5" />
             </Link>
             <Link
               to="/map"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white transition-colors hover:bg-gray-200 dark:hover:bg-white/20"
             >
               <Map className="h-5 w-5" />
             </Link>
@@ -45,7 +45,7 @@ export function GemsFeedPage() {
           <button
             onClick={() => setActiveTab('nearby')}
             className={`relative pb-2 text-sm font-medium transition-colors ${
-              activeTab === 'nearby' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              activeTab === 'nearby' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             Nearby Gems
@@ -59,7 +59,7 @@ export function GemsFeedPage() {
           <button
             onClick={() => setActiveTab('pending')}
             className={`relative pb-2 text-sm font-medium transition-colors ${
-              activeTab === 'pending' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              activeTab === 'pending' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             Pending Nominations
@@ -77,16 +77,16 @@ export function GemsFeedPage() {
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 animate-pulse rounded-2xl bg-white/5" />
+              <div key={i} className="h-64 animate-pulse rounded-2xl bg-gray-200 dark:bg-white/5" />
             ))}
           </div>
         ) : !gems || gems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="mb-4 rounded-full bg-white/5 p-4 text-indigo-500">
+            <div className="mb-4 rounded-full bg-gray-100 dark:bg-white/5 p-4 text-indigo-500">
               <Compass className="h-8 w-8" />
             </div>
-            <h3 className="mb-2 text-lg font-medium text-white">No gems found</h3>
-            <p className="text-gray-400">
+            <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">No gems found</h3>
+            <p className="text-gray-500 dark:text-gray-400">
               {activeTab === 'nearby' 
                 ? "There are no approved gems near you yet. Be the first to nominate one!"
                 : "There are no pending nominations to vote on right now."}

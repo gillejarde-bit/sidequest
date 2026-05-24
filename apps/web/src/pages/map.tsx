@@ -43,6 +43,7 @@ interface SelectedLocation {
   description?: string
   lat: number
   lng: number
+  placeDetails?: any // Google Place object
 }
 
 // ─── Category Colors ──────────────────────────────────────────────────────────
@@ -324,13 +325,21 @@ export function MapPage() {
       <FilterBar />
       <SearchBar 
         onLocationSelect={(lat, lng, place) => {
+          if (!place) {
+            setSearchResultPin(null)
+            if (selectedLocation?.id === 'search-result' || selectedLocation?.category === 'Search Result') {
+              setSelectedLocation(null)
+            }
+            return
+          }
           setSearchResultPin({ lat, lng, place })
           setSelectedLocation({
             id: place?.place_id || 'search-result',
             name: place?.name || place?.formatted_address?.split(',')[0] || 'Selected Location',
             category: 'Search Result',
             lat,
-            lng
+            lng,
+            placeDetails: place
           })
           mapRef.current?.flyTo({
             center: [lng, lat],
@@ -550,6 +559,11 @@ export function MapPage() {
           setSelectedLocation(null)
           setSelectedQuest(null)
           setSelectedGem(null)
+          // Also clear the search pin if they dismiss the bottom sheet,
+          // so it doesn't leave a dead pin on the map.
+          if (searchResultPin) {
+            setSearchResultPin(null)
+          }
         }}
         onAction={() => {
           if (selectedLocation) {

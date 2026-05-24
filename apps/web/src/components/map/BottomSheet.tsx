@@ -42,13 +42,34 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
 
           {mode === 'location' ? (
             <div className="space-y-4">
+              {data.placeDetails?.photos?.[0] && (
+                <div className="w-full h-48 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+                  <img 
+                    src={data.placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })} 
+                    alt={data.name} 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
+              )}
               <div className="flex items-start justify-between pr-8">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.name}</h2>
-                  <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                    <MapPin size={16} />
-                    {data.category || 'Point of Interest'}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={16} />
+                      {data.placeDetails?.types?.[0] 
+                        ? data.placeDetails.types[0].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) 
+                        : data.category || 'Point of Interest'}
+                    </span>
+                    
+                    {data.placeDetails?.rating && (
+                      <span className="flex items-center gap-1 text-yellow-500 font-medium">
+                        <Star size={16} className="fill-current" />
+                        {data.placeDetails.rating} ({data.placeDetails.user_ratings_total})
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -56,6 +77,17 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                 <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
                   {data.description}
                 </p>
+              )}
+
+              {data.placeDetails?.website && (
+                <a 
+                  href={data.placeDetails.website} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="inline-block mt-2 text-primary hover:underline text-sm font-medium"
+                >
+                  Visit Website ↗
+                </a>
               )}
 
               <button 
