@@ -210,12 +210,12 @@ export function QuestForm() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="space-y-6 bg-white/50 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl"
+        className="space-y-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md rounded-3xl p-6 border border-white/20 dark:border-gray-700/50 shadow-xl transition-colors duration-300"
       >
         
         {/* Name */}
         <motion.div variants={item} className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-purple-500" /> Quest Title
           </label>
           <input
@@ -223,14 +223,14 @@ export function QuestForm() {
             placeholder="e.g. Midnight Ramen Run"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-white/80 border-0 rounded-2xl p-4 text-lg font-medium text-gray-900 shadow-sm focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
+            className="w-full bg-white/80 dark:bg-gray-900/80 border-0 rounded-2xl p-4 text-lg font-medium text-gray-900 dark:text-white shadow-sm focus:ring-2 focus:ring-purple-500 placeholder-gray-400 dark:placeholder-gray-500 transition-colors duration-300"
             required
           />
         </motion.div>
 
         {/* Location Picker */}
         <motion.div variants={item} className="space-y-2 relative">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
             <MapPin className="w-4 h-4 text-red-500" /> Location
           </label>
           <div className="relative">
@@ -239,7 +239,7 @@ export function QuestForm() {
               type="text"
               placeholder="Search places with Google..."
               onChange={() => setSelectedLocation(null)}
-              className="w-full bg-white/80 border-0 rounded-2xl p-4 pl-12 text-gray-900 shadow-sm focus:ring-2 focus:ring-red-500"
+              className="w-full bg-white/80 dark:bg-gray-900/80 border-0 rounded-2xl p-4 pl-12 text-gray-900 dark:text-white shadow-sm focus:ring-2 focus:ring-red-500 transition-colors duration-300"
             />
             <Search className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
           </div>
@@ -247,21 +247,21 @@ export function QuestForm() {
 
         {/* Date + Time */}
         <motion.div variants={item} className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" /> Date & Time
           </label>
           <input
             type="datetime-local"
             value={startsAt}
             onChange={e => setStartsAt(e.target.value)}
-            className="w-full bg-white/80 border-0 rounded-2xl p-4 text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-white/80 dark:bg-gray-900/80 border-0 rounded-2xl p-4 text-gray-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
             required
           />
         </motion.div>
 
         {/* Category */}
         <motion.div variants={item} className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Category</label>
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Category</label>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map(cat => (
               <button
@@ -270,8 +270,8 @@ export function QuestForm() {
                 onClick={() => setCategory(cat)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
                   category === cat 
-                    ? 'bg-gray-900 text-white shadow-md' 
-                    : 'bg-white/60 text-gray-600 hover:bg-white'
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md' 
+                    : 'bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
                 }`}
               >
                 {cat}
@@ -282,7 +282,7 @@ export function QuestForm() {
 
         {/* Vibe */}
         <motion.div variants={item} className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Vibe</label>
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Vibe</label>
           <div className="flex flex-wrap gap-2">
             {VIBES.map(v => (
               <button
@@ -292,7 +292,7 @@ export function QuestForm() {
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
                   vibe === v 
                     ? 'bg-gradient-to-r from-pink-500 to-orange-400 text-white shadow-md' 
-                    : 'bg-white/60 text-gray-600 hover:bg-white'
+                    : 'bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
                 }`}
               >
                 {v}
@@ -304,17 +304,17 @@ export function QuestForm() {
         {/* Cost & Party Size Row */}
         <motion.div variants={item} className="grid grid-cols-2 gap-4">
           <div className="space-y-3">
-            <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+            <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-green-500" /> Cost Tier
             </label>
-            <div className="flex bg-white/60 rounded-2xl p-1 shadow-inner">
+            <div className="flex bg-white/60 dark:bg-gray-900/60 rounded-2xl p-1 shadow-inner transition-colors duration-300">
               {COST_TIERS.map(tier => (
                 <button
                   key={tier.value}
                   type="button"
                   onClick={() => setCostTier(tier.value)}
                   className={`flex-1 py-2 text-sm font-bold rounded-xl transition-colors ${
-                    costTier === tier.value ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                    costTier === tier.value ? 'bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {tier.label}
@@ -324,21 +324,21 @@ export function QuestForm() {
           </div>
           
           <div className="space-y-3">
-            <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+            <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
               <Users className="w-4 h-4 text-indigo-500" /> Party Size
             </label>
-            <div className="flex items-center justify-between bg-white/60 rounded-2xl p-2 shadow-inner">
-              <button type="button" onClick={() => setMaxPartySize(Math.max(2, maxPartySize - 1))} className="w-8 h-8 rounded-xl bg-white shadow-sm font-bold text-gray-600">-</button>
-              <span className="font-bold text-lg text-gray-900">{maxPartySize}</span>
-              <button type="button" onClick={() => setMaxPartySize(Math.min(20, maxPartySize + 1))} className="w-8 h-8 rounded-xl bg-white shadow-sm font-bold text-gray-600">+</button>
+            <div className="flex items-center justify-between bg-white/60 dark:bg-gray-900/60 rounded-2xl p-2 shadow-inner transition-colors duration-300">
+              <button type="button" onClick={() => setMaxPartySize(Math.max(2, maxPartySize - 1))} className="w-8 h-8 rounded-xl bg-white dark:bg-gray-800 shadow-sm font-bold text-gray-600 dark:text-gray-300 transition-colors">-</button>
+              <span className="font-bold text-lg text-gray-900 dark:text-white transition-colors">{maxPartySize}</span>
+              <button type="button" onClick={() => setMaxPartySize(Math.min(20, maxPartySize + 1))} className="w-8 h-8 rounded-xl bg-white dark:bg-gray-800 shadow-sm font-bold text-gray-600 dark:text-gray-300 transition-colors">+</button>
             </div>
           </div>
         </motion.div>
 
         {/* Privacy */}
         <motion.div variants={item} className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Privacy</label>
-          <div className="flex bg-white/60 rounded-2xl p-1 shadow-inner">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Privacy</label>
+          <div className="flex bg-white/60 dark:bg-gray-900/60 rounded-2xl p-1 shadow-inner transition-colors duration-300">
             {PRIVACY_OPTIONS.map(opt => {
               const Icon = opt.icon
               return (
@@ -347,7 +347,7 @@ export function QuestForm() {
                   type="button"
                   onClick={() => setPrivacy(opt.value)}
                   className={`flex-1 flex flex-col items-center gap-1 py-3 text-sm font-medium rounded-xl transition-all ${
-                    privacy === opt.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                    privacy === opt.value ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -360,12 +360,12 @@ export function QuestForm() {
 
         {/* Invite Friends */}
         <motion.div variants={item} className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-emerald-500" /> Invite Squad
           </label>
           
           {!friends || friends.length === 0 ? (
-            <div className="bg-white/60 p-4 rounded-2xl border border-dashed border-gray-300 text-center text-sm text-gray-500">
+            <div className="bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
               You don't have any friends yet! Head over to the Social tab to find your squad.
             </div>
           ) : (
@@ -379,18 +379,18 @@ export function QuestForm() {
                     onClick={() => toggleFriend(friend.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${
                       isSelected 
-                        ? 'border-emerald-500 bg-emerald-50' 
-                        : 'border-transparent bg-white/60 hover:bg-white'
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/20' 
+                        : 'border-transparent bg-white/60 dark:bg-gray-900/60 hover:bg-white dark:hover:bg-gray-800'
                     }`}
                   >
                     {friend.avatar_url ? (
                       <img src={friend.avatar_url} alt={friend.username} className="w-6 h-6 rounded-full object-cover" />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400">
                         {(friend.display_name?.[0] || friend.username[0]).toUpperCase()}
                       </div>
                     )}
-                    <span className={`text-sm font-medium ${isSelected ? 'text-emerald-700' : 'text-gray-700'}`}>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
                       {friend.display_name || friend.username}
                     </span>
                   </button>
@@ -402,13 +402,13 @@ export function QuestForm() {
 
         {/* Description */}
         <motion.div variants={item} className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Details (Optional)</label>
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Details (Optional)</label>
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
             rows={3}
             placeholder="What's the plan?"
-            className="w-full bg-white/80 border-0 rounded-2xl p-4 text-gray-900 shadow-sm focus:ring-2 focus:ring-purple-500 resize-none"
+            className="w-full bg-white/80 dark:bg-gray-900/80 border-0 rounded-2xl p-4 text-gray-900 dark:text-white shadow-sm focus:ring-2 focus:ring-purple-500 placeholder-gray-400 dark:placeholder-gray-500 resize-none transition-colors duration-300"
           />
         </motion.div>
 
@@ -422,10 +422,10 @@ export function QuestForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold text-lg py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+        className="w-full bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 font-bold text-lg py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {loading ? (
-          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-white/30 dark:border-gray-900/30 border-t-white dark:border-t-gray-900 rounded-full animate-spin" />
         ) : (
           <>Create Quest <Sparkles className="w-5 h-5" /></>
         )}

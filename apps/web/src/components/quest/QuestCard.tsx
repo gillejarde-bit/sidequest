@@ -29,40 +29,40 @@ export function QuestCard({ quest }: QuestCardProps) {
 
   return (
     <Link to="/quest/$id" params={{ id: quest.id }} className="block">
-      <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 ${colors.border} border-l-[4px] hover:shadow-md transition-shadow`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 ${colors.border} border-l-[4px] hover:shadow-md transition-all duration-300`}>
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg text-gray-900 line-clamp-1 pr-4">{quest.name}</h3>
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white line-clamp-1 pr-4 transition-colors">{quest.name}</h3>
           <div className="shrink-0">{statusBadge}</div>
         </div>
 
         <div className="space-y-1.5 mb-3">
-          <div className="flex items-center text-gray-500 text-sm">
-            <MapPin className="w-4 h-4 mr-1 text-gray-400 shrink-0" />
+          <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm transition-colors">
+            <MapPin className="w-4 h-4 mr-1 text-gray-400 dark:text-gray-500 shrink-0 transition-colors" />
             <span className="line-clamp-1">{quest.location_name}</span>
           </div>
-          <div className="text-gray-500 text-sm">
+          <div className="text-gray-500 dark:text-gray-400 text-sm transition-colors">
             {format(new Date(quest.starts_at), "EEEE, MMM d · h:mm a")}
           </div>
         </div>
 
         <div className="flex items-center justify-between mt-4">
           <div className="flex gap-2">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colors.bg} ${colors.text}`}>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colors.bg} ${colors.text} transition-colors`}>
               {quest.category}
             </span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors">
               {quest.vibe}
             </span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700">
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 transition-colors">
               {cost}
             </span>
           </div>
 
           <div className="flex items-center gap-1">
             {quest.creator_avatar && (
-              <img src={quest.creator_avatar} alt="host" className="w-6 h-6 rounded-full border-2 border-white -mr-2 relative z-10" />
+              <img src={quest.creator_avatar} alt="host" className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 -mr-2 relative z-10 transition-colors" />
             )}
-            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-500">
+            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border-2 border-white dark:border-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-500 dark:text-gray-400 transition-colors">
               +{quest.attendee_count || 0}
             </div>
           </div>

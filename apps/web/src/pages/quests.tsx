@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 
 type FilterStatus = 'planned' | 'active' | 'completed'
-type Tab = 'upcoming' | 'my_quests' | 'past'
+type Tab = 'upcoming' | 'invites' | 'my_quests' | 'past'
 
 export function QuestsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming')
@@ -28,6 +28,10 @@ export function QuestsPage() {
         return data.filter((q: any) => q.my_status === 'accepted' || q.my_status === 'creator')
       }
 
+      if (activeTab === 'invites') {
+        return data.filter((q: any) => q.my_status === 'pending')
+      }
+
       return data
     }
   })
@@ -39,9 +43,10 @@ export function QuestsPage() {
           <h1 className="text-2xl font-black text-gray-900 dark:text-white">Quests</h1>
         </div>
         
-        <div className="flex px-4 relative">
+        <div className="flex px-4 relative overflow-x-auto hide-scrollbar whitespace-nowrap">
           <TabButton active={activeTab === 'upcoming'} onClick={() => setActiveTab('upcoming')} label="Upcoming" />
-          <TabButton active={activeTab === 'my_quests'} onClick={() => setActiveTab('my_quests')} label="My Quests" />
+          <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')} label="Invites" />
+          <TabButton active={activeTab === 'my_quests'} onClick={() => setActiveTab('my_quests')} label="Mine" />
           <TabButton active={activeTab === 'past'} onClick={() => setActiveTab('past')} label="Past" />
         </div>
       </header>
@@ -55,10 +60,10 @@ export function QuestsPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-12 p-8">
             <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⚔️</div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              {activeTab === 'past' ? 'No completed quests yet' : 'No quests yet'}
+              {activeTab === 'past' ? 'No completed quests yet' : activeTab === 'invites' ? 'No pending invites' : 'No quests yet'}
             </h2>
             <p className="text-gray-500 dark:text-gray-400 mb-6">
-              {activeTab === 'past' ? 'Get out there and complete some quests!' : 'Create your first adventure and invite your squad.'}
+              {activeTab === 'past' ? 'Get out there and complete some quests!' : activeTab === 'invites' ? "You're all caught up!" : 'Create your first adventure and invite your squad.'}
             </p>
             <Link to="/quest/create" className="inline-flex items-center gap-2 bg-primary text-white font-bold py-3 px-8 rounded-full hover:bg-primary-hover active:scale-95 transition-all">
               <Plus className="w-5 h-5" />
