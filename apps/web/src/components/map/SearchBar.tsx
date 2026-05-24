@@ -9,7 +9,7 @@ declare global {
 }
 
 interface SearchBarProps {
-  onLocationSelect: (lat: number, lng: number) => void
+  onLocationSelect: (lat: number, lng: number, place?: any) => void
 }
 
 export function SearchBar({ onLocationSelect }: SearchBarProps) {

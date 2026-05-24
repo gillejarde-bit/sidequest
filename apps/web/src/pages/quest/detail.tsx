@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { MapPin, Calendar, ChevronLeft, Users, Navigation } from 'lucide-react'
+import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
 import { RSVPButton } from '../../components/quest/RSVPButton'
@@ -27,18 +27,67 @@ export function QuestDetail() {
   const { } = useAuthStore()
   const { data, isLoading } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [placeDetails, setPlaceDetails] = useState<any>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!data?.location) return
+    if (!data?.location?.osm_id) return
+
+    const initPlaces = () => {
+      if (window.google?.maps?.places) {
+        const service = new window.google.maps.places.PlacesService(document.createElement('div'))
+        service.getDetails({
+          placeId: data.location.osm_id,
+          fields: ['photos', 'rating', 'user_ratings_total']
+        }, (place: any, status: any) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+            setPlaceDetails(place)
+          }
+        })
+      }
+    }
+
+    if (window.google?.maps?.places) {
+      initPlaces()
+    } else {
+      const script = document.createElement('script')
+      const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`
+      script.async = true
+      script.defer = true
+      script.onload = () => initPlaces()
+      document.head.appendChild(script)
+    }
+  }, [data?.location?.osm_id])
+
+  useEffect(() => {
+    if (!data?.location || !mapContainerRef.current) return
 
     // Mini Map initialization
     const map = new maplibregl.Map({
-      container: 'quest-mini-map',
-      style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`,
+      container: mapContainerRef.current,
+      style: 'https://api.maptiler.com/maps/streets-v2/style.json?key=' + import.meta.env.VITE_MAPTILER_KEY, // Fallback if no mapbox
       center: [data.location.lng, data.location.lat],
       zoom: 15,
       interactive: false
     })
+
+    // If we have mapbox token, use Mapbox Light
+    if (import.meta.env.VITE_MAPBOX_TOKEN) {
+      map.setStyle(`https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`)
+      
+      map.on('style.load', () => {
+        // Strip out POIs for naked map
+        const style = map.getStyle()
+        if (style && style.layers) {
+          style.layers.forEach((layer) => {
+            if (layer.id.includes('poi') || layer.id.includes('place') || layer.id.includes('transit-label')) {
+              map.setLayoutProperty(layer.id, 'visibility', 'none')
+            }
+          })
+        }
+      })
+    }
 
     const el = document.createElement('div')
     el.className = 'w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg'
@@ -61,19 +110,25 @@ export function QuestDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-[100px]">
-      {/* 1. HERO MAP (Static Image from Mapbox API for performance) */}
+      {/* 1. HERO IMAGE (Google Places Photo or Mapbox Fallback) */}
       <div className="relative h-[200px] w-full bg-gray-200 overflow-hidden">
         <button onClick={() => window.history.back()} className="absolute top-safe-4 left-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95">
           <ChevronLeft className="w-6 h-6 text-gray-900 pr-1" />
         </button>
         
-        {location && (
+        {placeDetails?.photos?.[0] ? (
           <img 
-            src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s+58CC02(${location.lng},${location.lat})/${location.lng},${location.lat},15,0/800x400?access_token=${import.meta.env.VITE_MAPBOX_KEY}`}
+            src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })}
+            alt={data?.location?.name}
+            className="w-full h-full object-cover"
+          />
+        ) : location ? (
+          <img 
+            src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s+58CC02(${location.lng},${location.lat})/${location.lng},${location.lat},15,0/800x400?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`}
             alt="Map"
             className="w-full h-full object-cover"
           />
-        )}
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-50 via-gray-50/20 to-transparent" />
       </div>
 
@@ -91,6 +146,12 @@ export function QuestDetail() {
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
               {cost}
             </span>
+            {placeDetails?.rating && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 flex items-center gap-1">
+                <Star className="w-3 h-3 fill-current" />
+                {placeDetails.rating} ({placeDetails.user_ratings_total})
+              </span>
+            )}
           </div>
 
           <div className="space-y-4 bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
@@ -195,7 +256,7 @@ export function QuestDetail() {
         {/* 5. MINI MAP */}
         <div className="space-y-3">
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div id="quest-mini-map" className="w-full h-[180px]" />
+            <div ref={mapContainerRef} className="w-full h-[180px]" />
             <a 
               href={`https://maps.google.com/?q=${location.lat},${location.lng}`} 
               target="_blank" 

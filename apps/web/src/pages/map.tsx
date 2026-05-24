@@ -74,7 +74,7 @@ export function MapPage() {
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [selectedQuest, setSelectedQuest] = useState<QuestRow | null>(null)
   const [selectedGem, setSelectedGem] = useState<any | null>(null)
-  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number} | null>(null)
+  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
 
   const { activeFilters } = useMapStore()
@@ -316,8 +316,15 @@ export function MapPage() {
     <div className="relative w-full h-[100dvh] bg-dark overflow-hidden">
       <FilterBar />
       <SearchBar 
-        onLocationSelect={(lat, lng) => {
-          setSearchResultPin({ lat, lng })
+        onLocationSelect={(lat, lng, place) => {
+          setSearchResultPin({ lat, lng, place })
+          setSelectedLocation({
+            id: place?.place_id || 'search-result',
+            name: place?.name || place?.formatted_address?.split(',')[0] || 'Selected Location',
+            category: 'Search Result',
+            lat,
+            lng
+          })
           mapRef.current?.flyTo({
             center: [lng, lat],
             zoom: 15,
@@ -333,9 +340,8 @@ export function MapPage() {
           latitude: 36.1699,
           zoom: 12,
         }}
-        // ISSUE 1 FIX: Ensure token and style are passed explicitly
+        mapStyle="mapbox://styles/mapbox/light-v11"
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-        mapStyle={import.meta.env.VITE_MAPBOX_STYLE}
         antialias={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
