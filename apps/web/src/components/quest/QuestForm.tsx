@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Search, MapPin, Users, Calendar, DollarSign, Globe, Shield, Sparkles, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/auth'
-import { useQuestStore } from '../../stores/questStore'
+
 import { useFriends } from '../../hooks/useFriends'
 import { useAwardXP } from '../../hooks/useXP'
 import { motion } from 'framer-motion'
@@ -25,7 +25,6 @@ const PRIVACY_OPTIONS = [
 export function QuestForm() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { searchResults, isSearching, searchLocation, clearResults } = useQuestStore()
   const { mutate: awardXP } = useAwardXP()
   
   const [loading, setLoading] = useState(false)
@@ -33,8 +32,9 @@ export function QuestForm() {
   
   // Form State
   const [name, setName] = useState('')
-  const [locationQuery, setLocationQuery] = useState('')
-  const [selectedLocation, setSelectedLocation] = useState<any>(null)
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; name: string; address: string; place_id: string } | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<any>(null)
   const [category, setCategory] = useState('Food')
   const [vibe, setVibe] = useState('Chill')
   const [startsAt, setStartsAt] = useState('')
@@ -63,32 +63,48 @@ export function QuestForm() {
     }
     if (lat && lng && queryName) {
       setSelectedLocation({
-        display_name: queryName,
+        name: queryName,
+        address: queryName,
         lat: parseFloat(lat),
-        lon: parseFloat(lng),
+        lng: parseFloat(lng),
         place_id: 'pre-selected'
       })
-      setLocationQuery(queryName)
+      if (inputRef.current) inputRef.current.value = queryName
+    }
+
+    const initAutocomplete = () => {
+      if (window.google?.maps?.places && inputRef.current) {
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+          fields: ['geometry', 'name', 'formatted_address', 'place_id'],
+        })
+
+        autocompleteRef.current.addListener('place_changed', () => {
+          const place = autocompleteRef.current.getPlace()
+          if (place.geometry?.location) {
+            setSelectedLocation({
+              name: place.name || '',
+              address: place.formatted_address || '',
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+              place_id: place.place_id || ''
+            })
+          }
+        })
+      }
+    }
+
+    if (window.google?.maps?.places) {
+      initAutocomplete()
+    } else {
+      const script = document.createElement('script')
+      const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`
+      script.async = true
+      script.defer = true
+      script.onload = () => initAutocomplete()
+      document.head.appendChild(script)
     }
   }, [])
-
-  // Handle location search debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (locationQuery && !selectedLocation) {
-        searchLocation(locationQuery)
-      } else {
-        clearResults()
-      }
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [locationQuery])
-
-  const handleLocationSelect = (loc: any) => {
-    setSelectedLocation(loc)
-    setLocationQuery(loc.display_name.split(',')[0])
-    clearResults()
-  }
 
   const toggleFriend = (friendId: string) => {
     setSelectedFriends(prev => 
@@ -113,10 +129,10 @@ export function QuestForm() {
         const { data: locData } = await supabase
           .from('locations')
           .insert({
-            name: selectedLocation.display_name.split(',')[0],
-            address: selectedLocation.display_name,
-            osm_id: selectedLocation.place_id.toString(),
-            geo: `POINT(${selectedLocation.lon} ${selectedLocation.lat})`
+            name: selectedLocation.name,
+            address: selectedLocation.address,
+            osm_id: selectedLocation.place_id,
+            geo: `POINT(${selectedLocation.lng} ${selectedLocation.lat})`
           })
           .select('id')
           .single()
@@ -218,38 +234,14 @@ export function QuestForm() {
           </label>
           <div className="relative">
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Search places..."
-              value={locationQuery}
-              onChange={e => {
-                setLocationQuery(e.target.value)
-                setSelectedLocation(null)
-              }}
+              placeholder="Search places with Google..."
+              onChange={() => setSelectedLocation(null)}
               className="w-full bg-white/80 border-0 rounded-2xl p-4 pl-12 text-gray-900 shadow-sm focus:ring-2 focus:ring-red-500"
             />
             <Search className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
-            {isSearching && <div className="absolute right-4 top-4 w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />}
           </div>
-          
-          {searchResults.length > 0 && !selectedLocation && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
-            >
-              {searchResults.map((loc: any) => (
-                <button
-                  key={loc.place_id}
-                  type="button"
-                  onClick={() => handleLocationSelect(loc)}
-                  className="w-full text-left px-4 py-3 hover:bg-red-50 transition-colors flex items-start gap-3 border-b border-gray-50 last:border-0"
-                >
-                  <MapPin className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
-                  <div className="line-clamp-2 text-sm text-gray-700">{loc.display_name}</div>
-                </button>
-              ))}
-            </motion.div>
-          )}
         </motion.div>
 
         {/* Date + Time */}

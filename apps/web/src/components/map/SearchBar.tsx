@@ -60,7 +60,7 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
   }
 
   return (
-    <div className="absolute top-20 left-4 right-4 z-10 sm:left-auto sm:right-4 sm:w-80">
+    <div className="absolute top-4 right-4 z-10 w-full max-w-[300px] sm:w-80">
       <div className="relative flex items-center">
         <input
           ref={inputRef}

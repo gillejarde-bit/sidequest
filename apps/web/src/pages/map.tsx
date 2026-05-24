@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Map, { NavigationControl, MapRef, Source, Layer, GeolocateControl, MapLayerMouseEvent } from 'react-map-gl'
+import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent } from 'react-map-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
@@ -74,6 +74,7 @@ export function MapPage() {
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [selectedQuest, setSelectedQuest] = useState<QuestRow | null>(null)
   const [selectedGem, setSelectedGem] = useState<any | null>(null)
+  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
 
   const { activeFilters } = useMapStore()
@@ -249,6 +250,7 @@ export function MapPage() {
       setSelectedLocation(null)
       setSelectedQuest(null)
       setSelectedGem(null)
+      setSearchResultPin(null)
       return
     }
 
@@ -315,6 +317,7 @@ export function MapPage() {
       <FilterBar />
       <SearchBar 
         onLocationSelect={(lat, lng) => {
+          setSearchResultPin({ lat, lng })
           mapRef.current?.flyTo({
             center: [lng, lat],
             zoom: 15,
@@ -336,21 +339,28 @@ export function MapPage() {
         antialias={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
-        onLoad={() => setMapLoaded(true)}
+        onLoad={(e) => {
+          setMapLoaded(true)
+          const map = e.target
+          // Hide Mapbox default POIs
+          const style = map.getStyle()
+          if (style && style.layers) {
+            style.layers.forEach((layer) => {
+              if (
+                layer.id.includes('poi') || 
+                layer.id.includes('place') || 
+                layer.id.includes('transit-label')
+              ) {
+                map.setLayoutProperty(layer.id, 'visibility', 'none')
+              }
+            })
+          }
+        }}
         onMouseEnter={handleMapMouseEnter}
         onMouseLeave={handleMapMouseLeave}
         interactiveLayerIds={['locations-layer', 'quests-layer', 'gems-layer']}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
-
-        {/* ISSUE 2 FIX: Proper GeolocateControl config */}
-        <GeolocateControl
-          position="bottom-right"
-          trackUserLocation={true}
-          showAccuracyCircle={false}
-          showUserHeading={true}
-          style={{ bottom: 100 }}
-        />
 
         {/* ISSUE 2 FIX: Custom blue user dot */}
         <Source id="user-location" type="geojson" data={userGeoJSON}>
@@ -461,6 +471,29 @@ export function MapPage() {
             }}
           />
         </Source>
+
+        {/* Search Result Pin */}
+        {searchResultPin && (
+          <Source id="search-pin" type="geojson" data={{
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [searchResultPin.lng, searchResultPin.lat] },
+              properties: {}
+            }]
+          }}>
+            <Layer
+              id="search-pin-layer"
+              type="circle"
+              paint={{
+                'circle-radius': 10,
+                'circle-color': '#EF4444', // Google Red
+                'circle-stroke-width': 3,
+                'circle-stroke-color': '#FFFFFF',
+              }}
+            />
+          </Source>
+        )}
       </Map>
 
       {/* Breathing vignette overlay */}
