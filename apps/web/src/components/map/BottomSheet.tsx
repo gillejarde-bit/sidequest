@@ -101,8 +101,8 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
             <div className="space-y-4">
               <div className="flex items-start justify-between pr-8">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.title}</h2>
-                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.title || data.name}</h2>
+                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400 mb-2">
                     <span className="flex items-center gap-1">
                       <Star size={16} className="text-secondary" />
                       {data.category}
@@ -112,11 +112,16 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                       {data.joined_count || 1} joined
                     </span>
                   </div>
+                  {data.time && (
+                    <p className="text-sm font-medium text-primary flex items-center gap-1">
+                      {data.time}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {data.description && (
-                <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-4 mt-2">
                   {data.description}
                 </p>
               )}

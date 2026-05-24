@@ -143,39 +143,7 @@ export function MapPage() {
     }))
   }), [friendsMap])
 
-  const questsGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: quests
-      .filter((q: any) => q.location_lng && q.location_lat)
-      .map((q: any) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [q.location_lng, q.location_lat]
-        },
-        properties: {
-          id: q.id,
-          title: q.name,
-          category: q.category,
-          description: `Starts at ${new Date(q.starts_at).toLocaleString()}`,
-          joined_count: q.attendee_count,
-        }
-      }))
-  }), [quests])
 
-  const gemsGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: gems.map(g => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [g.lng, g.lat] },
-      properties: {
-        id: g.id,
-        name: g.name,
-        category: g.category,
-        description: g.description,
-      }
-    }))
-  }), [gems])
 
   // ── ISSUE 4 FIX: Map click handler ────────────────────────────────────────
 
@@ -190,32 +158,10 @@ export function MapPage() {
     }
 
     const feature = features[0]
-    const props = feature.properties
-    const coords = (feature.geometry as GeoJSON.Point).coordinates
     const layerId = feature.layer?.id
 
-    if (layerId === 'quests-layer') {
-      setSelectedQuest({
-        id: props?.id,
-        name: props?.name,
-        category: props?.category,
-        description: props?.description,
-        max_party_size: props?.max_party_size,
-        status: '',
-      })
-      setSelectedLocation(null)
-      setSelectedGem(null)
-    } else if (layerId === 'gems-layer' || layerId === 'gems-glow') {
-      setSelectedGem({
-        id: props?.id,
-        name: props?.name,
-        category: props?.category,
-        description: props?.description,
-        lat: coords[1],
-        lng: coords[0],
-      })
-      setSelectedLocation(null)
-      setSelectedQuest(null)
+    if (layerId === 'search-pin-layer') {
+      // already handled
     }
   }, [])
 
@@ -300,7 +246,7 @@ export function MapPage() {
         }}
         onMouseEnter={handleMapMouseEnter}
         onMouseLeave={handleMapMouseLeave}
-        interactiveLayerIds={['quests-layer', 'gems-layer']}
+        interactiveLayerIds={[]}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
@@ -344,20 +290,56 @@ export function MapPage() {
           </Marker>
         )}
 
-        {/* Quests */}
-        <Source id="quests-source" type="geojson" data={questsGeoJSON}>
-          <Layer
-            id="quests-layer"
-            type="circle"
-            paint={{
-              'circle-radius': 12,
-              'circle-color': '#F5A623',
-              'circle-stroke-width': 3,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 0.95,
+        {/* Quests Markers */}
+        {quests.map((q: any) => q.location_lng && q.location_lat && (
+          <Marker 
+            key={`quest-${q.id}`} 
+            longitude={q.location_lng} 
+            latitude={q.location_lat} 
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation()
+              setSelectedQuest({
+                id: q.id,
+                title: q.name,
+                name: q.name,
+                category: q.category,
+                time: `Starts at ${new Date(q.starts_at).toLocaleString()}`,
+                description: q.description,
+                joined_count: q.attendee_count,
+              } as any)
+              setSelectedLocation(null)
+              setSelectedGem(null)
             }}
-          />
-        </Source>
+          >
+            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,166,35,0.6)] border-2 border-white cursor-pointer hover:scale-110 transition-transform">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
+          </Marker>
+        ))}
+
+        {/* Gems Markers */}
+        {gems.map((g: any) => (
+          <Marker
+            key={`gem-${g.id}`}
+            longitude={g.lng}
+            latitude={g.lat}
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation()
+              setSelectedGem(g)
+              setSelectedLocation(null)
+              setSelectedQuest(null)
+            }}
+          >
+            <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+              <div className="absolute w-10 h-10 bg-indigo-500 rounded-full animate-ping opacity-40" />
+              <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.6)] border-2 border-indigo-200 z-10">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </div>
+            </div>
+          </Marker>
+        ))}
 
         {/* Friends */}
         <Source id="friends-source" type="geojson" data={friendsGeoJSON}>
@@ -369,31 +351,6 @@ export function MapPage() {
               'circle-color': '#58CC02',
               'circle-stroke-width': 3,
               'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 1,
-            }}
-          />
-        </Source>
-
-        {/* Gems */}
-        <Source id="gems-source" type="geojson" data={gemsGeoJSON}>
-          <Layer
-            id="gems-glow"
-            type="circle"
-            paint={{
-              'circle-radius': 25,
-              'circle-color': '#6366f1',
-              'circle-opacity': 0.4,
-              'circle-blur': 0.5,
-            }}
-          />
-          <Layer
-            id="gems-layer"
-            type="circle"
-            paint={{
-              'circle-radius': 14,
-              'circle-color': '#4f46e5',
-              'circle-stroke-width': 3,
-              'circle-stroke-color': '#e0e7ff',
               'circle-opacity': 1,
             }}
           />
