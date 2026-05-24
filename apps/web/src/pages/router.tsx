@@ -165,12 +165,36 @@ export const createQuestRoute = createRoute({
 })
 
 import { QuestDetail } from './quest/detail'
+import { GemsFeedPage } from './gems'
+import { GemNominationPage } from './gems/nominate'
+import { GemDetailPage } from './gems/$id'
 
 export const questDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/quest/$id',
   beforeLoad: requireAuth,
   component: QuestDetail
+})
+
+export const gemsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gems',
+  beforeLoad: requireAuth,
+  component: GemsFeedPage
+})
+
+export const gemNominateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gems/nominate',
+  beforeLoad: requireAuth,
+  component: GemNominationPage
+})
+
+export const gemDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gems/$id',
+  beforeLoad: requireAuth,
+  component: GemDetailPage
 })
 
 export const routeTree = rootRoute.addChildren([
@@ -183,6 +207,9 @@ export const routeTree = rootRoute.addChildren([
   questsRoute,
   createQuestRoute,
   questDetailRoute,
+  gemsRoute,
+  gemNominateRoute,
+  gemDetailRoute,
 ])
 
 export const router = createRouter({ routeTree })

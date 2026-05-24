@@ -9,6 +9,7 @@ import { useGeolocation } from '../hooks/useGeolocation'
 import { useFriendPresence } from '../hooks/useFriendPresence'
 import { FilterBar } from '../components/map/FilterBar'
 import { BottomSheet } from '../components/map/BottomSheet'
+import { SearchBar } from '../components/map/SearchBar'
 import { useMapStore } from '../stores/mapStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,8 +70,10 @@ export function MapPage() {
 
   const [locations, setLocations] = useState<LocationRow[]>([])
   const [quests, setQuests] = useState<QuestRow[]>([])
+  const [gems, setGems] = useState<any[]>([])
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [selectedQuest, setSelectedQuest] = useState<QuestRow | null>(null)
+  const [selectedGem, setSelectedGem] = useState<any | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
 
   const { activeFilters } = useMapStore()
@@ -93,6 +96,13 @@ export function MapPage() {
         console.error('[Map] quests fetch error:', questError)
       } else {
         setQuests((questData as any[]) ?? [])
+      }
+
+      const { data: gemsData, error: gemsError } = await supabase.rpc('get_hidden_gems', { p_status: 'approved' })
+      if (gemsError) {
+        console.error('[Map] gems fetch error:', gemsError)
+      } else {
+        setGems(gemsData ?? [])
       }
     }
     fetchData()
@@ -126,7 +136,30 @@ export function MapPage() {
       const locVisible = activeFilters.length === 0 || categoryFilters.length > 0
       map.setLayoutProperty('locations-layer', 'visibility', locVisible ? 'visible' : 'none')
     }
+
+    if (map.getLayer('gems-layer')) {
+      const gemsVisible = activeFilters.length === 0 || activeFilters.includes('Gems')
+      map.setLayoutProperty('gems-layer', 'visibility', gemsVisible ? 'visible' : 'none')
+      map.setLayoutProperty('gems-glow', 'visibility', gemsVisible ? 'visible' : 'none')
+    }
   }, [activeFilters, mapLoaded])
+
+  // Sine wave animation for gem glow
+  useEffect(() => {
+    let animationId: number;
+    const animate = () => {
+      const map = mapRef.current?.getMap();
+      if (map && mapLoaded && map.getLayer('gems-glow')) {
+        const time = performance.now();
+        const baseRadius = 25;
+        const radius = baseRadius + Math.sin(time / 200) * 10;
+        map.setPaintProperty('gems-glow', 'circle-radius', radius);
+      }
+      animationId = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => cancelAnimationFrame(animationId);
+  }, [mapLoaded]);
 
   // ── GeoJSON Sources ────────────────────────────────────────────────────────
 
@@ -194,6 +227,20 @@ export function MapPage() {
       }))
   }), [quests])
 
+  const gemsGeoJSON = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: gems.map(g => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [g.lng, g.lat] },
+      properties: {
+        id: g.id,
+        name: g.name,
+        category: g.category,
+        description: g.description,
+      }
+    }))
+  }), [gems])
+
   // ── ISSUE 4 FIX: Map click handler ────────────────────────────────────────
 
   const handleMapClick = useCallback((event: MapLayerMouseEvent) => {
@@ -201,6 +248,7 @@ export function MapPage() {
     if (!features || features.length === 0) {
       setSelectedLocation(null)
       setSelectedQuest(null)
+      setSelectedGem(null)
       return
     }
 
@@ -219,6 +267,7 @@ export function MapPage() {
         lng: coords[0],
       })
       setSelectedQuest(null)
+      setSelectedGem(null)
     } else if (layerId === 'quests-layer') {
       setSelectedQuest({
         id: props?.id,
@@ -229,6 +278,18 @@ export function MapPage() {
         status: '',
       })
       setSelectedLocation(null)
+      setSelectedGem(null)
+    } else if (layerId === 'gems-layer' || layerId === 'gems-glow') {
+      setSelectedGem({
+        id: props?.id,
+        name: props?.name,
+        category: props?.category,
+        description: props?.description,
+        lat: coords[1],
+        lng: coords[0],
+      })
+      setSelectedLocation(null)
+      setSelectedQuest(null)
     }
   }, [])
 
@@ -246,12 +307,21 @@ export function MapPage() {
 
   // ── Derived bottom sheet state ─────────────────────────────────────────────
 
-  const sheetMode = selectedLocation ? 'location' : selectedQuest ? 'quest' : null
-  const sheetData = selectedLocation ?? selectedQuest ?? null
+  const sheetMode = selectedLocation ? 'location' : selectedQuest ? 'quest' : selectedGem ? 'gem' : null
+  const sheetData = selectedLocation ?? selectedQuest ?? selectedGem ?? null
 
   return (
     <div className="relative w-full h-[100dvh] bg-dark overflow-hidden">
       <FilterBar />
+      <SearchBar 
+        onLocationSelect={(lat, lng) => {
+          mapRef.current?.flyTo({
+            center: [lng, lat],
+            zoom: 15,
+            duration: 2000
+          })
+        }} 
+      />
 
       <Map
         ref={mapRef}
@@ -269,7 +339,7 @@ export function MapPage() {
         onLoad={() => setMapLoaded(true)}
         onMouseEnter={handleMapMouseEnter}
         onMouseLeave={handleMapMouseLeave}
-        interactiveLayerIds={['locations-layer', 'quests-layer']}
+        interactiveLayerIds={['locations-layer', 'quests-layer', 'gems-layer']}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
@@ -366,6 +436,31 @@ export function MapPage() {
             }}
           />
         </Source>
+
+        {/* Gems */}
+        <Source id="gems-source" type="geojson" data={gemsGeoJSON}>
+          <Layer
+            id="gems-glow"
+            type="circle"
+            paint={{
+              'circle-radius': 25,
+              'circle-color': '#6366f1',
+              'circle-opacity': 0.4,
+              'circle-blur': 0.5,
+            }}
+          />
+          <Layer
+            id="gems-layer"
+            type="circle"
+            paint={{
+              'circle-radius': 14,
+              'circle-color': '#4f46e5',
+              'circle-stroke-width': 3,
+              'circle-stroke-color': '#e0e7ff',
+              'circle-opacity': 1,
+            }}
+          />
+        </Source>
       </Map>
 
       {/* Breathing vignette overlay */}
@@ -399,6 +494,7 @@ export function MapPage() {
         onClose={() => {
           setSelectedLocation(null)
           setSelectedQuest(null)
+          setSelectedGem(null)
         }}
         onAction={() => {
           if (selectedLocation) {
@@ -415,6 +511,11 @@ export function MapPage() {
             navigate({
               to: '/quest/$id',
               params: { id: selectedQuest.id }
+            })
+          } else if (selectedGem) {
+            navigate({
+              to: '/gems/$id',
+              params: { id: selectedGem.id }
             })
           }
         }}

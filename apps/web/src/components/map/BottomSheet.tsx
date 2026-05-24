@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin, Users, Star } from 'lucide-react'
 
-export type BottomSheetMode = 'location' | 'quest' | null
+export type BottomSheetMode = 'location' | 'quest' | 'gem' | null
 
 interface BottomSheetProps {
   mode: BottomSheetMode
@@ -65,7 +65,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                 Quest this spot
               </button>
             </div>
-          ) : (
+          ) : mode === 'quest' ? (
             <div className="space-y-4">
               <div className="flex items-start justify-between pr-8">
                 <div>
@@ -96,7 +96,40 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                 View Quest
               </button>
             </div>
-          )}
+          ) : mode === 'gem' ? (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between pr-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">{data.name}</h2>
+                  <p className="text-gray-400 flex items-center gap-1">
+                    <Star size={16} className="text-yellow-500" />
+                    Hidden Gem • {data.category}
+                  </p>
+                </div>
+              </div>
+              
+              {data.description && (
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  {data.description}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => window.location.href = `/quest/create?lat=${data.lat}&lng=${data.lng}&name=${encodeURIComponent(data.name)}&category=${encodeURIComponent(data.category)}`}
+                  className="flex-1 bg-[#1A1A2E] border border-primary text-primary font-bold py-3 rounded-xl hover:bg-primary/10 active:scale-[0.98] transition-all"
+                >
+                  Quest this spot
+                </button>
+                <button 
+                  onClick={onAction}
+                  className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover active:scale-[0.98] transition-all"
+                >
+                  View Full Details
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </motion.div>
     </AnimatePresence>
