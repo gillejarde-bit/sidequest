@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MapPin, Users, Star } from 'lucide-react'
+import { X, MapPin, Users, Star, Navigation, Share } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useQuestDetail } from '../../hooks/useQuestDetail'
 
 export type BottomSheetMode = 'location' | 'quest' | 'gem' | null
 
@@ -8,6 +10,144 @@ interface BottomSheetProps {
   data: any
   onClose: () => void
   onAction: () => void
+}
+
+function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () => void }) {
+  const { data: detailData } = useQuestDetail(data.id)
+  const [placeDetails, setPlaceDetails] = useState<any>(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!detailData?.location?.osm_id) return
+    const initPlaces = () => {
+      if (window.google?.maps?.places) {
+        const service = new window.google.maps.places.PlacesService(document.createElement('div'))
+        service.getDetails({
+          placeId: detailData.location.osm_id,
+          fields: ['photos', 'rating', 'user_ratings_total']
+        }, (place: any, status: any) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+            setPlaceDetails(place)
+          }
+        })
+      }
+    }
+    initPlaces()
+  }, [detailData?.location?.osm_id])
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/quest/${data.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy', err)
+    }
+  }
+
+  const locationName = detailData?.location?.name || ''
+  const locationLat = detailData?.location?.lat
+  const locationLng = detailData?.location?.lng
+
+  return (
+    <div className="space-y-4">
+      {placeDetails?.photos?.[0] && (
+        <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+          <img 
+            src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })} 
+            alt={locationName || data.title} 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </div>
+      )}
+
+      <div className="flex items-start justify-between pr-8">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.title || data.name}</h2>
+          
+          {locationName && (
+            <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1 mb-2 font-medium">
+              <MapPin size={14} className="text-primary" />
+              {locationName}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400 mb-2">
+            <span className="flex items-center gap-1">
+              <Star size={16} className="text-secondary" />
+              {data.category}
+            </span>
+            <span className="flex items-center gap-1">
+              <Users size={16} />
+              {detailData?.attendee_count || data.joined_count || 1} joined
+            </span>
+          </div>
+          {data.time && (
+            <p className="text-sm font-medium text-primary flex items-center gap-1">
+              {data.time}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {detailData?.attendees && detailData.attendees.length > 0 && (
+        <div className="flex items-center gap-2 mt-2">
+          <div className="flex -space-x-2 overflow-hidden">
+            {detailData.attendees.slice(0, 5).map((att: any) => (
+              <img 
+                key={att.user_id} 
+                src={att.avatar_url} 
+                alt={att.username} 
+                className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-[#1A1A2E] bg-gray-200 dark:bg-gray-700 object-cover"
+              />
+            ))}
+          </div>
+          {detailData.attendees.length > 5 && (
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              +{detailData.attendees.length - 5} more
+            </span>
+          )}
+        </div>
+      )}
+
+      {data.description && (
+        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-4 mt-2">
+          {data.description}
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 mt-6">
+        <button 
+          onClick={onAction}
+          className="col-span-2 bg-secondary text-white font-bold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+        >
+          View Quest
+        </button>
+        
+        {locationLat && locationLng && (
+          <a 
+            href={`https://maps.google.com/?q=${locationLat},${locationLng}`} 
+            target="_blank" 
+            rel="noreferrer"
+            className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <Navigation size={18} />
+            Directions
+          </a>
+        )}
+        
+        <button 
+          onClick={handleShare}
+          className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+        >
+          <Share size={18} />
+          {copied ? 'Copied!' : 'Invite Others'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps) {
@@ -98,41 +238,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
               </button>
             </div>
           ) : mode === 'quest' ? (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between pr-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.title || data.name}</h2>
-                  <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    <span className="flex items-center gap-1">
-                      <Star size={16} className="text-secondary" />
-                      {data.category}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users size={16} />
-                      {data.joined_count || 1} joined
-                    </span>
-                  </div>
-                  {data.time && (
-                    <p className="text-sm font-medium text-primary flex items-center gap-1">
-                      {data.time}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {data.description && (
-                <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed border-t border-gray-100 dark:border-gray-800 pt-4 mt-2">
-                  {data.description}
-                </p>
-              )}
-
-              <button 
-                onClick={onAction}
-                className="w-full mt-6 bg-secondary text-dark font-bold py-4 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all"
-              >
-                View Quest
-              </button>
-            </div>
+            <QuestBottomSheetContent data={data} onAction={onAction} />
           ) : mode === 'gem' ? (
             <div className="space-y-4">
               <div className="flex items-start justify-between pr-8">
