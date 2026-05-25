@@ -18,22 +18,69 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!detailData?.location?.osm_id) return
+    let intervalId: any
+
     const initPlaces = () => {
       if (window.google?.maps?.places) {
+        if (intervalId) clearInterval(intervalId)
+        
         const service = new window.google.maps.places.PlacesService(document.createElement('div'))
-        service.getDetails({
-          placeId: detailData.location.osm_id,
-          fields: ['photos', 'rating', 'user_ratings_total']
-        }, (place: any, status: any) => {
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
-            setPlaceDetails(place)
-          }
-        })
+        
+        // Use Google Place ID if available, otherwise search by name
+        const placeId = detailData?.location?.google_place_id || detailData?.location?.osm_id
+        
+        if (placeId && placeId.startsWith('ChI')) {
+          service.getDetails({
+            placeId: placeId,
+            fields: ['photos', 'rating', 'user_ratings_total']
+          }, (place: any, status: any) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+              setPlaceDetails(place)
+            } else {
+              fallbackSearch(service)
+            }
+          })
+        } else {
+          fallbackSearch(service)
+        }
       }
     }
-    initPlaces()
-  }, [detailData?.location?.osm_id])
+
+    const fallbackSearch = (service: any) => {
+      const locationName = detailData?.location?.name
+      const lat = detailData?.location?.lat
+      const lng = detailData?.location?.lng
+      
+      if (!locationName) return
+
+      const request: any = {
+        query: locationName,
+      }
+      
+      if (lat !== undefined && lng !== undefined) {
+        request.location = new window.google.maps.LatLng(lat, lng)
+        request.radius = 1000
+      }
+
+      service.textSearch(request, (results: any[], status: any) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results[0]) {
+          setPlaceDetails(results[0])
+        }
+      })
+    }
+
+    if (detailData?.location) {
+      if (window.google?.maps?.places) {
+        initPlaces()
+      } else {
+        intervalId = setInterval(initPlaces, 300)
+      }
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [detailData?.location?.id, detailData?.location?.name])
 
   const handleShare = async () => {
     const url = `${window.location.origin}/quest/${data.id}`
@@ -52,16 +99,43 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
 
   return (
     <div className="space-y-4">
-      {placeDetails?.photos?.[0] && (
-        <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+      <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+        {placeDetails?.photos?.[0] ? (
           <img 
             src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })} 
             alt={locationName || data.title} 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        </div>
-      )}
+        ) : (
+          /* Premium themed gradient fallback based on category with clean grid styling */
+          <div className={`w-full h-full flex flex-col items-center justify-center relative overflow-hidden ${
+            data.category?.toLowerCase() === 'food' ? 'bg-gradient-to-br from-amber-400 to-orange-600 dark:from-amber-600 dark:to-orange-950'
+            : data.category?.toLowerCase() === 'outdoors' ? 'bg-gradient-to-br from-emerald-400 to-teal-700 dark:from-emerald-600 dark:to-teal-950'
+            : data.category?.toLowerCase() === 'nightlife' ? 'bg-gradient-to-br from-indigo-500 to-purple-800 dark:from-indigo-700 dark:to-purple-950'
+            : data.category?.toLowerCase() === 'culture' ? 'bg-gradient-to-br from-pink-400 to-rose-600 dark:from-pink-600 dark:to-rose-950'
+            : data.category?.toLowerCase() === 'fitness' ? 'bg-gradient-to-br from-blue-400 to-cyan-600 dark:from-blue-600 dark:to-cyan-950'
+            : data.category?.toLowerCase() === 'gaming' ? 'bg-gradient-to-br from-violet-400 to-fuchsia-700 dark:from-violet-600 dark:to-fuchsia-950'
+            : 'bg-gradient-to-br from-gray-400 to-slate-600 dark:from-gray-700 dark:to-slate-900'
+          }`}>
+            <div className="absolute inset-0 opacity-10 dark:opacity-20">
+              <svg width="100%" height="100%">
+                <pattern id="pattern-circles-quest" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="10" cy="10" r="2" fill="white" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#pattern-circles-quest)" />
+              </svg>
+            </div>
+            
+            <span className="text-white font-extrabold text-2xl uppercase tracking-wider relative z-10 drop-shadow-md">
+              {data.category || 'Adventure'}
+            </span>
+            <span className="text-white/80 text-xs font-semibold uppercase tracking-widest mt-1 relative z-10 drop-shadow-sm">
+              Sidequest POI
+            </span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+      </div>
 
       <div className="flex items-start justify-between pr-8">
         <div>
@@ -168,7 +242,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="absolute bottom-[80px] left-0 right-0 bg-white dark:bg-[#1A1A2E] border-t border-gray-200 dark:border-gray-800 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20 pb-safe touch-none"
+        className="absolute bottom-[96px] left-0 right-0 bg-white dark:bg-[#1A1A2E] border-t border-gray-200 dark:border-gray-800 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20 pb-safe touch-none"
       >
         <div className="p-6 relative">
           <button 
@@ -182,16 +256,43 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
 
           {mode === 'location' ? (
             <div className="space-y-4">
-              {data.placeDetails?.photos?.[0] && (
-                <div className="w-full h-48 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+              <div className="w-full h-48 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+                {data.placeDetails?.photos?.[0] ? (
                   <img 
                     src={data.placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })} 
                     alt={data.name} 
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                </div>
-              )}
+                ) : (
+                  /* Premium themed gradient fallback based on category with clean grid styling */
+                  <div className={`w-full h-full flex flex-col items-center justify-center relative overflow-hidden ${
+                    data.category?.toLowerCase() === 'food' ? 'bg-gradient-to-br from-amber-400 to-orange-600 dark:from-amber-600 dark:to-orange-950'
+                    : data.category?.toLowerCase() === 'outdoors' ? 'bg-gradient-to-br from-emerald-400 to-teal-700 dark:from-emerald-600 dark:to-teal-950'
+                    : data.category?.toLowerCase() === 'nightlife' ? 'bg-gradient-to-br from-indigo-500 to-purple-800 dark:from-indigo-700 dark:to-purple-950'
+                    : data.category?.toLowerCase() === 'culture' ? 'bg-gradient-to-br from-pink-400 to-rose-600 dark:from-pink-600 dark:to-rose-950'
+                    : data.category?.toLowerCase() === 'fitness' ? 'bg-gradient-to-br from-blue-400 to-cyan-600 dark:from-blue-600 dark:to-cyan-950'
+                    : data.category?.toLowerCase() === 'gaming' ? 'bg-gradient-to-br from-violet-400 to-fuchsia-700 dark:from-violet-600 dark:to-fuchsia-950'
+                    : 'bg-gradient-to-br from-gray-400 to-slate-600 dark:from-gray-700 dark:to-slate-900'
+                  }`}>
+                    <div className="absolute inset-0 opacity-10 dark:opacity-20">
+                      <svg width="100%" height="100%">
+                        <pattern id="pattern-circles-loc" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                          <circle cx="10" cy="10" r="2" fill="white" />
+                        </pattern>
+                        <rect width="100%" height="100%" fill="url(#pattern-circles-loc)" />
+                      </svg>
+                    </div>
+                    
+                    <span className="text-white font-extrabold text-2xl uppercase tracking-wider relative z-10 drop-shadow-md">
+                      {data.category || 'Adventure'}
+                    </span>
+                    <span className="text-white/80 text-xs font-semibold uppercase tracking-widest mt-1 relative z-10 drop-shadow-sm">
+                      Sidequest POI
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+              </div>
               <div className="flex items-start justify-between pr-8">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.name}</h2>
