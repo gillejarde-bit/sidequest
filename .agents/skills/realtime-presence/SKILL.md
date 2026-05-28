@@ -1,3 +1,6 @@
+---
+description: Guidelines for implementing Supabase Realtime presence, broadcast events, and location throttling.
+---
 # Realtime Presence Skill
 
 ## Channel Naming Conventions

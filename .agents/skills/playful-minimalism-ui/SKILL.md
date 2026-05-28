@@ -1,3 +1,6 @@
+---
+description: Philosophy and guidelines for creating playful, minimalist UI with vibrant colors and Framer Motion animations.
+---
 # Playful Minimalism UI Skill
 
 ## Philosophy

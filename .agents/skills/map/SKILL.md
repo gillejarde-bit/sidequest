@@ -1,3 +1,6 @@
+---
+description: Guidelines for implementing Mapbox maps, markers, clustering, and map styles in React.
+---
 # Mapbox React Skill
 
 ## Map Instance
