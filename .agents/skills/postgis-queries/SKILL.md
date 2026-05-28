@@ -1,4 +1,5 @@
 ---
+name: postgis-queries
 description: PostGIS queries, functions, and patterns for geospatial database operations in PostgreSQL.
 ---
 # PostGIS Queries Skill

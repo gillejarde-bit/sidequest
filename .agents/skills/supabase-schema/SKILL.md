@@ -1,4 +1,5 @@
 ---
+name: supabase-schema
 description: Standards and patterns for Supabase PostgreSQL database schemas, migrations, and Row Level Security.
 ---
 # Supabase Schema Skill
