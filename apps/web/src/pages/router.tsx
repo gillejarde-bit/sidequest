@@ -31,7 +31,7 @@ function BottomNav() {
                   : pathname.startsWith('/profile') ? 'profile' 
                   : pathname === '/settings' ? 'settings' : null
 
-  const isMoreActive = activeTab === 'friends' || activeTab === 'gems' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings'
+  const isMoreActive = activeTab === 'friends' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings'
 
   const menuItems = [
     {
@@ -41,14 +41,6 @@ function BottomNav() {
       icon: <Users className="w-4 h-4 text-emerald-500" />,
       active: activeTab === 'friends',
       badge: true
-    },
-    {
-      label: 'Hidden Gems',
-      to: '/gems' as const,
-      params: undefined,
-      icon: <Diamond className="w-4 h-4 text-rose-500" />,
-      active: activeTab === 'gems',
-      badge: false
     },
     {
       label: 'Leaderboard',
@@ -178,6 +170,14 @@ function BottomNav() {
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
           <Calendar className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'calendar' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+        </Link>
+
+        {/* [ 💎 Hidden Gems ] */}
+        <Link to="/gems" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+          {activeTab === 'gems' && (
+            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+          )}
+          <Diamond className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'gems' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ ⋯ More ] */}
