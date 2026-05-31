@@ -111,7 +111,7 @@ export function Login() {
                     })
                     if (error) console.error('Google login error:', error)
                   }}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold p-4 rounded-2xl shadow-lg hover:bg-gray-100 active:scale-95 transition-all"
+                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold p-4 rounded-2xl shadow-lg hover:bg-gray-100 active:scale-95 transition-all"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -141,7 +141,7 @@ export function Login() {
                   <motion.button 
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full bg-[#7CFC00] hover:bg-[#6be400] border-bottom-[4px] border-[#5ebd00] text-black font-black p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5"
+                    className="w-full bg-[#7CFC00] hover:bg-[#6be400] border-bottom-[4px] border-[#5ebd00] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5"
                     disabled={status === 'loading'}
                   >
                     {status === 'loading' ? 'Requesting Portal...' : 'Send Magic Link ✨'}

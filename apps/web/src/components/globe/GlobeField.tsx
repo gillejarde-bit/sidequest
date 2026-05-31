@@ -53,6 +53,7 @@ interface GlobeFieldProps {
 
 export function GlobeField({ progressRef }: GlobeFieldProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null)
 
   const count = GLOBE_CONFIG.INSTANCE_COUNT
 
@@ -163,6 +164,16 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
     const meshRotationY = elapsed * speedMult
     meshRef.current.rotation.y = meshRotationY
 
+    // Dynamically adjust material to transition into ultra-reflective "Liquid Glass"
+    // when the scroll animation reaches the end (progress = 1.0)
+    if (materialRef.current) {
+      materialRef.current.roughness = THREE.MathUtils.lerp(0.15, 0.05, rawProgress)
+      materialRef.current.metalness = THREE.MathUtils.lerp(0.85, 0.05, rawProgress)
+      materialRef.current.transmission = THREE.MathUtils.lerp(0.0, 0.85, rawProgress)
+      materialRef.current.thickness = THREE.MathUtils.lerp(0.0, 0.45, rawProgress)
+      materialRef.current.clearcoat = THREE.MathUtils.lerp(0.0, 1.0, rawProgress)
+    }
+
     for (let i = 0; i < count; i++) {
       // 1. Calculate staggered local progress per shard
       // Stagger stretches the execution time based on the index to create a "transformer" effect
@@ -214,13 +225,21 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       {/* Sleek Crystalline Shard geometry (cone/prism looks highly directional) */}
       <coneGeometry args={[0.02, 0.08, 4]} />
-      <meshStandardMaterial 
+      
+      {/* Dynamic MeshPhysicalMaterial for beautiful glass refractions */}
+      <meshPhysicalMaterial 
+        ref={materialRef}
         roughness={0.15} 
         metalness={0.85} 
+        transmission={0.0}
+        thickness={0.0}
+        clearcoat={0.0}
+        clearcoatRoughness={0.1}
+        ior={1.5}
         toneMapped={false}
       >
         <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />
-      </meshStandardMaterial>
+      </meshPhysicalMaterial>
     </instancedMesh>
   )
 }
