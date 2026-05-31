@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search } from 'lucide-react'
+import { Search, Flame, Loader2, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useFriends, usePendingRequests, useRespondToRequest } from '../hooks/useFriends'
+import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { FriendCard } from '../components/social/FriendCard'
 import { UserSearchCard } from '../components/social/UserSearchCard'
 
-type Tab = 'friends' | 'requests' | 'find'
+type Tab = 'friends' | 'groups' | 'requests' | 'find'
 
 export function FriendsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('friends')
@@ -18,6 +19,7 @@ export function FriendsPage() {
         
         <div className="flex px-4 relative">
           <TabButton active={activeTab === 'friends'} onClick={() => setActiveTab('friends')} label="Friends" />
+          <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} label="Groups" />
           <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} label="Requests" badge />
           <TabButton active={activeTab === 'find'} onClick={() => setActiveTab('find')} label="Find" />
         </div>
@@ -26,6 +28,7 @@ export function FriendsPage() {
       <main className="max-w-md mx-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'friends' && <FriendsTab key="friends" onGoFind={() => setActiveTab('find')} />}
+          {activeTab === 'groups' && <GroupsTab key="groups" />}
           {activeTab === 'requests' && <RequestsTab key="requests" />}
           {activeTab === 'find' && <FindTab key="find" />}
         </AnimatePresence>
@@ -203,3 +206,105 @@ function FindTab() {
     </motion.div>
   )
 }
+
+function GroupsTab() {
+  const { hiddenGroupIds, toggleGroupVisibility } = useMapGroupsStore()
+  const [crews, setCrews] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCrews = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase.rpc('get_my_streaks')
+        if (error) throw error
+        setCrews(data || [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCrews()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-8 flex justify-center">
+        <Loader2 className="animate-spin w-8 h-8 text-primary" />
+      </div>
+    )
+  }
+
+  if (crews.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 text-center mt-12">
+        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Crews yet</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Create a Crew in the Streaks Hub to start questing and tracking streaks together!</p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white dark:bg-gray-900 transition-colors duration-305 px-4 pt-4 space-y-4">
+      {crews.map((crew, i) => {
+        const isVisible = !hiddenGroupIds.includes(crew.group_id)
+        
+        return (
+          <motion.div 
+            key={crew.group_id} 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: i * 0.04 }}
+            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/50"
+          >
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg"
+                style={{ backgroundColor: crew.group_color || '#6C63FF' }}
+              >
+                {crew.group_name[0].toUpperCase()}
+              </div>
+
+              <div>
+                <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">{crew.group_name}</h3>
+                <p className="text-xs text-gray-400 font-semibold flex items-center gap-1 mt-0.5">
+                  <Users className="w-3.5 h-3.5" />
+                  {crew.member_count} members
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Flame Badge */}
+              {crew.current_streak > 0 && (
+                <div className="flex items-center gap-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-500 font-bold px-2 py-0.5 rounded-lg text-xs">
+                  <Flame className="w-3.5 h-3.5" fill="currentColor" />
+                  <span>{crew.current_streak}</span>
+                </div>
+              )}
+
+              {/* iOS Toggle Switch */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase">Map</span>
+                <button
+                  onClick={() => toggleGroupVisibility(crew.group_id)}
+                  className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${isVisible ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                >
+                  <motion.div
+                    layout
+                    className="w-6 h-6 bg-white rounded-full shadow-md"
+                    animate={{ x: isVisible ? 20 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )
+      })}
+    </motion.div>
+  )
+}
+

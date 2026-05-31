@@ -12,6 +12,7 @@ import { FilterBar } from '../components/map/FilterBar'
 import { BottomSheet } from '../components/map/BottomSheet'
 import { SearchBar } from '../components/map/SearchBar'
 import { useMapStore } from '../stores/mapStore'
+import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 
@@ -53,6 +54,9 @@ export function MapPage() {
     heading: userLoc.heading,
   })
 
+  const { hiddenGroupIds } = useMapGroupsStore()
+  const [groupMembers, setGroupMembers] = useState<{ group_id: string; user_id: string }[]>([])
+
   const [quests, setQuests] = useState<QuestRow[]>([])
   const [gems, setGems] = useState<any[]>([])
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
@@ -83,6 +87,16 @@ export function MapPage() {
         console.error('[Map] gems fetch error:', gemsError)
       } else {
         setGems(gemsData ?? [])
+      }
+
+      // Fetch group memberships to filter friends on map
+      const { data: gmData, error: gmError } = await supabase
+        .from('group_members')
+        .select('group_id, user_id')
+      if (gmError) {
+        console.error('[Map] group members fetch error:', gmError)
+      } else {
+        setGroupMembers(gmData || [])
       }
     }
     fetchData()
@@ -135,14 +149,27 @@ export function MapPage() {
 
   // ── GeoJSON Sources ────────────────────────────────────────────────────────
 
-  const friendsGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: Array.from(friendsMap.values()).map(f => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [f.lng, f.lat] },
-      properties: { username: f.username, level: f.level }
-    }))
-  }), [friendsMap])
+  const friendsGeoJSON = useMemo(() => {
+    const filteredFriends = Array.from(friendsMap.values()).filter(f => {
+      // Find all groups this friend belongs to
+      const friendGroups = groupMembers.filter(gm => gm.user_id === f.user_id).map(gm => gm.group_id)
+      
+      // If the friend is not in any group, they are visible by default
+      if (friendGroups.length === 0) return true
+      
+      // Otherwise, they must belong to at least one group that is NOT hidden
+      return friendGroups.some(groupId => !hiddenGroupIds.includes(groupId))
+    })
+
+    return {
+      type: 'FeatureCollection' as const,
+      features: filteredFriends.map(f => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [f.lng, f.lat] },
+        properties: { username: f.username, level: f.level }
+      }))
+    }
+  }, [friendsMap, groupMembers, hiddenGroupIds])
 
 
 
