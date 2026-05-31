@@ -132,9 +132,9 @@ const requireAuth = async () => {
     throw redirect({ to: '/login' })
   }
   
-  // If profile is null (or username is auto-generated default), send to onboarding
+  // If profile is null (or username is auto-generated default, or birthdate is missing), send to onboarding
   const username = profile?.username
-  const needsOnboarding = !profile || !username || username.startsWith('user_')
+  const needsOnboarding = !profile || !username || username.startsWith('user_') || !(profile as any).birthdate
   
   if (needsOnboarding && window.location.pathname !== '/onboarding') {
      throw redirect({ to: '/onboarding' })

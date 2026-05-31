@@ -107,16 +107,17 @@ export function Onboarding() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ 
+      .upsert({ 
+        id: user.id,
         username, 
         display_name: displayName,
         bio,
         birthdate,
         gender: finalGender,
         pronouns: finalPronouns,
-        avatar_url: finalAvatar
+        avatar_url: finalAvatar,
+        updated_at: new Date().toISOString()
       } as any)
-      .eq('id', user.id)
 
     if (!error) {
       await fetchProfile(user.id)
