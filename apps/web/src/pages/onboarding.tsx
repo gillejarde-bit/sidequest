@@ -141,11 +141,13 @@ export function Onboarding() {
       let drawH = previewSize
 
       if (imgRatio > 1) {
-        // Landscape aspect ratio cover
-        drawW = previewSize * imgRatio
-      } else {
-        // Portrait aspect ratio cover
+        // Landscape aspect ratio contain
+        drawW = previewSize
         drawH = previewSize / imgRatio
+      } else {
+        // Portrait aspect ratio contain
+        drawH = previewSize
+        drawW = previewSize * imgRatio
       }
 
       const finalW = drawW * ratio
@@ -743,7 +745,7 @@ export function Onboarding() {
                     transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`,
                     transformOrigin: 'center center',
                   }}
-                  className="absolute w-full h-full object-cover pointer-events-none select-none"
+                  className="absolute w-full h-full object-contain pointer-events-none select-none"
                 />
 
                 {/* Aesthetic alignment overlay rules */}
