@@ -32,36 +32,39 @@ export function Login() {
   }
 
   return (
-    <div className="relative bg-[#11132a] min-h-screen text-white font-sans overflow-x-hidden selection:bg-primary/20">
+    <div className="relative bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#1d1e43] via-[#0b0c1b] to-[#040409] min-h-screen text-white font-sans overflow-x-hidden selection:bg-primary/20">
+      
       {/* Scroll-driven Canvas container pinned by GSAP */}
       <div 
         id="globe-hero-container" 
         className="w-full h-screen relative flex items-center justify-center overflow-hidden"
       >
-        {/* Subtle grid coordinate dots background texture */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1.2px,transparent_1.2px)] [background-size:24px_24px] pointer-events-none" />
+        {/* Cosmic stellar dust background overlay grid */}
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:32px_32px] pointer-events-none" />
 
-        {/* 3D R3F Canvas Container */}
+        {/* 3D R3F Canvas Container (Houses the Globe, Stars, Ring, and Effects) */}
         <SceneContainer progressRef={progressRef} />
 
-        {/* 1. HERO CONTENT OVERLAY (Fades out on scroll) */}
+        {/* 1. HERO CONTENT OVERLAY (Fades out on scroll with Liquid Glass card) */}
         <div 
           id="hero-text-container" 
           className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center pointer-events-none z-10"
         >
-          <h1 
-            className="text-4xl sm:text-6xl font-black tracking-tight"
-            style={{ 
-              fontFamily: "'DM Sans', sans-serif",
-              letterSpacing: '-1.5px',
-              textShadow: '0 4px 20px rgba(0,0,0,0.5)'
-            }}
-          >
-            Ready for a <span className="text-[#7CFC00]">Sidequest?</span>
-          </h1>
-          <p className="text-gray-400 text-sm sm:text-lg max-w-sm mt-3 font-medium">
-            Discover coordinates, build your guild, and conquer real-world milestones.
-          </p>
+          {/* Liquid Glass HUD panel card */}
+          <div className="bg-white/[0.02] border border-white/[0.08] backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_12px_40px_rgba(0,0,0,0.4)] rounded-3xl p-8 sm:p-10 max-w-md w-full mx-auto flex flex-col items-center">
+            <h1 
+              className="text-4xl sm:text-5xl font-black tracking-tight"
+              style={{ 
+                fontFamily: "'DM Sans', sans-serif",
+                letterSpacing: '-1.5px',
+              }}
+            >
+              Ready for a <span className="text-[#7CFC00] drop-shadow-[0_0_15px_rgba(124,252,0,0.3)]">Sidequest?</span>
+            </h1>
+            <p className="text-gray-400 text-xs sm:text-sm mt-4 font-medium leading-relaxed">
+              Discover local secrets, coordinate events with your crew, and level up in a living real-world map.
+            </p>
+          </div>
         </div>
 
         {/* Scroll Instruction indicator (Fades out on scroll) */}
@@ -69,30 +72,33 @@ export function Login() {
           id="scroll-instruction" 
           className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-400 cursor-pointer pointer-events-none z-10"
         >
-          <span className="text-[10px] font-black tracking-widest uppercase text-[#7CFC00]">Scroll to Morph Earth</span>
+          <span className="text-[10px] font-black tracking-widest uppercase text-[#7CFC00] drop-shadow-[0_0_8px_rgba(124,252,0,0.2)]">Scroll to Morph Earth</span>
           <ChevronDown className="w-5 h-5 text-[#7CFC00] animate-bounce" />
         </div>
 
-        {/* 2. AUTHENTICATION BOX OVERLAY (Fades in on scroll 0.7 -> 1.0) */}
+        {/* 2. AUTHENTICATION BOX OVERLAY (Fades in on scroll with Liquid Glass card) */}
         <div 
           id="auth-card-wrapper" 
           className="absolute inset-0 flex items-center justify-center px-6 z-20 hidden"
         >
-          <div className="max-w-md w-full bg-[#161937]/90 backdrop-blur-xl p-8 rounded-3xl border border-white/5 shadow-2xl shadow-black/80 text-center">
-            <h2 className="text-2xl font-black text-white mb-1">Access Guild Portal</h2>
-            <p className="text-gray-400 text-sm mb-6">Access your dashboard via Google or a magic link.</p>
+          {/* Stunning Liquid Glass Card */}
+          <div className="max-w-md w-full bg-[#161a38]/30 border border-white/10 backdrop-blur-2xl shadow-[inset_0_1px_2px_rgba(255,255,255,0.15),0_16px_48px_rgba(0,0,0,0.6)] p-8 sm:p-10 rounded-3xl text-center flex flex-col gap-6">
+            <div>
+              <h2 className="text-2xl font-black text-white tracking-tight">Access Guild Portal</h2>
+              <p className="text-gray-400 text-xs mt-1">Ready to start your next social adventure?</p>
+            </div>
             
             {status === 'success' ? (
               <motion.div 
                 initial={{ scale: 0.95, opacity: 0 }} 
                 animate={{ scale: 1, opacity: 1 }} 
-                className="bg-[#7CFC00]/10 border border-[#7CFC00]/20 text-[#7CFC00] font-bold p-5 rounded-2xl"
+                className="bg-[#7CFC00]/10 border border-[#7CFC00]/25 text-[#7CFC00] font-bold p-5 rounded-2xl shadow-inner backdrop-blur-md"
               >
                 ✨ Magic link sent! Check your email inbox.
               </motion.div>
             ) : (
-              <div className="flex flex-col gap-4">
-                {/* Google Auth Button */}
+              <div className="flex flex-col gap-5">
+                {/* Custom Glassmorphic Google Button */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -105,7 +111,7 @@ export function Login() {
                     })
                     if (error) console.error('Google login error:', error)
                   }}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold p-4 rounded-2xl shadow-sm hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold p-4 rounded-2xl shadow-lg hover:bg-gray-100 active:scale-95 transition-all"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -116,33 +122,33 @@ export function Login() {
                   Continue with Google
                 </motion.button>
 
-                <div className="relative py-1.5 flex items-center justify-center">
+                <div className="relative py-1 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
-                  <span className="relative px-3 bg-[#161937] text-[10px] font-black uppercase tracking-widest text-gray-500">or</span>
+                  <span className="relative px-3 bg-[#131631]/80 backdrop-blur-md rounded-full border border-white/5 text-[9px] font-black uppercase tracking-widest text-gray-500">or</span>
                 </div>
 
-                {/* Magic Link Form */}
+                {/* Glassmorphic Magic Link input */}
                 <form onSubmit={handleLogin} className="flex flex-col gap-4">
                   <input 
                     type="email" 
                     placeholder="Email address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-4 rounded-2xl border border-white/5 focus:outline-none focus:ring-2 focus:ring-[#7CFC00] bg-black/40 text-white placeholder-gray-500"
+                    className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-medium"
                     required
                   />
                   
                   <motion.button 
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full bg-[#7CFC00] hover:bg-[#6be400] border-bottom-[4px] border-[#5ebd00] text-black font-extrabold p-4 rounded-2xl transition-all shadow-lg"
+                    className="w-full bg-[#7CFC00] hover:bg-[#6be400] border-bottom-[4px] border-[#5ebd00] text-black font-black p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5"
                     disabled={status === 'loading'}
                   >
                     {status === 'loading' ? 'Requesting Portal...' : 'Send Magic Link ✨'}
                   </motion.button>
                   
                   {status === 'error' && (
-                    <p className="text-red-500 text-xs mt-1 font-bold">
+                    <p className="text-red-400 text-xs mt-1 font-bold">
                       ⚠️ {errorMessage || 'Failed to send link'}
                     </p>
                   )}

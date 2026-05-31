@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Line } from '@react-three/drei'
+import { Line, Stars } from '@react-three/drei'
 import * as THREE from 'three'
 import { GlobeField } from './GlobeField'
 import { Effects } from './Effects'
@@ -26,8 +26,8 @@ function OrbitalRing() {
   return (
     <Line
       points={points}
-      color={GLOBE_CONFIG.COLOR_LIME}
-      opacity={0.15}
+      color={GLOBE_CONFIG.COLOR_EARTH_FOREST}
+      opacity={0.12}
       transparent
       dashed
       dashSize={0.15}
@@ -52,8 +52,19 @@ export function SceneContainer({ progressRef }: SceneContainerProps) {
       >
         <ambientLight intensity={0.4} />
         <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-        <directionalLight position={[-10, -10, -10]} intensity={0.5} color="#0EA5E9" />
+        <directionalLight position={[-10, -10, -10]} intensity={0.6} color="#0EA5E9" />
         
+        {/* Immersive 3D Parallax Starfield Constellations */}
+        <Stars 
+          radius={120} 
+          depth={60} 
+          count={5000} 
+          factor={7} 
+          saturation={1.0} 
+          fade 
+          speed={1.5} 
+        />
+
         {/* Orbital dashed ring */}
         <OrbitalRing />
 
