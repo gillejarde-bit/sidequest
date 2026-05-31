@@ -6,12 +6,15 @@ import { ScrollController } from '../components/globe/ScrollController'
 
 export function Login() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSignInMode, setIsSignInMode] = useState(false)
   
   // High-performance progress ref scrubbed by GSAP
   const progressRef = useRef(0)
 
+  // Mode A: Magic Link Sign Up submit
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('loading')
@@ -30,8 +33,29 @@ export function Login() {
     }
   }
 
+  // Mode B: Email & Password Sign In submit
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('loading')
+    setErrorMessage('')
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    
+    if (error) {
+      console.error("Supabase Sign In Error:", error)
+      setStatus('error')
+      setErrorMessage(error.message)
+    } else {
+      setStatus('success')
+      // Successfully authenticated! Force direct redirect to '/' (which triggers requireAuth onboarding routing)
+      window.location.href = '/'
+    }
+  }
+
   return (
-    <div className="relative min-h-[250vh] bg-[#070710] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
+    <div className="relative min-h-[250vh] bg-[#0a0d18] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
       
       {/* 3D Morphing Globe Scroll Timeline Controller */}
       <ScrollController progressRef={progressRef} />
@@ -41,8 +65,8 @@ export function Login() {
         id="globe-hero-container"
         className="w-full h-screen relative overflow-hidden flex flex-col justify-between items-center py-12 px-6 text-center"
       >
-        {/* Immersive background stars gridlines layer */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:32px_32px] pointer-events-none z-10" />
+        {/* Soft coordinate space gridlines background */}
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:24px_24px] pointer-events-none z-10" />
 
         {/* 3D R3F Canvas Container (Stays in the background) */}
         <SceneContainer progressRef={progressRef} />
@@ -69,14 +93,18 @@ export function Login() {
           className="absolute inset-0 z-30 flex items-center justify-center px-6 pointer-events-auto"
           style={{ display: 'none' }} // Controlled by GSAP ScrollController
         >
-          <div className="max-w-md w-full bg-white/[0.06] backdrop-blur-[16px] backdrop-saturate-[120%] border-[0.5px] border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.3)] p-8 sm:p-10 rounded-[20px] text-center flex flex-col gap-6">
+          <div className="max-w-md w-full bg-white/[0.06] backdrop-blur-[16px] border-[0.5px] border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.3)] p-8 sm:p-10 rounded-[20px] text-center flex flex-col gap-6">
             <div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Access Guild Portal</h2>
-              <p className="text-gray-300 text-xs mt-1">Ready to start your next social adventure?</p>
+              <h2 className="text-2xl font-semibold text-white tracking-tight">
+                {isSignInMode ? 'Sign In to Guild' : 'Access Guild Portal'}
+              </h2>
+              <p className="text-gray-300 text-xs mt-1 font-normal">
+                {isSignInMode ? 'Welcome back, adventurer!' : 'Ready to start your next social adventure?'}
+              </p>
             </div>
             
-            {status === 'success' ? (
-              <div className="bg-[#7CFC00]/10 border border-[#7CFC00]/25 text-[#7CFC00] font-bold p-5 rounded-2xl shadow-inner backdrop-blur-md">
+            {status === 'success' && !isSignInMode ? (
+              <div className="bg-[#7CFC00]/10 border border-[#7CFC00]/25 text-[#7CFC00] font-semibold p-5 rounded-2xl shadow-inner backdrop-blur-md">
                 ✨ Magic link sent! Check your email inbox.
               </div>
             ) : (
@@ -92,7 +120,7 @@ export function Login() {
                     })
                     if (error) console.error('Google login error:', error)
                   }}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold p-4 rounded-2xl shadow-lg hover:bg-gray-100 active:scale-95 transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold p-4 rounded-2xl shadow-lg hover:bg-gray-100 active:scale-98 transition-all cursor-pointer"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -105,33 +133,75 @@ export function Login() {
 
                 <div className="relative py-1 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
-                  <span className="relative px-3 bg-[#131631]/80 backdrop-blur-md rounded-full border border-white/5 text-[9px] font-black uppercase tracking-widest text-gray-500">or</span>
+                  <span className="relative px-3 bg-[#0a0d18] rounded-full border border-white/5 text-[9px] font-semibold uppercase tracking-widest text-gray-500">or</span>
                 </div>
 
-                {/* Glassmorphic Magic Link input */}
-                <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                  <input 
-                    type="email" 
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-medium"
-                    required
-                  />
-                  
-                  <button 
-                    className="w-full bg-[#7CFC00] hover:bg-[#6be400] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5 cursor-pointer"
-                    disabled={status === 'loading'}
-                  >
-                    {status === 'loading' ? 'Requesting Portal...' : 'Send Magic Link ✨'}
-                  </button>
-                  
-                  {status === 'error' && (
-                    <p className="text-red-400 text-xs mt-1 font-bold">
-                      ⚠️ {errorMessage || 'Failed to send link'}
-                    </p>
-                  )}
-                </form>
+                {isSignInMode ? (
+                  /* Mode B: Email & Password Sign In */
+                  <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+                    <input 
+                      type="email" 
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      required
+                    />
+                    <input 
+                      type="password" 
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      required
+                    />
+                    
+                    <button 
+                      className="w-full bg-[#7CFC00] hover:bg-[#6be400] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      disabled={status === 'loading'}
+                    >
+                      {status === 'loading' ? 'Authenticating...' : 'Sign In'}
+                    </button>
+                  </form>
+                ) : (
+                  /* Mode A: Magic Link Sign Up */
+                  <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                    <input 
+                      type="email" 
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      required
+                    />
+                    
+                    <button 
+                      className="w-full bg-[#7CFC00] hover:bg-[#6be400] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      disabled={status === 'loading'}
+                    >
+                      {status === 'loading' ? 'Requesting Portal...' : 'Send Magic Link ✨'}
+                    </button>
+                  </form>
+                )}
+
+                {status === 'error' && (
+                  <p className="text-red-400 text-xs mt-1 font-bold text-center">
+                    ⚠️ {errorMessage || 'Authentication failed'}
+                  </p>
+                )}
+
+                {/* Mode Toggle Button */}
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsSignInMode(!isSignInMode)
+                    setStatus('idle')
+                    setErrorMessage('')
+                  }}
+                  className="text-xs text-[#7CFC00] hover:underline cursor-pointer transition-all mt-2"
+                >
+                  {isSignInMode ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+                </button>
               </div>
             )}
           </div>
