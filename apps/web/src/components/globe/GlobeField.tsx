@@ -3,48 +3,33 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLOBE_CONFIG } from './GlobeConfig'
 
-// Highly realistic land/ocean coordinate color mapping
+// Direct geographic classification for lime/cyan/orange continent colors
 function getGeographicColor(lngDeg: number, latDeg: number): { isLand: boolean; color: string } {
-  // Checks continent boundaries
-  let isLand = false
-
   // Eurasia
   if (latDeg >= 12 && latDeg <= 75 && lngDeg >= -20 && lngDeg <= 145) {
-    isLand = true
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_CYAN }
   }
   // Africa
-  else if (latDeg >= -35 && latDeg <= 35 && lngDeg >= -17 && lngDeg <= 51) {
-    isLand = true
+  if (latDeg >= -35 && latDeg <= 35 && lngDeg >= -17 && lngDeg <= 51) {
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_LIME }
   }
   // North America
-  else if (latDeg >= 15 && latDeg <= 72 && lngDeg >= -168 && lngDeg <= -52) {
-    isLand = true
+  if (latDeg >= 15 && latDeg <= 72 && lngDeg >= -168 && lngDeg <= -52) {
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_CYAN }
   }
   // South America
-  else if (latDeg >= -55 && latDeg <= 12 && lngDeg >= -82 && lngDeg <= -34) {
-    isLand = true
+  if (latDeg >= -55 && latDeg <= 12 && lngDeg >= -82 && lngDeg <= -34) {
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_LIME }
   }
   // Australia
-  else if (latDeg >= -42 && latDeg <= -10 && lngDeg >= 113 && lngDeg <= 153) {
-    isLand = true
+  if (latDeg >= -42 && latDeg <= -10 && lngDeg >= 113 && lngDeg <= 153) {
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_ORANGE }
   }
   // Antarctica
-  else if (latDeg <= -60) {
-    isLand = true
+  if (latDeg <= -60) {
+    return { isLand: true, color: GLOBE_CONFIG.COLOR_ORANGE }
   }
-
-  if (isLand) {
-    // Distribute organic earth tones across landmasses
-    const rand = Math.random()
-    if (rand < 0.55) return { isLand: true, color: GLOBE_CONFIG.COLOR_EARTH_FOREST }
-    if (rand < 0.82) return { isLand: true, color: GLOBE_CONFIG.COLOR_EARTH_EMERALD }
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_EARTH_SAND }
-  } else {
-    // Distribute depth water tones across oceans
-    const rand = Math.random()
-    if (rand < 0.75) return { isLand: false, color: GLOBE_CONFIG.COLOR_OCEAN_DEEP }
-    return { isLand: false, color: GLOBE_CONFIG.COLOR_OCEAN_SHALLOW }
-  }
+  return { isLand: false, color: GLOBE_CONFIG.COLOR_OCEAN_DIM }
 }
 
 interface GlobeFieldProps {
@@ -99,23 +84,24 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
       colArray[idx * 3 + 1] = tempColor.g
       colArray[idx * 3 + 2] = tempColor.b
 
-      // Starting scales
-      scA[idx] = isLand ? 1.0 : 0.8
+      // Starting scales (oceans slightly smaller, lands prominent in sparse sphere)
+      scA[idx] = isLand ? 1.0 : 0.6
 
-      // 2. Generate Targets B (Dense Detailed Globe - Land & Water)
+      // 2. Generate Targets B (Dense Detailed Globe - Land packed, Oceans shrunk to 0)
       const rB = GLOBE_CONFIG.RADIUS_B
       if (isLand) {
         // Land shards pack tight on the larger sphere shell
         posB[idx * 3] = x * rB
         posB[idx * 3 + 1] = y * rB
         posB[idx * 3 + 2] = z * rB
-        scB[idx] = 1.15 // Terrestrial land is slightly larger/elevated
+        scB[idx] = 1.1 // Detailed continents are prominent
       } else {
-        // Water shards pack tightly slightly lower than land for premium depth feel
-        posB[idx * 3] = x * (rB * 0.98)
-        posB[idx * 3 + 1] = y * (rB * 0.98)
-        posB[idx * 3 + 2] = z * (rB * 0.98)
-        scB[idx] = 0.85 // Tightly packed ocean floor
+        // Ocean shards slide into the inside sphere and compress to 0 scale
+        // This hides them completely in State B, revealing the dense continents in full relief
+        posB[idx * 3] = x * (rB * 0.9)
+        posB[idx * 3 + 1] = y * (rB * 0.9)
+        posB[idx * 3 + 2] = z * (rB * 0.9)
+        scB[idx] = 0.0 
       }
 
       // 3. Precompute unique orthogonal Arc/Displacement offsets for the morph path
@@ -164,19 +150,15 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
     const meshRotationY = elapsed * speedMult
     meshRef.current.rotation.y = meshRotationY
 
-    // Dynamically adjust material to transition into ultra-reflective "Liquid Glass"
-    // when the scroll animation reaches the end (progress = 1.0)
+    // Adjust glossiness slightly without transmission so colors stay solid & extremely vibrant
     if (materialRef.current) {
-      materialRef.current.roughness = THREE.MathUtils.lerp(0.15, 0.05, rawProgress)
-      materialRef.current.metalness = THREE.MathUtils.lerp(0.85, 0.05, rawProgress)
-      materialRef.current.transmission = THREE.MathUtils.lerp(0.0, 0.85, rawProgress)
-      materialRef.current.thickness = THREE.MathUtils.lerp(0.0, 0.45, rawProgress)
-      materialRef.current.clearcoat = THREE.MathUtils.lerp(0.0, 1.0, rawProgress)
+      materialRef.current.roughness = THREE.MathUtils.lerp(0.25, 0.15, rawProgress)
+      materialRef.current.metalness = THREE.MathUtils.lerp(0.7, 0.85, rawProgress)
+      materialRef.current.clearcoat = THREE.MathUtils.lerp(0.2, 1.0, rawProgress)
     }
 
     for (let i = 0; i < count; i++) {
       // 1. Calculate staggered local progress per shard
-      // Stagger stretches the execution time based on the index to create a "transformer" effect
       const indexOffset = (i / count) * GLOBE_CONFIG.STAGGER_AMOUNT
       const localProgress = Math.max(0, Math.min(1, (rawProgress - indexOffset) / (1 - GLOBE_CONFIG.STAGGER_AMOUNT)))
 
@@ -184,7 +166,7 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
       posA.set(positionsA[i * 3], positionsA[i * 3 + 1], positionsA[i * 3 + 2])
       posB.set(positionsB[i * 3], positionsB[i * 3 + 1], positionsB[i * 3 + 2])
 
-      // 3. Apply standard LERP positioning
+      // 3. Apply LERP positioning
       currentPos.lerpVectors(posA, posB, localProgress)
 
       // 4. Inject Curl-Noise Arc displacement that peaks at progress = 0.5
@@ -200,7 +182,7 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
       velocity.subVectors(aheadPos, currentPos).normalize()
 
-      // 6. Interpolate scale factor (shrinks ocean shards slightly, expands land)
+      // 6. Interpolate scale factor (shrinks ocean shards to 0 in State B)
       const currentScale = (1 - localProgress) * scalesA[i] + localProgress * scalesB[i]
       scaleVec.set(currentScale, currentScale, currentScale * 1.5) // Extrude slightly
 
@@ -224,18 +206,15 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       {/* Sleek Crystalline Shard geometry (cone/prism looks highly directional) */}
-      <coneGeometry args={[0.02, 0.08, 4]} />
+      <coneGeometry args={[0.025, 0.085, 4]} />
       
-      {/* Dynamic MeshPhysicalMaterial for beautiful glass refractions */}
+      {/* Glossy physical material which preserves solid color attributes */}
       <meshPhysicalMaterial 
         ref={materialRef}
-        roughness={0.15} 
-        metalness={0.85} 
-        transmission={0.0}
-        thickness={0.0}
-        clearcoat={0.0}
+        roughness={0.25} 
+        metalness={0.7} 
+        clearcoat={0.2}
         clearcoatRoughness={0.1}
-        ior={1.5}
         toneMapped={false}
       >
         <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />

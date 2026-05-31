@@ -1,24 +1,22 @@
 export const GLOBE_CONFIG = {
-  // Total number of geometric shards. Lower this if your laptop struggles.
+  // Total number of geometric shards.
   INSTANCE_COUNT: 8000, 
 
-  // Sphere parameters
-  RADIUS_A: 3.5, // Sparse Globe radius
-  RADIUS_B: 3.8, // Dense Globe radius
+  // Sphere parameters (lowered slightly so the globe fits perfectly in the screen without overflowing)
+  RADIUS_A: 2.3, // Sparse Globe radius
+  RADIUS_B: 2.6, // Dense Globe radius
 
   // Motion physics
-  ROTATION_SPEED_BASE: 0.04, // Constant Y-axis spin speed
-  ROTATION_SPEED_MORPH: 0.12, // Speed multiplier during morph phase
-  ARC_HEIGHT: 1.5, // Height of the curl-noise curve at progress = 0.5
+  ROTATION_SPEED_BASE: 0.05, // Constant Y-axis spin speed
+  ROTATION_SPEED_MORPH: 0.15, // Speed multiplier during morph phase
+  ARC_HEIGHT: 1.6, // Height of the curl-noise curve at progress = 0.5
   STAGGER_AMOUNT: 0.25, // Stagger offset spreading out shard animation
 
-  // Colors customized for realistic Earth (land) and Water (ocean)
-  COLOR_EARTH_FOREST: '#22C55E',  // Rich vibrant forest land green
-  COLOR_EARTH_EMERALD: '#10B981', // Glowing emerald mountain green
-  COLOR_EARTH_SAND: '#EAB308',    // Sandy gold coastlines & desert land
-
-  COLOR_OCEAN_DEEP: '#1D4ED8',    // Deep sapphire water blue
-  COLOR_OCEAN_SHALLOW: '#06B6D4', // Turquoise/cyan shallow coastal waters
+  // Vibrant landmass colors matching water and earth
+  COLOR_LIME: '#7CFC00',      // Lime Green for Africa/South America
+  COLOR_CYAN: '#29ABE2',      // Cyan Blue for Eurasia/North America
+  COLOR_ORANGE: '#FF7A1A',    // Orange for Australia/Antarctica
+  COLOR_OCEAN_DIM: '#23253b', // Ocean desaturated filler color for State A
 
   // Style
   BG_COSMOS: '#070710'

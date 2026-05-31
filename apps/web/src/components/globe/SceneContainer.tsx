@@ -26,7 +26,7 @@ function OrbitalRing() {
   return (
     <Line
       points={points}
-      color={GLOBE_CONFIG.COLOR_EARTH_FOREST}
+      color={GLOBE_CONFIG.COLOR_LIME}
       opacity={0.12}
       transparent
       dashed
