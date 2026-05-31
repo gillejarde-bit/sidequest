@@ -14,6 +14,7 @@ export function Onboarding() {
   
   const defaultUser = profile?.username?.startsWith('user_') ? '' : profile?.username
   const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [popupMessage, setPopupMessage] = useState<string | null>(null)
 
   // Step 1: Account Details
   const [username, setUsername] = useState(defaultUser || '')
@@ -75,7 +76,7 @@ export function Onboarding() {
       setAvatarType('upload')
     } catch (err) {
       console.error('Error uploading avatar:', err)
-      alert('Failed to upload image. Please try again.')
+      setPopupMessage('Failed to upload image. Please try again.')
     } finally {
       setUploading(false)
     }
@@ -105,6 +106,7 @@ export function Onboarding() {
     const finalPronouns = pronounsSelect === 'Custom' ? pronounsCustom : pronounsSelect
     const finalAvatar = avatarType === 'fallback' ? `fallback:${selectedFallback}` : avatarUrl
 
+    // Upsert into profiles (id is required, no updated_at column exists in profiles schema)
     const { error } = await supabase
       .from('profiles')
       .upsert({ 
@@ -115,8 +117,7 @@ export function Onboarding() {
         birthdate,
         gender: finalGender,
         pronouns: finalPronouns,
-        avatar_url: finalAvatar,
-        updated_at: new Date().toISOString()
+        avatar_url: finalAvatar
       } as any)
 
     if (!error) {
@@ -124,7 +125,7 @@ export function Onboarding() {
       navigate({ to: '/' })
     } else {
       console.error('Profile update error:', error)
-      alert('Failed to save profile. Make sure your username is unique!')
+      setPopupMessage('Failed to save profile. Make sure your username is unique!')
     }
     setLoading(false)
   }
@@ -517,6 +518,42 @@ export function Onboarding() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Premium Glassmorphic in-page popup modal replacing ugly browser alerts */}
+      <AnimatePresence>
+        {popupMessage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 pointer-events-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="max-w-sm w-full bg-white dark:bg-gray-950 p-6 rounded-3xl border border-gray-200 dark:border-gray-900 shadow-2xl text-center flex flex-col gap-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-foreground">Notice</h3>
+                <p className="text-sm text-muted mt-2 leading-relaxed">
+                  {popupMessage}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPopupMessage(null)}
+                className="w-full bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold p-3.5 rounded-2xl shadow-md cursor-pointer transition-all active:scale-98"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
