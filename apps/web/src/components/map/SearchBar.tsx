@@ -10,9 +10,10 @@ declare global {
 
 interface SearchBarProps {
   onLocationSelect: (lat: number, lng: number, place?: any) => void
+  className?: string
 }
 
-export function SearchBar({ onLocationSelect }: SearchBarProps) {
+export function SearchBar({ onLocationSelect, className }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<any>(null)
   const [isReady, setIsReady] = useState(false)
@@ -70,7 +71,7 @@ export function SearchBar({ onLocationSelect }: SearchBarProps) {
   }
 
   return (
-    <div className="absolute top-4 right-4 z-10 w-full max-w-[300px] sm:w-80">
+    <div className={className || "absolute top-4 right-4 z-10 w-full max-w-[300px] sm:w-80"}>
       <div className="relative flex items-center">
         <input
           ref={inputRef}

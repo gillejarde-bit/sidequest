@@ -11,7 +11,8 @@ import {
   Sparkles, 
   Check, 
   Loader2,
-  ChevronLeft
+  ChevronLeft,
+  Heart
 } from 'lucide-react'
 import { useToastStore } from '../stores/toastStore'
 
@@ -155,10 +156,51 @@ export function StreaksPage() {
       {/* Main Content Container */}
       <main className="max-w-md mx-auto p-4 pt-6 pb-32 space-y-6">
         
+        {/* RPG Lives Status Tracking (Absolute Top) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500">
+                <Heart className="w-5 h-5" fill="currentColor" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
+                  RPG Lives Tracker
+                  <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
+                    Active
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-400 font-bold mt-0.5">3 / 3 Hearts remaining</p>
+              </div>
+            </div>
+            
+            {/* Visual Hearts Row */}
+            <div className="flex items-center gap-1">
+              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" />
+              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" style={{ animationDelay: '0.2s' }} />
+              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" style={{ animationDelay: '0.4s' }} />
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+            <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-full bg-red-500 rounded-full w-full" />
+            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-300 font-semibold mt-2.5 leading-relaxed">
+              Missing planned quests reduces your hearts. Recharge by attending group events or verifying hidden gems!
+            </p>
+          </div>
+        </motion.div>
+
         {/* Personal Streak Hero Card */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
           className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/10"
         >
           {/* Decorative Sparkles */}
@@ -281,33 +323,46 @@ export function StreaksPage() {
                     </div>
 
                     {/* Streak Badge */}
-                    <div className={`flex items-center gap-1 px-3 py-1.5 rounded-2xl ${isRainbow ? 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' : bgClass}`}>
-                      <motion.div
-                        animate={{ 
-                          scale: [1, 1.08, 0.96, 1.04, 1],
-                          rotate: [0, 3, -3, 1, 0]
-                        }}
-                        transition={{
-                          duration: 1.5 + Math.random(),
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        <Flame 
-                          className="w-4.5 h-4.5" 
-                          fill={isRainbow ? 'currentColor' : flameColor} 
-                          stroke={isRainbow ? 'none' : flameColor} 
-                        />
-                      </motion.div>
-                      <span className="text-sm font-black tracking-tight">{crew.current_streak}</span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className={`flex items-center gap-1 px-3 py-1.5 rounded-2xl ${isRainbow ? 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' : bgClass}`}>
+                        <motion.div
+                          animate={{ 
+                            scale: [1, 1.08, 0.96, 1.04, 1],
+                            rotate: [0, 3, -3, 1, 0]
+                          }}
+                          transition={{
+                            duration: 1.5 + Math.random(),
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                        >
+                          <Flame 
+                            className="w-4.5 h-4.5" 
+                            fill={isRainbow ? 'currentColor' : flameColor} 
+                            stroke={isRainbow ? 'none' : flameColor} 
+                          />
+                        </motion.div>
+                        <span className="text-sm font-black tracking-tight">{crew.current_streak}</span>
+                      </div>
+                      {crew.is_at_risk && (
+                        <div className="flex items-center gap-1 text-[9px] text-red-500 font-black bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-lg border border-red-100 dark:border-red-950/50 mt-1">
+                          <Heart className="w-2.5 h-2.5 fill-current" />
+                          <span>-1 Life</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Warning message if at risk */}
                   {crew.is_at_risk && (
-                    <div className="mt-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 p-2.5 rounded-2xl text-xs font-bold border border-amber-100 dark:border-amber-950/30">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span>Streak at risk! {crew.days_until_break} days left to do a quest!</span>
+                    <div className="mt-3 flex flex-col gap-1 bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 p-2.5 rounded-2xl text-xs font-bold border border-red-100 dark:border-red-950/30">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                        <span>⚠️ At risk — missing this costs a life</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-300 pl-5">
+                        {crew.days_until_break} days left to quest!
+                      </span>
                     </div>
                   )}
 

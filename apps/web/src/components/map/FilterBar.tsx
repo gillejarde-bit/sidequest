@@ -3,11 +3,11 @@ import { motion } from 'framer-motion'
 
 const FILTERS = ['Quests', 'Friends', 'Gems', 'Food', 'Outdoors', 'Nightlife']
 
-export function FilterBar() {
+export function FilterBar({ className }: { className?: string }) {
   const { activeFilters, toggleFilter } = useMapStore()
 
   return (
-    <div className="absolute top-4 left-0 right-0 z-10 overflow-x-auto no-scrollbar px-4">
+    <div className={className || "absolute top-4 left-0 right-0 z-10 overflow-x-auto no-scrollbar px-4"}>
       <div className="flex gap-2 w-max">
         {FILTERS.map((filter) => {
           const isActive = activeFilters.includes(filter)

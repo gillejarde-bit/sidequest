@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent, Marker } from 'react-map-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import { useSettingsStore } from '../stores/settingsStore'
 import { supabase } from '../lib/supabase'
@@ -15,6 +15,8 @@ import { useMapStore } from '../stores/mapStore'
 import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
+import { Z_INDEX } from '../lib/zIndex'
+import { Clock, MapPin } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,25 @@ interface SelectedLocation {
 // ─── Category Colors ──────────────────────────────────────────────────────────
 
 // ─── Component ────────────────────────────────────────────────────────────────
+
+function getTimeUntil(dateStr: string) {
+  const diffMs = new Date(dateStr).getTime() - Date.now()
+  if (diffMs < 0) return 'Started'
+  
+  const diffHrs = diffMs / (1000 * 60 * 60)
+  if (diffHrs < 1) {
+    const mins = Math.round(diffMs / (1000 * 60))
+    return `starts in ${mins}m!`
+  }
+  if (diffHrs < 24) {
+    const hrs = Math.floor(diffHrs)
+    const mins = Math.round((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+    return `in ${hrs}h ${mins}m`
+  }
+  
+  const startsDate = new Date(dateStr)
+  return startsDate.toLocaleDateString(undefined, { weekday: 'short', hour: 'numeric' })
+}
 
 export function MapPage() {
   const mapRef = useRef<MapRef>(null)
@@ -70,6 +91,37 @@ export function MapPage() {
 
   // Track if map style is ready to accept config properties
   const [styleLoaded, setStyleLoaded] = useState(false)
+
+  const [isSoonPanelCollapsed, setIsSoonPanelCollapsed] = useState(false)
+
+  const happeningSoonQuests = useMemo(() => {
+    const now = Date.now()
+    const oneDay = 24 * 60 * 60 * 1000
+    return quests.filter((q: any) => {
+      const qTime = new Date(q.starts_at).getTime()
+      const timeDiff = qTime - now
+      return timeDiff > 0 && timeDiff <= oneDay && (q.my_status === 'accepted' || q.my_status === 'creator')
+    }).sort((a: any, b: any) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+  }, [quests])
+
+  const handleSoonQuestTap = (q: any) => {
+    if (q.location_lng && q.location_lat) {
+      mapRef.current?.flyTo({
+        center: [q.location_lng, q.location_lat],
+        zoom: 15,
+        duration: 1500
+      })
+      setSelectedQuest({
+        id: q.id,
+        title: q.name,
+        name: q.name,
+        category: q.category,
+        time: `Starts ${getTimeUntil(q.starts_at)}`,
+        description: q.description,
+        joined_count: q.attendee_count,
+      } as any)
+    }
+  }
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -212,32 +264,104 @@ export function MapPage() {
 
   return (
     <div className="relative w-full h-[100dvh] bg-dark overflow-hidden">
-      <FilterBar />
-      <SearchBar 
-        onLocationSelect={(lat, lng, place) => {
-          if (!place) {
-            setSearchResultPin(null)
-            if (selectedLocation?.id === 'search-result' || selectedLocation?.category === 'Search Result') {
-              setSelectedLocation(null)
-            }
-            return
-          }
-          setSearchResultPin({ lat, lng, place })
-          setSelectedLocation({
-            id: place?.place_id || 'search-result',
-            name: place?.name || place?.formatted_address?.split(',')[0] || 'Selected Location',
-            category: 'Search Result',
-            lat,
-            lng,
-            placeDetails: place
-          })
-          mapRef.current?.flyTo({
-            center: [lng, lat],
-            zoom: 15,
-            duration: 2000
-          })
-        }} 
-      />
+      
+      {/* Floating control overlay stacked at the top */}
+      <div 
+        className="absolute top-4 left-4 right-4 pointer-events-none flex flex-col gap-3"
+        style={{ zIndex: Z_INDEX.map_ui }}
+      >
+        <div className="pointer-events-auto flex items-center justify-between w-full">
+          <SearchBar 
+            className="w-full max-w-[280px] sm:max-w-xs"
+            onLocationSelect={(lat, lng, place) => {
+              if (!place) {
+                setSearchResultPin(null)
+                if (selectedLocation?.id === 'search-result' || selectedLocation?.category === 'Search Result') {
+                  setSelectedLocation(null)
+                }
+                return
+              }
+              setSearchResultPin({ lat, lng, place })
+              setSelectedLocation({
+                id: place?.place_id || 'search-result',
+                name: place?.name || place?.formatted_address?.split(',')[0] || 'Selected Location',
+                category: 'Search Result',
+                lat,
+                lng,
+                placeDetails: place
+              })
+              mapRef.current?.flyTo({
+                center: [lng, lat],
+                zoom: 15,
+                duration: 2000
+              })
+            }}
+          />
+        </div>
+        
+        <FilterBar className="pointer-events-auto w-full overflow-x-auto no-scrollbar flex gap-2" />
+
+        {/* Happening Soon collapsible panel */}
+        {happeningSoonQuests.length > 0 && (
+          <div className="pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3.5 shadow-xl transition-all w-full max-w-[360px]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                Happening Soon ({happeningSoonQuests.length})
+              </span>
+              
+              <button
+                type="button"
+                onClick={() => setIsSoonPanelCollapsed(!isSoonPanelCollapsed)}
+                className="text-[10px] font-black text-primary hover:underline cursor-pointer focus:outline-none"
+              >
+                {isSoonPanelCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {!isSoonPanelCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+                    {happeningSoonQuests.map((q: any) => {
+                      const diffMs = new Date(q.starts_at).getTime() - Date.now()
+                      const startsSoon = diffMs > 0 && diffMs < 60 * 60 * 1000 // < 1 hour
+                      const timeUntilStr = getTimeUntil(q.starts_at)
+                      
+                      return (
+                        <div
+                          key={q.id}
+                          onClick={() => handleSoonQuestTap(q)}
+                          className={`min-w-[180px] max-w-[200px] p-3 rounded-2xl border transition-all text-left cursor-pointer shrink-0 bg-gray-50/50 dark:bg-gray-900/50 ${
+                            startsSoon
+                              ? 'border-red-500 shadow-md shadow-red-500/10 animate-pulse'
+                              : 'border-gray-100 dark:border-gray-800 hover:bg-gray-150/40 dark:hover:bg-gray-800/40'
+                          }`}
+                        >
+                          <h4 className="text-xs font-black text-gray-900 dark:text-white truncate leading-tight">{q.name}</h4>
+                          <p className={`text-[10px] font-extrabold mt-1 flex items-center gap-1 ${startsSoon ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
+                            <Clock className="w-3 h-3" />
+                            <span>{startsSoon ? 'starts soon! ' : ''}{timeUntilStr}</span>
+                          </p>
+                          <p className="text-[9px] text-gray-400 font-bold mt-0.5 truncate flex items-center gap-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {q.location_name}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
 
       <Map
         ref={mapRef}

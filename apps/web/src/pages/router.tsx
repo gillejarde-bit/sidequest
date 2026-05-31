@@ -5,11 +5,12 @@ import { Onboarding } from './onboarding'
 import { FriendsPage } from './friends'
 import { QuestsPage } from './quests'
 import { supabase } from '../lib/supabase'
-import { Map as MapIcon, Users, User, Plus, Settings as SettingsIcon, MoreHorizontal, Flame, Calendar, ChevronRight } from 'lucide-react'
+import { Map as MapIcon, Users, User, Plus, Settings as SettingsIcon, MoreHorizontal, Flame, Calendar, ChevronRight, Swords, Diamond, Trophy } from 'lucide-react'
 import { usePendingRequests } from '../hooks/useFriends'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useEffect, useState } from 'react'
+import { Z_INDEX } from '../lib/zIndex'
 
 function BottomNav() {
   const { count } = usePendingRequests()
@@ -21,13 +22,16 @@ function BottomNav() {
   if (['/login', '/onboarding', '/quest/create'].includes(pathname)) return null
 
   const activeTab = pathname === '/' || pathname === '/map' ? 'map' 
+                  : pathname.startsWith('/quests') ? 'quests'
                   : pathname === '/streaks' ? 'streaks' 
                   : pathname === '/calendar' ? 'calendar'
                   : pathname === '/friends' ? 'friends'
+                  : pathname.startsWith('/gems') ? 'gems'
+                  : pathname.startsWith('/leaderboard') ? 'leaderboard'
                   : pathname.startsWith('/profile') ? 'profile' 
                   : pathname === '/settings' ? 'settings' : null
 
-  const isMoreActive = activeTab === 'friends' || activeTab === 'profile' || activeTab === 'settings'
+  const isMoreActive = activeTab === 'friends' || activeTab === 'gems' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings'
 
   const menuItems = [
     {
@@ -37,6 +41,22 @@ function BottomNav() {
       icon: <Users className="w-4 h-4 text-emerald-500" />,
       active: activeTab === 'friends',
       badge: true
+    },
+    {
+      label: 'Hidden Gems',
+      to: '/gems' as const,
+      params: undefined,
+      icon: <Diamond className="w-4 h-4 text-rose-500" />,
+      active: activeTab === 'gems',
+      badge: false
+    },
+    {
+      label: 'Leaderboard',
+      to: '/leaderboard' as const,
+      params: undefined,
+      icon: <Trophy className="w-4 h-4 text-amber-500" />,
+      active: activeTab === 'leaderboard',
+      badge: false
     },
     {
       label: 'Profile',
@@ -50,14 +70,17 @@ function BottomNav() {
       label: 'Settings',
       to: '/settings' as const,
       params: undefined,
-      icon: <SettingsIcon className="w-4 h-4 text-gray-550" />,
+      icon: <SettingsIcon className="w-4 h-4 text-gray-500" />,
       active: activeTab === 'settings',
       badge: false
     }
   ]
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[400px]">
+    <div 
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[420px]"
+      style={{ zIndex: Z_INDEX.bottom_nav }}
+    >
       
       {/* Click Outside Scrim */}
       {showMore && (
@@ -75,7 +98,8 @@ function BottomNav() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 15 }}
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="absolute bottom-20 right-2 z-50 w-44 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl shadow-2xl p-2 space-y-1"
+            style={{ zIndex: Z_INDEX.popups_menus }}
+            className="absolute bottom-20 right-2 w-48 bg-white/90 dark:bg-background/90 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl shadow-2xl p-2 space-y-1"
           >
             {menuItems.map((item, idx) => (
               <motion.div
@@ -115,7 +139,7 @@ function BottomNav() {
       </AnimatePresence>
 
       {/* Main Bottom Nav Bar */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-x-auto no-scrollbar relative z-50">
+      <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-x-auto no-scrollbar relative z-50">
         
         {/* [ 🗺 Map ] */}
         <Link to="/" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
@@ -123,6 +147,14 @@ function BottomNav() {
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
           <MapIcon className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'map' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+        </Link>
+
+        {/* [ ⚔️ Quests ] */}
+        <Link to="/quests" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+          {activeTab === 'quests' && (
+            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+          )}
+          <Swords className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'quests' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ 🔥 Streaks ] */}
@@ -306,6 +338,7 @@ import { GemDetailPage } from './gems/$id'
 import { SettingsPage } from './settings'
 import { StreaksPage } from './streaks'
 import { CalendarPage } from './calendar'
+import { LeaderboardPage } from './leaderboard'
 
 export const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -326,6 +359,13 @@ export const calendarRoute = createRoute({
   path: '/calendar',
   beforeLoad: requireAuth,
   component: CalendarPage
+})
+
+export const leaderboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/leaderboard',
+  beforeLoad: requireAuth,
+  component: LeaderboardPage
 })
 
 export const questDetailRoute = createRoute({
@@ -372,6 +412,7 @@ export const routeTree = rootRoute.addChildren([
   settingsRoute,
   streaksRoute,
   calendarRoute,
+  leaderboardRoute,
 ])
 
 export const router = createRouter({ routeTree })

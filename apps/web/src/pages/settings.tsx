@@ -8,10 +8,10 @@ import {
   MapPin, 
   LogOut, 
   Bell, 
-  Heart, 
   ChevronRight,
   Shield,
-  Volume2
+  Volume2,
+  Calendar
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useAuthStore } from '../stores/auth'
@@ -28,16 +28,37 @@ export function SettingsPage() {
   const [questInvitesEnabled, setQuestInvitesEnabled] = useState(true)
   const [soundsEnabled, setSoundsEnabled] = useState(false)
 
+  // Calendar visibility local state
+  const [calendarVis, setCalendarVis] = useState((profile as any)?.calendar_visibility || 'friends')
+  const [savingCal, setSavingCal] = useState(false)
+
+  const handleVisibilityChange = async (val: string) => {
+    if (!user) return
+    setCalendarVis(val)
+    setSavingCal(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ calendar_visibility: val } as any)
+        .eq('id', user.id)
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Error updating calendar visibility:', err.message)
+    } finally {
+      setSavingCal(false)
+    }
+  }
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     navigate({ to: '/login' })
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">
       
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#1A1A2E]/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <Link 
             to="/map"
@@ -95,35 +116,6 @@ export function SettingsPage() {
           </Link>
         )}
 
-        {/* RPG Lives Status Tracking */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500">
-                <Heart className="w-5 h-5" fill="currentColor" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                  RPG Lives Tracker
-                  <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-650 px-2 py-0.5 rounded-md">
-                    Full
-                  </span>
-                </h3>
-                <p className="text-xs text-gray-400 font-bold mt-0.5">3 / 3 Hearts remaining</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-750 rounded-full overflow-hidden">
-              <div className="h-full bg-red-500 rounded-full w-full" />
-            </div>
-            <p className="text-[10px] text-gray-400 font-semibold mt-2">
-              Missing planned quests reduces your health. Recharge hearts by attending group events or verifying hidden gems!
-            </p>
-          </div>
-        </div>
-
         {/* Preferences / Toggles */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80 space-y-5">
           <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">Appearance & Map</h4>
@@ -176,6 +168,36 @@ export function SettingsPage() {
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
               />
             </button>
+          </div>
+
+          {/* Calendar Visibility */}
+          <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Calendar Visibility</h3>
+                <p className="text-xs text-gray-400 font-bold">Control who can view your planner</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+              {['private', 'friends', 'public'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={savingCal}
+                  onClick={() => handleVisibilityChange(mode)}
+                  className={`py-2 px-3 text-xs font-black rounded-xl capitalize transition-all cursor-pointer ${
+                    calendarVis === mode
+                      ? 'bg-primary text-white shadow-md'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/40'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
