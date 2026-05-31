@@ -3,7 +3,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/auth'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, User as UserIcon, ChevronRight, ChevronLeft, Upload, Check, AlertTriangle } from 'lucide-react'
+import { MapPin, User as UserIcon, ChevronRight, ChevronLeft, Upload, Check, AlertTriangle, ZoomIn, ZoomOut, Scissors } from 'lucide-react'
+import { getAvatarUrl } from '../lib/avatar'
 
 // Fun emoji fallbacks for profile pictures
 const fallbacks = ['🦊', '🐱', '🐼', '🦁', '🐸', '🐨', '🦖', '🦄', '🧙‍♂️', '🥷', '🧑‍🚀', '👾']
@@ -11,6 +12,8 @@ const fallbacks = ['🦊', '🐱', '🐼', '🦁', '🐸', '🐨', '🦖', '🦄
 export function Onboarding() {
   const navigate = useNavigate()
   const { user, profile, fetchProfile } = useAuthStore()
+  
+  console.log("SideQuest Onboarding loaded: Dedicated Cropper Page Active")
   
   const defaultUser = profile?.username?.startsWith('user_') ? '' : profile?.username
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -29,11 +32,19 @@ export function Onboarding() {
   const [pronounsCustom, setPronounsCustom] = useState('')
 
   // Step 3: Avatar Setup & Geolocation
-  const [avatarType, setAvatarType] = useState<'upload' | 'fallback'>('fallback')
+  const initialAvatarType = profile?.avatar_url && !profile.avatar_url.startsWith('fallback:') ? 'upload' : 'fallback'
+  const [avatarType, setAvatarType] = useState<'upload' | 'fallback'>(initialAvatarType)
   const [selectedFallback, setSelectedFallback] = useState('🦊')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Cropper states
+  const [cropImage, setCropImage] = useState<string | null>(null)
+  const [cropZoom, setCropZoom] = useState(1.0)
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   const [locationState, setLocationState] = useState<'idle' | 'prompting' | 'granted' | 'blocked'>('idle')
   const [loading, setLoading] = useState(false)
@@ -55,31 +66,164 @@ export function Onboarding() {
   const isUnder13 = birthdate !== '' && age < 13
   const isTeen = birthdate !== '' && age >= 13 && age < 18
 
-  // Upload Custom Avatar to Supabase Storage
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !user) return
-    const file = e.target.files[0]
+  // File selection triggers cropper instead of direct uploading
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      console.log("handleFileChange event triggered!", e.target.files)
+      if (!e.target.files || e.target.files.length === 0) {
+        console.warn("No files selected or empty change event.")
+        return
+      }
+      const file = e.target.files[0]
+      console.log("Selected file info:", { name: file.name, size: file.size, type: file.type })
+      
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          console.log("FileReader loaded! Setting cropImage data URL state.")
+          setCropImage(reader.result as string)
+          setCropZoom(1.0)
+          setCropOffset({ x: 0, y: 0 })
+        } catch (innerErr: any) {
+          console.error("FileReader onload inner error:", innerErr)
+          setPopupMessage(`File reader onload error: ${innerErr.message || innerErr.toString()}`)
+        }
+      }
+      reader.onerror = (err) => {
+        console.error("FileReader error event:", err)
+        setPopupMessage(`FileReader failed to read image: ${err.toString()}`)
+      }
+      reader.readAsDataURL(file)
+    } catch (err: any) {
+      console.error("Error in handleFileChange:", err)
+      setPopupMessage(`File change error: ${err.message || err.toString()}`)
+    }
+  }
+
+  // Perform crop on HTML5 Canvas and upload to Supabase Storage
+  const handlePerformCrop = async () => {
+    if (!cropImage || !user) return
     setUploading(true)
+    const srcToCrop = cropImage
+    setCropImage(null)
 
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`
+      const img = new Image()
       
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true })
+      // Set handlers BEFORE src to prevent race conditions on fast cached assets
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = (err) => reject(new Error('Image failed to load: ' + err))
+        img.src = srcToCrop
+      })
 
-      if (uploadError) throw uploadError
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not create canvas context')
 
-      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
-      setAvatarUrl(data.publicUrl)
-      setAvatarType('upload')
-    } catch (err) {
-      console.error('Error uploading avatar:', err)
-      setPopupMessage('Failed to upload image. Please try again.')
-    } finally {
+      const targetSize = 400
+      canvas.width = targetSize
+      canvas.height = targetSize
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+      ctx.fillRect(0, 0, targetSize, targetSize)
+
+      const previewSize = 288 // 288 matches w-72 (72 * 4 = 288px)
+      const ratio = targetSize / previewSize
+
+      ctx.save()
+      ctx.translate(targetSize / 2, targetSize / 2)
+      ctx.translate(cropOffset.x * ratio, cropOffset.y * ratio)
+      ctx.scale(cropZoom, cropZoom)
+
+      const imgRatio = img.naturalWidth / img.naturalHeight
+      let drawW = previewSize
+      let drawH = previewSize
+
+      if (imgRatio > 1) {
+        // Landscape aspect ratio cover
+        drawW = previewSize * imgRatio
+      } else {
+        // Portrait aspect ratio cover
+        drawH = previewSize / imgRatio
+      }
+
+      const finalW = drawW * ratio
+      const finalH = drawH * ratio
+
+      ctx.drawImage(img, -finalW / 2, -finalH / 2, finalW, finalH)
+      ctx.restore()
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setPopupMessage('Failed to crop image (Blob creation failed).')
+          setUploading(false)
+          return
+        }
+
+        try {
+          const fileName = `${user.id}/avatar-${Date.now()}.png`
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, blob, { 
+              contentType: 'image/png',
+              upsert: true 
+            })
+
+          if (uploadError) throw uploadError
+
+          const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
+          setAvatarUrl(data.publicUrl)
+          setAvatarType('upload')
+        } catch (err: any) {
+          console.error(err)
+          setPopupMessage(`Upload error: ${err.message || err.toString()}`)
+        } finally {
+          setUploading(false)
+        }
+      }, 'image/png')
+
+    } catch (err: any) {
+      console.error('Error cropping image:', err)
+      setPopupMessage(`Failed to process image: ${err.message || err.toString()}`)
       setUploading(false)
     }
+  }
+
+  // Mouse & Touch Drag Handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setCropOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true)
+      setDragStart({
+        x: e.touches[0].clientX - cropOffset.x,
+        y: e.touches[0].clientY - cropOffset.y
+      })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return
+    setCropOffset({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    })
   }
 
   // Geolocation Request Portal
@@ -104,7 +248,7 @@ export function Onboarding() {
     
     const finalGender = genderSelect === 'Custom' ? genderCustom : genderSelect
     const finalPronouns = pronounsSelect === 'Custom' ? pronounsCustom : pronounsSelect
-    const finalAvatar = avatarType === 'fallback' ? `fallback:${selectedFallback}` : avatarUrl
+    const finalAvatar = avatarType === 'fallback' ? getAvatarUrl(`fallback:${selectedFallback}`) : avatarUrl
 
     // Upsert into profiles (id is required, no updated_at column exists in profiles schema)
     const { error } = await supabase
@@ -384,7 +528,7 @@ export function Onboarding() {
                 {/* Profile Picture Display Container */}
                 <div className="relative w-24 h-24 rounded-full border-4 border-primary/20 bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-4xl shadow-inner overflow-hidden">
                   {avatarType === 'fallback' ? (
-                    <span>{selectedFallback}</span>
+                    <img src={getAvatarUrl(`fallback:${selectedFallback}`)} alt="Avatar Preview" className="w-full h-full object-cover" />
                   ) : avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
                   ) : (
@@ -422,7 +566,7 @@ export function Onboarding() {
                     ref={fileInputRef} 
                     className="hidden" 
                     accept="image/*" 
-                    onChange={handleAvatarUpload}
+                    onChange={handleFileChange}
                   />
                 </div>
 
@@ -438,11 +582,13 @@ export function Onboarding() {
                         key={f}
                         type="button"
                         onClick={() => setSelectedFallback(f)}
-                        className={`text-2xl p-1 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800 active:scale-90 transition-all ${
-                          selectedFallback === f ? 'bg-white dark:bg-gray-800 shadow-sm border border-primary/20 scale-110' : ''
+                        className={`p-2 rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-800 active:scale-90 transition-all flex items-center justify-center border ${
+                          selectedFallback === f 
+                            ? 'bg-white dark:bg-gray-800 shadow-md border-primary scale-110' 
+                            : 'bg-transparent border-transparent'
                         }`}
                       >
-                        {f}
+                        <img src={getAvatarUrl(`fallback:${f}`)} alt={f} className="w-10 h-10 object-contain" />
                       </button>
                     ))}
                   </motion.div>
@@ -551,6 +697,106 @@ export function Onboarding() {
                 Got it
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Full-Screen Dedicated Photo Cropper Page */}
+      <AnimatePresence>
+        {cropImage && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-50 flex flex-col justify-between bg-[#0a0d18] text-white select-none animate-fade-in"
+          >
+            {/* Top Bar Header */}
+            <div className="w-full flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gray-950/20 backdrop-blur-md">
+              <button 
+                type="button" 
+                onClick={() => setCropImage(null)}
+                className="text-white/60 hover:text-white text-sm font-extrabold flex items-center gap-1 active:scale-95 transition-transform"
+              >
+                ← Back
+              </button>
+              <h3 className="text-lg font-black tracking-tight text-center text-white flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Profile Photo
+              </h3>
+              <div className="w-12" /> {/* spacer for center alignment */}
+            </div>
+
+            {/* Main Crop Viewport Center Container */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+              <div className="relative w-72 h-72 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none relative"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleMouseUp}
+              >
+                <img
+                  src={cropImage}
+                  alt="Crop preview"
+                  style={{
+                    transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`,
+                    transformOrigin: 'center center',
+                  }}
+                  className="absolute w-full h-full object-cover pointer-events-none select-none"
+                />
+
+                {/* Aesthetic alignment overlay rules */}
+                <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />
+                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/10 pointer-events-none" />
+                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none" />
+              </div>
+              <p className="text-xs text-white/50 mt-6 tracking-wide uppercase font-bold">
+                Drag to Reposition
+              </p>
+            </div>
+
+            {/* Bottom Controls Panel */}
+            <div className="w-full max-w-md mx-auto px-6 pb-8 flex flex-col gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent">
+              {/* Zoom slider controls */}
+              <div className="w-full flex flex-col gap-2 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center text-xs text-white/60 font-black px-1">
+                  <span>ZOOM LEVEL</span>
+                  <span>{Math.round(cropZoom * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ZoomOut className="w-4 h-4 text-white/40" />
+                  <input 
+                    type="range" 
+                    min="1.0" 
+                    max="3.0" 
+                    step="0.05"
+                    value={cropZoom}
+                    onChange={(e) => setCropZoom(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#58CC02] focus:outline-none"
+                  />
+                  <ZoomIn className="w-4 h-4 text-white/40" />
+                </div>
+              </div>
+
+              {/* Actions button panel */}
+              <div className="flex gap-4 w-full">
+                <button
+                  type="button"
+                  onClick={() => setCropImage(null)}
+                  className="flex-1 border border-white/10 hover:bg-white/5 text-white font-extrabold py-4 rounded-2xl transition-colors cursor-pointer text-center text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePerformCrop}
+                  className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
+                >
+                  Save & Continue
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

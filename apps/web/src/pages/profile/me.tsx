@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
+import { getAvatarUrl } from '../../lib/avatar';
 
 const PRESET_COLORS = ['#6C63FF', '#58CC02', '#FF6B6B', '#FFD93D', '#3498DB', '#E67E22'];
 
@@ -155,7 +156,7 @@ export function MeProfile() {
 
         <div className="relative">
           <img 
-            src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`} 
+            src={getAvatarUrl(profile.avatar_url, profile.username || user?.id)} 
             alt="Avatar"
             className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-lg object-cover bg-white"
           />

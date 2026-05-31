@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin, Users, Star, Navigation, Share } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
+import { getAvatarUrl } from '../../lib/avatar'
 
 export type BottomSheetMode = 'location' | 'quest' | 'gem' | null
 
@@ -172,7 +173,7 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
             {detailData.attendees.slice(0, 5).map((att: any) => (
               <img 
                 key={att.user_id} 
-                src={att.avatar_url} 
+                src={getAvatarUrl(att.avatar_url, att.username)} 
                 alt={att.username} 
                 className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-[#1A1A2E] bg-gray-200 dark:bg-gray-700 object-cover"
               />

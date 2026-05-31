@@ -13,6 +13,7 @@ import { BottomSheet } from '../components/map/BottomSheet'
 import { SearchBar } from '../components/map/SearchBar'
 import { useMapStore } from '../stores/mapStore'
 import { useAuthStore } from '../stores/auth'
+import { getAvatarUrl } from '../lib/avatar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -279,7 +280,7 @@ export function MapPage() {
               {/* Avatar / Person Icon */}
               <div className="w-10 h-10 bg-white rounded-full p-0.5 shadow-lg relative z-10 border-2 border-blue-500">
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="You" className="w-full h-full rounded-full object-cover" />
+                  <img src={getAvatarUrl(profile.avatar_url, profile.username)} alt="You" className="w-full h-full rounded-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {profile?.display_name?.[0]?.toUpperCase() || profile?.username?.[0]?.toUpperCase() || 'You'}

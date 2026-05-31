@@ -6,6 +6,7 @@ import { useFriends, useSendFriendRequest, useRespondToRequest } from '../hooks/
 import { motion } from 'framer-motion'
 import { Camera, ChevronLeft, Check, UserPlus, ShieldAlert, Award, MapPin } from 'lucide-react'
 import type { Database } from '../types/database.types'
+import { getAvatarUrl } from '../lib/avatar'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -148,7 +149,7 @@ export function Profile() {
           <div className="relative mb-4">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-white shadow-md">
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                <img src={getAvatarUrl(profile.avatar_url, profile.username)} alt={profile.username} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-3xl font-bold text-gray-500">{profile.username[0].toUpperCase()}</span>
               )}
