@@ -1,10 +1,17 @@
-import { Link } from '@tanstack/react-router'
-import { ChevronLeft, Moon, Sun, Settings as SettingsIcon, MapPin } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { ChevronLeft, Moon, Sun, Settings as SettingsIcon, MapPin, LogOut } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { motion } from 'framer-motion'
+import { supabase } from '../lib/supabase'
 
 export function SettingsPage() {
   const { theme, toggleTheme, shareLocation, toggleShareLocation } = useSettingsStore()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    navigate({ to: '/login' })
+  }
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -82,6 +89,17 @@ export function SettingsPage() {
               />
             </button>
           </div>
+        </div>
+
+        {/* Sign Out Button Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+          <button
+            onClick={handleSignOut}
+            className="w-full py-4 bg-red-500 hover:bg-red-600 active:scale-98 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/10"
+          >
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </button>
         </div>
       </main>
     </div>
