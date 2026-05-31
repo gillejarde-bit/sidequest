@@ -70,7 +70,7 @@ function BottomNav() {
 
   return (
     <div 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[420px]"
+      className="fixed bottom-6 left-0 right-0 mx-auto w-[95%] max-w-[420px]"
       style={{ zIndex: Z_INDEX.bottom_nav }}
     >
       
