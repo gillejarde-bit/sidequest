@@ -1,147 +1,99 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
-// Generate high-fidelity symmetric "Medieval Micro-Geometry" points
-const generateMicroGeometryPoints = () => {
+// Symmetrical and geographic continent generator for realistic 3D Earth
+const generateEarthMapPoints = () => {
   const pts: any[] = []
   let id = 0
-  
-  // 1. Compass Rose (Concentric Orbits)
-  const compassRings = [
-    { radius: 14, count: 8, color: '#58CC02', type: 'triangle' },
-    { radius: 30, count: 16, color: '#0EA5E9', type: 'triangle' },
-    { radius: 52, count: 24, color: '#F97316', type: 'square' },
-  ]
-  
-  compassRings.forEach((ring) => {
-    for (let i = 0; i < ring.count; i++) {
-      const angle = (i / ring.count) * Math.PI * 2
-      const cx = Math.cos(angle) * ring.radius
-      const cy = Math.sin(angle) * ring.radius
-      
-      // When unfolded, Compass rose points scatter/expand outwards
-      const tx = Math.cos(angle) * (ring.radius * 2.8)
-      const ty = Math.sin(angle) * (ring.radius * 2.8)
-      
+
+  const addContinentPoints = (
+    minLat: number, maxLat: number,
+    minLng: number, maxLng: number,
+    density: number,
+    color: string
+  ) => {
+    for (let i = 0; i < density; i++) {
+      // Direct jittered mapping of continents
+      const latDeg = minLat + Math.random() * (maxLat - minLat)
+      const lngDeg = minLng + Math.random() * (maxLng - minLng)
+
+      // Convert degrees to spherical radians
+      const theta = (lngDeg * Math.PI) / 180 // Longitude
+      const phi = (latDeg * Math.PI) / 180  // Latitude
+
       pts.push({
         id: id++,
-        x: cx,
-        y: cy,
-        targetX: tx,
-        targetY: ty,
-        color: ring.color,
-        type: ring.type,
-        rotation: (angle * 180) / Math.PI,
-        size: ring.type === 'triangle' ? 7 : 5
+        theta,
+        phi,
+        color,
+        size: Math.random() * 5 + 4,
+        type: Math.random() > 0.35 ? 'triangle' : 'square',
+        rotationOffset: Math.random() * 360
       })
     }
-  })
-
-  // 2. Symmetric Filigree Frame (Top, Bottom, Left, Right lines of triangles)
-  const borderDensity = 14
-  for (let i = 0; i < borderDensity; i++) {
-    const t = (i / (borderDensity - 1)) * 2 - 1 // Normalized from -1 to 1
-    
-    // Top Decorative Border
-    const topY = -75 + (Math.sin((t + 1) * Math.PI) * 8)
-    const topTY = -170 + (Math.sin((t + 1) * Math.PI) * 16)
-    pts.push({
-      id: id++,
-      x: t * 75,
-      y: topY,
-      targetX: t * 170,
-      targetY: topTY,
-      color: '#58CC02',
-      type: 'triangle',
-      rotation: 0,
-      size: 6
-    })
-
-    // Bottom Decorative Border
-    const bottomY = 75 - (Math.sin((t + 1) * Math.PI) * 8)
-    const bottomTY = 170 - (Math.sin((t + 1) * Math.PI) * 16)
-    pts.push({
-      id: id++,
-      x: t * 75,
-      y: bottomY,
-      targetX: t * 170,
-      targetY: bottomTY,
-      color: '#58CC02',
-      type: 'triangle',
-      rotation: 180,
-      size: 6
-    })
-
-    // Left Wing Frame
-    const leftX = -75 - (Math.cos(t * Math.PI / 2) * 8)
-    const leftTX = -170 - (Math.cos(t * Math.PI / 2) * 16)
-    pts.push({
-      id: id++,
-      x: leftX,
-      y: t * 55,
-      targetX: leftTX,
-      targetY: t * 140,
-      color: '#0EA5E9',
-      type: 'triangle',
-      rotation: 90,
-      size: 6
-    })
-
-    // Right Wing Frame
-    const rightX = 75 + (Math.cos(t * Math.PI / 2) * 8)
-    const rightTX = 170 + (Math.cos(t * Math.PI / 2) * 16)
-    pts.push({
-      id: id++,
-      x: rightX,
-      y: t * 55,
-      targetX: rightTX,
-      targetY: t * 140,
-      color: '#0EA5E9',
-      type: 'triangle',
-      rotation: -90,
-      size: 6
-    })
   }
 
-  // 3. Coordinate Dot Grid (Floating map elements)
-  const gridPositions = [
-    { x: -45, y: -45 }, { x: 45, y: -45 },
-    { x: -45, y: 45 }, { x: 45, y: 45 }
-  ]
-  gridPositions.forEach((pos) => {
-    pts.push({
-      id: id++,
-      x: pos.x,
-      y: pos.y,
-      targetX: pos.x * 2.5,
-      targetY: pos.y * 2.5,
-      color: '#F97316',
-      type: 'square',
-      rotation: 45,
-      size: 4
-    })
-  })
+  // Populate actual Earth landmass areas (detailed 3D micro-geometry density)
+  // 1. Eurasia (Teal/Green mix for organic land)
+  addContinentPoints(10, 75, -20, 140, 110, '#0EA5E9')
+  addContinentPoints(20, 60, 30, 120, 70, '#58CC02')
+
+  // 2. Africa (Green/Teal mix)
+  addContinentPoints(-35, 35, -15, 50, 90, '#58CC02')
+  addContinentPoints(-20, 15, 10, 40, 40, '#0EA5E9')
+
+  // 3. North America
+  addContinentPoints(15, 70, -160, -50, 90, '#0EA5E9')
+  addContinentPoints(30, 60, -120, -70, 50, '#58CC02')
+
+  // 4. South America
+  addContinentPoints(-55, 12, -80, -35, 80, '#58CC02')
+  addContinentPoints(-30, 0, -70, -45, 40, '#0EA5E9')
+
+  // 5. Australia
+  addContinentPoints(-40, -10, 113, 153, 50, '#F97316')
+
+  // 6. Antarctica & Scattered Islands (warm coordinate nodes)
+  addContinentPoints(-85, -70, -180, 180, 40, '#F97316')
 
   return pts
 }
 
-const pointsData = generateMicroGeometryPoints()
+const earthPoints = generateEarthMapPoints()
 
 export function Login() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Scroll Container Ref for dynamic tracking
-  const containerRef = useRef<HTMLDivElement>(null)
-  
-  // Track scroll position of the custom snap container
-  const { scrollYProgress } = useScroll({ container: containerRef })
+  // 60FPS Continuous Time rotation trigger
+  const [time, setTime] = useState(0)
+  useEffect(() => {
+    let animId: number
+    const tick = () => {
+      setTime((t) => t + 0.006)
+      animId = requestAnimationFrame(tick)
+    }
+    animId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(animId)
+  }, [])
 
-  // Maps scroll progress to CSS variables for pure transform animations
-  const progress = useTransform(scrollYProgress, [0, 0.8], [0, 1])
+  // Scroll tracking
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({ container: containerRef })
+  
+  // Transform scroll progress to interpolation values (0 to 1)
+  const [scrollVal, setScrollVal] = useState(0)
+  useEffect(() => {
+    return scrollYProgress.onChange((v) => {
+      setScrollVal(v)
+    })
+  }, [scrollYProgress])
+
+  // Soft progress curve for flattening transition
+  const p = Math.min(scrollVal / 0.75, 1)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -165,6 +117,50 @@ export function Login() {
     document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // Calculate 3D sphere coordinate projections and interpolate to 2D Mercator map flatlands
+  const projectedPoints = earthPoints.map((pt) => {
+    const radius = 105 // Sphere Radius
+    
+    // Slow down spin rotation as the map flattens out (locks at 2D flat)
+    const spinAngle = time * (1 - p)
+    const currentTheta = pt.theta + spinAngle
+
+    // 1. Calculate 3D Spherical coordinates
+    const x3d = Math.cos(pt.phi) * Math.sin(currentTheta)
+    const y3d = Math.sin(pt.phi)
+    const z3d = Math.cos(pt.phi) * Math.cos(currentTheta) // Depth coordinate
+
+    // 2. 3D Perspective Projection scale factor
+    const cameraDist = 220
+    const perspectiveScale = cameraDist / (cameraDist + z3d * radius)
+
+    // Projected coordinates of the 3D Sphere on screen
+    const xSphere = x3d * radius * perspectiveScale
+    const ySphere = -y3d * radius * perspectiveScale // invert Y for screen coords
+
+    // 3. 2D Mercator Flat Map projection target coordinates
+    const mapWidth = 320
+    const mapHeight = 180
+    const xFlat = (pt.theta / Math.PI) * (mapWidth / 2)
+    const yFlat = -(pt.phi / (Math.PI / 2)) * (mapHeight / 2) // scale properly
+
+    // 4. Smoothly interpolate between Sphere 3D projection and Flat 2D map
+    const finalX = (1 - p) * xSphere + p * xFlat
+    const finalY = (1 - p) * ySphere + p * yFlat
+
+    // Points on the back side of the 3D sphere are hidden, but fully visible on the flat map
+    const depthOpacity = z3d > 0.1 ? 0.08 : 1
+    const finalOpacity = (1 - p) * depthOpacity + p * 1
+
+    return {
+      ...pt,
+      x: finalX,
+      y: finalY,
+      opacity: finalOpacity,
+      scale: (1 - p) * perspectiveScale + p * 1
+    }
+  })
+
   return (
     <div 
       ref={containerRef}
@@ -172,10 +168,11 @@ export function Login() {
     >
       {/* SECTION 1: HERO FOLD */}
       <section className="h-screen flex flex-col justify-between items-center py-12 px-6 text-center snap-start relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(#80808008_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff04_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+        {/* Soft coordinate space gridlines background */}
+        <div className="absolute inset-0 bg-[radial-gradient(#80808008_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff04_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
         <div className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-lg mx-auto">
-          {/* Header Description */}
+          {/* Header Typography */}
           <motion.h1 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -185,87 +182,65 @@ export function Login() {
             Ready for a <span className="text-[#58CC02]">Sidequest?</span>
           </motion.h1>
           
-          {/* Custom Dynamic Interactive Scroll-Linked Micro-Geometry Map */}
-          <div className="relative w-80 h-80 sm:w-96 sm:h-96 my-4 flex items-center justify-center">
-            {/* Soft backdrop map contours */}
-            <motion.div 
-              style={{ opacity: useTransform(scrollYProgress, [0, 0.8], [0.03, 0.15]) }}
-              className="absolute inset-0 rounded-full border border-dashed border-[#58CC02] dark:border-[#58CC02] pointer-events-none"
+          {/* Detailed 3D Globe to 2D Unfolding Map SVG Canvas */}
+          <div className="relative w-80 h-80 sm:w-[400px] sm:h-[400px] my-2 flex items-center justify-center">
+            {/* Pulsing Outer coordinate tracking circle (fades as it flattens) */}
+            <div 
+              style={{ opacity: (1 - p) * 0.12 }}
+              className="absolute w-72 h-72 rounded-full border border-dashed border-[#58CC02] dark:border-[#58CC02] pointer-events-none animate-pulse"
             />
             
-            <motion.svg 
+            <svg 
               viewBox="-200 -200 400 400" 
               className="w-full h-full"
-              style={{ 
-                '--progress': progress,
-                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.05))'
-              } as any}
+              style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.06))' }}
             >
-              {/* Dynamic Coordinate Gridlines */}
-              <line x1="-180" y1="0" x2="180" y2="0" stroke="#808080" strokeOpacity="0.08" strokeDasharray="3 3" />
-              <line x1="0" y1="-180" x2="0" y2="180" stroke="#808080" strokeOpacity="0.08" strokeDasharray="3 3" />
-              
-              {/* Symmetrical central circular rings */}
-              <circle cx="0" cy="0" r="75" fill="none" stroke="#58cc02" strokeOpacity="0.06" strokeWidth="1" />
-              <circle cx="0" cy="0" r="170" fill="none" stroke="#0ea5e9" strokeOpacity="0.04" strokeWidth="1" />
+              {/* Symmetrical gridlines mapping */}
+              <line x1="-190" y1="0" x2="190" y2="0" stroke="#808080" strokeOpacity={(1 - p) * 0.05 + p * 0.08} strokeDasharray="4 4" />
+              <line x1="0" y1="-190" x2="0" y2="180" stroke="#808080" strokeOpacity={(1 - p) * 0.05 + p * 0.08} strokeDasharray="4 4" />
 
-              {/* Renders Micro-Geometry Assets using triangle polygons */}
-              {pointsData.map((pt) => {
-                const renderShape = () => {
+              {/* Renders dynamic coordinate points */}
+              {projectedPoints.map((pt) => {
+                const renderMicroShape = () => {
+                  const size = pt.size * pt.scale
                   if (pt.type === 'triangle') {
-                    // Sleek equilateral triangle polygon
-                    const half = pt.size / 2
-                    const height = (Math.sqrt(3) / 2) * pt.size
+                    const half = size / 2
+                    const height = (Math.sqrt(3) / 2) * size
                     return (
                       <polygon 
                         points={`0,${-height/2} ${half},${height/2} ${-half},${height/2}`}
                         fill={pt.color}
-                        fillOpacity="0.95"
+                        fillOpacity={pt.opacity}
                       />
                     )
-                  } else if (pt.type === 'square') {
-                    const h = pt.size / 2
+                  } else {
+                    const h = size / 2
                     return (
                       <rect 
                         x={-h} 
                         y={-h} 
-                        width={pt.size} 
-                        height={pt.size} 
+                        width={size} 
+                        height={size} 
                         fill={pt.color} 
-                        fillOpacity="0.95" 
-                      />
-                    )
-                  } else {
-                    return (
-                      <circle 
-                        r={pt.size / 2} 
-                        fill={pt.color} 
-                        fillOpacity="0.9" 
+                        fillOpacity={pt.opacity} 
                       />
                     )
                   }
                 }
 
+                // Smooth rotation of each individual triangle based on time + spin alignment
+                const rotation = pt.rotationOffset + time * 35 * (1 - p)
+
                 return (
                   <g
                     key={pt.id}
-                    style={{
-                      transform: `
-                        translate(
-                          calc(${pt.x}px + (${pt.targetX - pt.x}px * var(--progress))), 
-                          calc(${pt.y}px + (${pt.targetY - pt.y}px * var(--progress)))
-                        )
-                        rotate(calc(${pt.rotation}deg + (360deg * var(--progress))))
-                      `,
-                      transformOrigin: '0 0',
-                      transition: 'transform 0.08s ease-out'
-                    }}
+                    transform={`translate(${pt.x}, ${pt.y}) rotate(${rotation})`}
                   >
-                    {renderShape()}
+                    {renderMicroShape()}
                   </g>
                 )
               })}
-            </motion.svg>
+            </svg>
           </div>
 
           <motion.p 
@@ -284,7 +259,7 @@ export function Login() {
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           className="flex flex-col items-center gap-1 text-muted hover:text-[#58CC02] transition-colors cursor-pointer z-10"
         >
-          <span className="text-[10px] font-black tracking-widest uppercase">Scroll to Unfold Map</span>
+          <span className="text-[10px] font-black tracking-widest uppercase">Scroll to Flatten Earth</span>
           <ChevronDown className="w-5 h-5 text-[#58CC02]" />
         </motion.button>
       </section>
