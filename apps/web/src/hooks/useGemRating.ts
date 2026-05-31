@@ -26,7 +26,7 @@ export function useGemRating() {
 
           if (uploadError) {
             console.error("Upload error", uploadError)
-            photoUrls.push(`https://mockurl.com/${fileName}`)
+            throw uploadError
           } else {
             const { data } = supabase.storage.from('gems').getPublicUrl(uploadData.path)
             photoUrls.push(data.publicUrl)
