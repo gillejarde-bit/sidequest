@@ -1,0 +1,13 @@
+- `[x]` Create `QuestBottomSheetContent` component inside `BottomSheet.tsx`
+  - Fetch detailed quest data using `useQuestDetail`
+  - Fetch Google Places photo using `osm_id`
+  - Add dark mode support for all UI elements
+- `[x]` Render new UI
+  - Hero image
+  - Quest Title & Location Name
+  - Start Time & Category
+  - Attendee avatars
+- `[x]` Add action buttons
+  - View Quest (existing onAction)
+  - Get Directions
+  - Invite Others (copy link)
