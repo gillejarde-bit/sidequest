@@ -1,35 +1,33 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLOBE_CONFIG } from './GlobeConfig'
 
-// Direct geographic classification for lime/cyan/orange continent colors
-function getGeographicColor(lngDeg: number, latDeg: number): { isLand: boolean; color: string } {
+// Mathematical fallback for land/ocean classification while image loads
+function getMathLandMask(lngDeg: number, latDeg: number): boolean {
   // Eurasia
-  if (latDeg >= 12 && latDeg <= 75 && lngDeg >= -20 && lngDeg <= 145) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_CYAN }
-  }
+  if (latDeg >= 12 && latDeg <= 75 && lngDeg >= -20 && lngDeg <= 145) return true
   // Africa
-  if (latDeg >= -35 && latDeg <= 35 && lngDeg >= -17 && lngDeg <= 51) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_LIME }
-  }
+  if (latDeg >= -35 && latDeg <= 35 && lngDeg >= -17 && lngDeg <= 51) return true
   // North America
-  if (latDeg >= 15 && latDeg <= 72 && lngDeg >= -168 && lngDeg <= -52) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_CYAN }
-  }
+  if (latDeg >= 15 && latDeg <= 72 && lngDeg >= -168 && lngDeg <= -52) return true
   // South America
-  if (latDeg >= -55 && latDeg <= 12 && lngDeg >= -82 && lngDeg <= -34) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_LIME }
-  }
+  if (latDeg >= -55 && latDeg <= 12 && lngDeg >= -82 && lngDeg <= -34) return true
   // Australia
-  if (latDeg >= -42 && latDeg <= -10 && lngDeg >= 113 && lngDeg <= 153) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_ORANGE }
-  }
+  if (latDeg >= -42 && latDeg <= -10 && lngDeg >= 113 && lngDeg <= 153) return true
   // Antarctica
-  if (latDeg <= -60) {
-    return { isLand: true, color: GLOBE_CONFIG.COLOR_ORANGE }
-  }
-  return { isLand: false, color: GLOBE_CONFIG.COLOR_OCEAN_DIM }
+  if (latDeg <= -60) return true
+  return false
+}
+
+interface TileData {
+  id: number
+  center: THREE.Vector3 // 3D coordinate on sphere
+  theta: number         // Longitude in radians
+  phi: number           // Latitude in radians
+  normLng: number       // Normalized longitude [0, 1]
+  isLand: boolean       // Classification from mask
+  quaternion: THREE.Quaternion // Orientation matching normal
 }
 
 interface GlobeFieldProps {
@@ -38,106 +36,114 @@ interface GlobeFieldProps {
 
 export function GlobeField({ progressRef }: GlobeFieldProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
-  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null)
+  const [maskData, setMaskData] = useState<{ data: Uint8Array; w: number; h: number } | null>(null)
+  
+  const count = GLOBE_CONFIG.TILE_COUNT
 
-  const count = GLOBE_CONFIG.INSTANCE_COUNT
+  // Load the equirectangular land-mask once at startup and read pixels
+  useEffect(() => {
+    const img = new Image()
+    img.src = '/earth-mask.png'
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(img, 0, 0)
+        const imgData = ctx.getImageData(0, 0, img.width, img.height)
+        setMaskData({
+          data: new Uint8Array(imgData.data.buffer),
+          w: img.width,
+          h: img.height
+        })
+      }
+    }
+    img.onerror = () => {
+      console.warn('Failed to load earth-mask.png. Falling back to mathematical geometry.')
+    }
+  }, [])
 
-  // Precompute positions, targets, colors, and arc parameters
-  const { positionsA, positionsB, colors, arcOffsets, scalesA, scalesB } = useMemo(() => {
-    const posA = new Float32Array(count * 3)
-    const posB = new Float32Array(count * 3)
-    const colArray = new Float32Array(count * 3)
-    const arcOff = new Float32Array(count * 3)
-    const scA = new Float32Array(count)
-    const scB = new Float32Array(count)
+  // Generate Hexasphere points (evenly spaced tiles using Fibonacci Sphere)
+  const tiles: TileData[] = useMemo(() => {
+    const arr: TileData[] = []
+    const tempUp = new THREE.Vector3(0, 1, 0)
 
-    const tempColor = new THREE.Color()
-
-    // 1. Generate Targets A (Sparse Fibonacci Sphere)
     for (let i = 0; i < count; i++) {
       const idx = i
-      // Fibonacci sphere coordinates
+      // Fibonacci sphere distribution coordinates
       const y = 1 - (idx / (count - 1)) * 2
       const radius = Math.sqrt(1 - y * y)
       const goldenRatio = Math.PI * (3 - Math.sqrt(5))
       const theta = idx * goldenRatio
-
+      
       const x = Math.cos(theta) * radius
       const z = Math.sin(theta) * radius
 
-      // Map to spherical degrees
-      const lat = Math.asin(y)
-      const lng = Math.atan2(z, x)
-      const latDeg = (lat * 180) / Math.PI
-      const lngDeg = (lng * 180) / Math.PI
+      const center = new THREE.Vector3(x, y, z).normalize()
 
-      // Set position on sparse sphere shell
-      const rA = GLOBE_CONFIG.RADIUS_A
-      posA[idx * 3] = x * rA
-      posA[idx * 3 + 1] = y * rA
-      posA[idx * 3 + 2] = z * rA
+      // Calculate latitude and longitude angles
+      const phi = Math.asin(y)
+      const latDeg = (phi * 180) / Math.PI
+      const lngDeg = (theta * 180) / Math.PI
 
-      // Determine continent membership and color
-      const { isLand, color } = getGeographicColor(lngDeg, latDeg)
-      tempColor.set(color)
-      colArray[idx * 3] = tempColor.r
-      colArray[idx * 3 + 1] = tempColor.g
-      colArray[idx * 3 + 2] = tempColor.b
+      // Normalize longitude to [0, 1] for terminator sweep
+      // Math.atan2(z, x) is in [-PI, PI], normalize to [0, 1]
+      const actualLng = Math.atan2(z, x)
+      const normLng = (actualLng + Math.PI) / (2 * Math.PI)
 
-      // Starting scales (oceans slightly smaller, lands prominent in sparse sphere)
-      scA[idx] = isLand ? 1.0 : 0.6
+      // Initialize orientation quaternion so the hexagon prism sits flush with surface normal
+      const quat = new THREE.Quaternion().setFromUnitVectors(tempUp, center)
 
-      // 2. Generate Targets B (Dense Detailed Globe - Land packed, Oceans shrunk to 0)
-      const rB = GLOBE_CONFIG.RADIUS_B
-      if (isLand) {
-        // Land shards pack tight on the larger sphere shell
-        posB[idx * 3] = x * rB
-        posB[idx * 3 + 1] = y * rB
-        posB[idx * 3 + 2] = z * rB
-        scB[idx] = 1.1 // Detailed continents are prominent
-      } else {
-        // Ocean shards slide into the inside sphere and compress to 0 scale
-        // This hides them completely in State B, revealing the dense continents in full relief
-        posB[idx * 3] = x * (rB * 0.9)
-        posB[idx * 3 + 1] = y * (rB * 0.9)
-        posB[idx * 3 + 2] = z * (rB * 0.9)
-        scB[idx] = 0.0 
+      // Classify tile as LAND or OCEAN (initially use math fallback)
+      let isLand = getMathLandMask(lngDeg, latDeg)
+
+      // If mask image pixel data is loaded, perform high-precision lookups
+      if (maskData) {
+        const u = (actualLng + Math.PI) / (2 * Math.PI)
+        const v = 1 - (phi + Math.PI / 2) / Math.PI
+        
+        const px = Math.min(Math.max(Math.floor(u * maskData.w), 0), maskData.w - 1)
+        const py = Math.min(Math.max(Math.floor(v * maskData.h), 0), maskData.h - 1)
+        const pixelIdx = (py * maskData.w + px) * 4
+        
+        // White pixel (>128 R value) denotes landmass
+        isLand = maskData.data[pixelIdx] > 128
       }
 
-      // 3. Precompute unique orthogonal Arc/Displacement offsets for the morph path
-      const dirA = new THREE.Vector3(x * rA, y * rA, z * rA).normalize()
-      const randomVec = new THREE.Vector3(
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-        Math.random() - 0.5
-      ).normalize()
-      
-      const orthoVec = new THREE.Vector3().crossVectors(dirA, randomVec).normalize()
-      arcOff[idx * 3] = orthoVec.x
-      arcOff[idx * 3 + 1] = orthoVec.y
-      arcOff[idx * 3 + 2] = orthoVec.z
+      arr.push({
+        id: idx,
+        center,
+        theta: actualLng,
+        phi,
+        normLng,
+        isLand,
+        quaternion: quat
+      })
     }
+    return arr
+  }, [count, maskData])
 
-    return {
-      positionsA: posA,
-      positionsB: posB,
-      colors: colArray,
-      arcOffsets: arcOff,
-      scalesA: scA,
-      scalesB: scB
-    }
-  }, [count])
+  // Precompute static colors for both states
+  const colorsA = useMemo(() => new THREE.Color(GLOBE_CONFIG.COLOR_BLACK_STATE), [])
+  const colorsB = useMemo(() => {
+    return tiles.map((tile) => {
+      const col = new THREE.Color()
+      if (tile.isLand) {
+        col.set(GLOBE_CONFIG.COLOR_LAND_TARGET)
+      } else {
+        col.set(GLOBE_CONFIG.COLOR_OCEAN_TARGET)
+      }
+      return col
+    })
+  }, [tiles])
 
-  // Helper variables to prevent garbage collection inside the 60fps frame loop
+  // Setup auxiliary matrices to avoid GC allocation inside 60FPS tick
   const tempMatrix = useMemo(() => new THREE.Matrix4(), [])
-  const posA = useMemo(() => new THREE.Vector3(), [])
-  const posB = useMemo(() => new THREE.Vector3(), [])
-  const currentPos = useMemo(() => new THREE.Vector3(), [])
-  const aheadPos = useMemo(() => new THREE.Vector3(), [])
-  const velocity = useMemo(() => new THREE.Vector3(), [])
-  const upVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const tempColor = useMemo(() => new THREE.Color(), [])
   const scaleVec = useMemo(() => new THREE.Vector3(), [])
-  const orthoVec = useMemo(() => new THREE.Vector3(), [])
+  const posVec = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((state) => {
     if (!meshRef.current) return
@@ -145,80 +151,97 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
     const elapsed = state.clock.getElapsedTime()
     const rawProgress = progressRef.current ?? 0
 
-    // Spin speed: rotates Y-axis, spins slightly faster during the morph transition
-    const speedMult = GLOBE_CONFIG.ROTATION_SPEED_BASE + rawProgress * GLOBE_CONFIG.ROTATION_SPEED_MORPH
-    const meshRotationY = elapsed * speedMult
-    meshRef.current.rotation.y = meshRotationY
+    // Constant slow Y-axis auto-rotation (0.03 rad/s)
+    meshRef.current.rotation.y = elapsed * GLOBE_CONFIG.ROTATION_SPEED
 
-    // Adjust glossiness slightly without transmission so colors stay solid & extremely vibrant
-    if (materialRef.current) {
-      materialRef.current.roughness = THREE.MathUtils.lerp(0.25, 0.15, rawProgress)
-      materialRef.current.metalness = THREE.MathUtils.lerp(0.7, 0.85, rawProgress)
-      materialRef.current.clearcoat = THREE.MathUtils.lerp(0.2, 1.0, rawProgress)
-    }
+    tiles.forEach((tile) => {
+      // 1. Stagger reveal progress by longitude (sunrise terminator sweep)
+      const delay = tile.normLng * GLOBE_CONFIG.SWEEP_SPEED
+      const t_local = Math.max(0, Math.min(1, (rawProgress - delay) / (1 - GLOBE_CONFIG.SWEEP_SPEED)))
+      // Apply clean smoothstep ease
+      const t_eased = t_local * t_local * (3 - 2 * t_local)
 
-    for (let i = 0; i < count; i++) {
-      // 1. Calculate staggered local progress per shard
-      const indexOffset = (i / count) * GLOBE_CONFIG.STAGGER_AMOUNT
-      const localProgress = Math.max(0, Math.min(1, (rawProgress - indexOffset) / (1 - GLOBE_CONFIG.STAGGER_AMOUNT)))
+      // 2. Interpolate tile colors (BLACK_STATE -> TARGET)
+      const targetCol = colorsB[tile.id]
+      tempColor.lerpColors(colorsA, targetCol, t_eased)
+      meshRef.current!.setColorAt(tile.id, tempColor)
 
-      // 2. Capture endpoints positions
-      posA.set(positionsA[i * 3], positionsA[i * 3 + 1], positionsA[i * 3 + 2])
-      posB.set(positionsB[i * 3], positionsB[i * 3 + 1], positionsB[i * 3 + 2])
-
-      // 3. Apply LERP positioning
-      currentPos.lerpVectors(posA, posB, localProgress)
-
-      // 4. Inject Curl-Noise Arc displacement that peaks at progress = 0.5
-      const arcFactor = Math.sin(localProgress * Math.PI) * GLOBE_CONFIG.ARC_HEIGHT
-      orthoVec.set(arcOffsets[i * 3], arcOffsets[i * 3 + 1], arcOffsets[i * 3 + 2])
-      currentPos.addScaledVector(orthoVec, arcFactor)
-
-      // 5. Calculate ahead position to orient the shards towards velocity
-      const lookAheadProgress = Math.min(1, localProgress + 0.01)
-      aheadPos.lerpVectors(posA, posB, lookAheadProgress)
-      const aheadArcFactor = Math.sin(lookAheadProgress * Math.PI) * GLOBE_CONFIG.ARC_HEIGHT
-      aheadPos.addScaledVector(orthoVec, aheadArcFactor)
-
-      velocity.subVectors(aheadPos, currentPos).normalize()
-
-      // 6. Interpolate scale factor (shrinks ocean shards to 0 in State B)
-      const currentScale = (1 - localProgress) * scalesA[i] + localProgress * scalesB[i]
-      scaleVec.set(currentScale, currentScale, currentScale * 1.5) // Extrude slightly
-
-      // 7. Compose transformation matrix
-      tempMatrix.identity()
-      tempMatrix.setPosition(currentPos)
-      
-      // Orient shard towards motion direction
-      if (velocity.lengthSq() > 0.0001) {
-        const rotationMatrix = new THREE.Matrix4().lookAt(currentPos, aheadPos, upVec)
-        tempMatrix.multiply(rotationMatrix)
+      // 3. Interpolate land extrusion height slightly as they color in (~15% uplift)
+      let currentHeight = GLOBE_CONFIG.HEX_HEIGHT
+      if (tile.isLand) {
+        currentHeight += GLOBE_CONFIG.LAND_EXTRUSION_ADD * t_eased
       }
 
-      tempMatrix.scale(scaleVec)
-      meshRef.current.setMatrixAt(i, tempMatrix)
-    }
+      // Hexagon sits flush on the sphere surface (radius = 3.5)
+      // Translate slightly outward by half the height so cylinder bottom sits on surface
+      const offsetRadius = GLOBE_CONFIG.RADIUS + currentHeight / 2
+      posVec.copy(tile.center).multiplyScalar(offsetRadius)
+
+      scaleVec.set(1, 1, 1)
+
+      // Compose instance matrix
+      tempMatrix.compose(posVec, tile.quaternion, scaleVec)
+      
+      // Update scale and geometry matrix
+      meshRef.current!.setMatrixAt(tile.id, tempMatrix)
+    })
 
     meshRef.current.instanceMatrix.needsUpdate = true
+    if (meshRef.current.instanceColor) {
+      meshRef.current.instanceColor.needsUpdate = true
+    }
   })
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      {/* Sleek Crystalline Shard geometry (cone/prism looks highly directional) */}
-      <coneGeometry args={[0.025, 0.085, 4]} />
-      
-      {/* Glossy physical material which preserves solid color attributes */}
-      <meshPhysicalMaterial 
-        ref={materialRef}
-        roughness={0.25} 
-        metalness={0.7} 
-        clearcoat={0.2}
-        clearcoatRoughness={0.1}
-        toneMapped={false}
-      >
-        <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />
-      </meshPhysicalMaterial>
-    </instancedMesh>
+    <group>
+      {/* ONE THREE.InstancedMesh of low hex prisms */}
+      <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
+        {/* Hex Prism cylinder sits flush (radial segments = 6, height customizable) */}
+        <cylinderGeometry args={[GLOBE_CONFIG.HEX_RADIUS, GLOBE_CONFIG.HEX_RADIUS, GLOBE_CONFIG.HEX_HEIGHT, 6]} />
+        <meshPhysicalMaterial 
+          roughness={0.25}
+          metalness={0.1}
+          clearcoat={1.0}
+          clearcoatRoughness={0.1}
+          toneMapped={false}
+        />
+      </instancedMesh>
+
+      {/* Subtle thin blue Fresnel atmosphere rim around the planet silhouette */}
+      <mesh>
+        <sphereGeometry args={[GLOBE_CONFIG.RADIUS + 0.06, 32, 32]} />
+        <shaderMaterial
+          attach="material"
+          transparent
+          blending={THREE.AdditiveBlending}
+          side={THREE.BackSide}
+          vertexShader={`
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
+            void main() {
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              vNormal = normalize(normalMatrix * normal);
+              vViewPosition = -mvPosition.xyz;
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `}
+          fragmentShader={`
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
+            uniform vec3 color;
+            void main() {
+              vec3 normal = normalize(vNormal);
+              vec3 viewDir = normalize(vViewPosition);
+              // Thin smooth Fresnel glow calculations
+              float intensity = pow(1.0 - dot(normal, viewDir), 3.2);
+              gl_FragColor = vec4(color, intensity * 0.5);
+            }
+          `}
+          uniforms={{
+            color: { value: new THREE.Color(GLOBE_CONFIG.COLOR_ATMOSPHERE) }
+          }}
+        />
+      </mesh>
+    </group>
   )
 }

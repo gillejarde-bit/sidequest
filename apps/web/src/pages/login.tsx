@@ -32,17 +32,17 @@ export function Login() {
   }
 
   return (
-    <div className="relative bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#1d1e43] via-[#0b0c1b] to-[#040409] min-h-screen text-white font-sans overflow-x-hidden selection:bg-primary/20">
+    <div className="relative bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#111630] via-[#0a0d18] to-[#05060b] min-h-screen text-white font-sans overflow-x-hidden selection:bg-primary/20">
       
       {/* Scroll-driven Canvas container pinned by GSAP */}
       <div 
         id="globe-hero-container" 
         className="w-full h-screen relative flex items-center justify-center overflow-hidden"
       >
-        {/* Cosmic stellar dust background overlay grid */}
+        {/* Subtle coordinate dot grid background overlay */}
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:32px_32px] pointer-events-none" />
 
-        {/* 3D R3F Canvas Container (Houses the Globe, Stars, Ring, and Effects) */}
+        {/* 3D R3F Canvas Container (Houses the Hexasphere, Stars, Ring, and Effects) */}
         <SceneContainer progressRef={progressRef} />
 
         {/* 1. HERO CONTENT OVERLAY (Fades out on scroll with Liquid Glass card) */}
@@ -50,8 +50,8 @@ export function Login() {
           id="hero-text-container" 
           className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center pointer-events-none z-10"
         >
-          {/* Liquid Glass HUD panel card */}
-          <div className="bg-white/[0.02] border border-white/[0.08] backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_12px_40px_rgba(0,0,0,0.4)] rounded-3xl p-8 sm:p-10 max-w-md w-full mx-auto flex flex-col items-center">
+          {/* Centered Frosted-Glass UI Card */}
+          <div className="bg-white/[0.06] backdrop-blur-[16px] backdrop-saturate-[120%] border-[0.5px] border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.3)] rounded-[20px] p-8 sm:p-10 max-w-md w-full mx-auto flex flex-col items-center">
             <h1 
               className="text-4xl sm:text-5xl font-black tracking-tight"
               style={{ 
@@ -59,10 +59,10 @@ export function Login() {
                 letterSpacing: '-1.5px',
               }}
             >
-              Ready for a <span className="text-[#7CFC00] drop-shadow-[0_0_15px_rgba(124,252,0,0.3)]">Sidequest?</span>
+              Ready for a <span className="text-[#7CFC00] drop-shadow-[0_0_15px_rgba(124,252,0,0.35)]">Sidequest?</span>
             </h1>
-            <p className="text-gray-400 text-xs sm:text-sm mt-4 font-medium leading-relaxed">
-              Discover local secrets, coordinate events with your crew, and level up in a living real-world map.
+            <p className="text-gray-300 text-xs sm:text-sm mt-4 font-medium leading-relaxed">
+              Discover coordinates, build your guild, and conquer real-world milestones.
             </p>
           </div>
         </div>
@@ -81,11 +81,11 @@ export function Login() {
           id="auth-card-wrapper" 
           className="absolute inset-0 flex items-center justify-center px-6 z-20 hidden"
         >
-          {/* Stunning Liquid Glass Card */}
-          <div className="max-w-md w-full bg-[#161a38]/30 border border-white/10 backdrop-blur-2xl shadow-[inset_0_1px_2px_rgba(255,255,255,0.15),0_16px_48px_rgba(0,0,0,0.6)] p-8 sm:p-10 rounded-3xl text-center flex flex-col gap-6">
+          {/* Matching Frosted-Glass Card for Onboarding */}
+          <div className="max-w-md w-full bg-white/[0.06] backdrop-blur-[16px] backdrop-saturate-[120%] border-[0.5px] border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.3)] p-8 sm:p-10 rounded-[20px] text-center flex flex-col gap-6">
             <div>
               <h2 className="text-2xl font-black text-white tracking-tight">Access Guild Portal</h2>
-              <p className="text-gray-400 text-xs mt-1">Ready to start your next social adventure?</p>
+              <p className="text-gray-300 text-xs mt-1">Ready to start your next social adventure?</p>
             </div>
             
             {status === 'success' ? (
