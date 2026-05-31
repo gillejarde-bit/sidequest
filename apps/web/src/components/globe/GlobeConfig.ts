@@ -1,29 +1,23 @@
 export const GLOBE_CONFIG = {
-  // Target tile count for the Goldberg Polyhedron (Hexasphere)
-  TILE_COUNT: 1800, 
+  // Total number of geometric shards.
+  INSTANCE_COUNT: 8000, 
 
-  // Sphere radius
-  RADIUS: 3.5, 
+  // Sphere parameters (lowered slightly so the globe fits perfectly in the screen without overflowing)
+  RADIUS_A: 2.3, // Sparse Globe radius
+  RADIUS_B: 2.6, // Dense Globe radius
 
-  // Low hex prism dimensions (extrusion is ~2% of radius)
-  HEX_HEIGHT: 0.08,
-  HEX_RADIUS: 0.09,
+  // Motion physics
+  ROTATION_SPEED_BASE: 0.05, // Constant Y-axis spin speed
+  ROTATION_SPEED_MORPH: 0.15, // Speed multiplier during morph phase
+  ARC_HEIGHT: 1.6, // Height of the curl-noise curve at progress = 0.5
+  STAGGER_AMOUNT: 0.25, // Stagger offset spreading out shard animation
 
-  // Land additional extrusion uplift (~15% terrain elevation)
-  LAND_EXTRUSION_ADD: 0.035,
+  // Vibrant landmass colors matching water and earth
+  COLOR_LIME: '#7CFC00',      // Lime Green for Africa/South America
+  COLOR_CYAN: '#29ABE2',      // Cyan Blue for Eurasia/North America
+  COLOR_ORANGE: '#FF7A1A',    // Orange for Australia/Antarctica
+  COLOR_OCEAN_DIM: '#23253b', // Ocean desaturated filler color for State A
 
-  // Sweep transition speed (Terminator sunrise sweep speed)
-  SWEEP_SPEED: 0.38, 
-
-  // Constant Y-axis auto-rotation speed (rad/s)
-  ROTATION_SPEED: 0.03,
-
-  // Colors
-  COLOR_BLACK_STATE: '#1a1c26', // Near-black starting state
-  COLOR_OCEAN_TARGET: '#2167b4', // Deep blue ocean target
-  COLOR_LAND_TARGET: '#4aa856',  // Green land target
-  COLOR_ATMOSPHERE: '#5aa6ff',   // Subtle blue Fresnel atmosphere glow
-
-  // Post-processing
-  BLOOM_INTENSITY: 0.6
+  // Style
+  BG_COSMOS: '#070710'
 } as const;

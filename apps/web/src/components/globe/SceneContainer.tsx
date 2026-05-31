@@ -10,12 +10,12 @@ interface SceneContainerProps {
   progressRef: React.RefObject<number>
 }
 
-// Renders the faint orbital dashed background ring behind the globe
+// Renders the faint orbital dashed background ring
 function OrbitalRing() {
   const points = useMemo(() => {
     const pts: THREE.Vector3[] = []
     const segments = 64
-    const radius = 4.8 // Renders slightly larger than the globe (3.5)
+    const radius = 4.8 // Renders slightly larger than the dense globe (3.8)
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2
       pts.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, -0.6)) // Offset back slightly
@@ -26,7 +26,7 @@ function OrbitalRing() {
   return (
     <Line
       points={points}
-      color={GLOBE_CONFIG.COLOR_LAND_TARGET}
+      color={GLOBE_CONFIG.COLOR_LIME}
       opacity={0.12}
       transparent
       dashed
@@ -72,7 +72,7 @@ export function SceneContainer({ progressRef }: SceneContainerProps) {
         <GlobeField progressRef={progressRef} />
 
         {/* Dynamic Bloom & Chromatic Aberration */}
-        <Effects />
+        <Effects progressRef={progressRef} />
       </Canvas>
     </div>
   )
