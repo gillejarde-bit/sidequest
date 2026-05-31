@@ -1,74 +1,147 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
-function GeometryAnimation() {
-  const squares = Array.from({ length: 12 })
-  return (
-    <div className="relative w-64 h-64 mx-auto my-8 flex items-center justify-center overflow-hidden rounded-3xl border border-primary/15 bg-primary/5 dark:bg-primary/5 shadow-inner">
-      {/* Grid Pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#58cc020a_1px,transparent_1px),linear-gradient(to_bottom,#58cc020a_1px,transparent_1px)] bg-[size:16px_16px]" />
+// Generate high-fidelity symmetric "Medieval Micro-Geometry" points
+const generateMicroGeometryPoints = () => {
+  const pts: any[] = []
+  let id = 0
+  
+  // 1. Compass Rose (Concentric Orbits)
+  const compassRings = [
+    { radius: 14, count: 8, color: '#58CC02', type: 'triangle' },
+    { radius: 30, count: 16, color: '#0EA5E9', type: 'triangle' },
+    { radius: 52, count: 24, color: '#F97316', type: 'square' },
+  ]
+  
+  compassRings.forEach((ring) => {
+    for (let i = 0; i < ring.count; i++) {
+      const angle = (i / ring.count) * Math.PI * 2
+      const cx = Math.cos(angle) * ring.radius
+      const cy = Math.sin(angle) * ring.radius
       
-      {/* Coordinate axes */}
-      <div className="absolute w-full border-t border-dashed border-[#58CC02]/20" />
-      <div className="absolute h-full border-l border-dashed border-[#58CC02]/20" />
+      // When unfolded, Compass rose points scatter/expand outwards
+      const tx = Math.cos(angle) * (ring.radius * 2.8)
+      const ty = Math.sin(angle) * (ring.radius * 2.8)
       
-      {/* Radar sweeping circle animation */}
-      <motion.div 
-        className="absolute w-48 h-48 rounded-full border border-teal-500/10"
-        animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-      />
-      <motion.div 
-        className="absolute w-24 h-24 rounded-full border border-[#58CC02]/10"
-        animate={{ scale: [1.2, 0.6, 1.2], opacity: [0.2, 0.5, 0.2] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-      />
+      pts.push({
+        id: id++,
+        x: cx,
+        y: cy,
+        targetX: tx,
+        targetY: ty,
+        color: ring.color,
+        type: ring.type,
+        rotation: (angle * 180) / Math.PI,
+        size: ring.type === 'triangle' ? 7 : 5
+      })
+    }
+  })
 
-      {/* Dynamic Floating Squares */}
-      {squares.map((_, i) => {
-        const size = Math.random() * 20 + 10
-        const isTeal = Math.random() > 0.5
-        return (
-          <motion.div
-            key={i}
-            className={`absolute rounded-md ${
-              isTeal 
-                ? 'bg-teal-500/15 dark:bg-teal-400/20 border border-teal-500/40 shadow-sm' 
-                : 'bg-[#58CC02]/15 dark:bg-[#58CC02]/20 border border-[#58CC02]/40 shadow-sm'
-            }`}
-            style={{
-              width: size,
-              height: size,
-              left: `${Math.random() * 70 + 15}%`,
-              top: `${Math.random() * 70 + 15}%`,
-            }}
-            animate={{
-              y: [0, Math.random() * -30 - 15, 0],
-              x: [0, Math.random() * 20 - 10, 0],
-              rotate: [0, Math.random() * 180 + 90, 0],
-              scale: [1, Math.random() * 0.3 + 0.85, 1],
-            }}
-            transition={{
-              duration: Math.random() * 5 + 5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-        )
-      })}
-      
-      {/* Center glowing node */}
-      <div className="absolute w-3.5 h-3.5 bg-[#58CC02] border-2 border-white dark:border-gray-900 rounded-full shadow-lg" />
-    </div>
-  )
+  // 2. Symmetric Filigree Frame (Top, Bottom, Left, Right lines of triangles)
+  const borderDensity = 14
+  for (let i = 0; i < borderDensity; i++) {
+    const t = (i / (borderDensity - 1)) * 2 - 1 // Normalized from -1 to 1
+    
+    // Top Decorative Border
+    const topY = -75 + (Math.sin((t + 1) * Math.PI) * 8)
+    const topTY = -170 + (Math.sin((t + 1) * Math.PI) * 16)
+    pts.push({
+      id: id++,
+      x: t * 75,
+      y: topY,
+      targetX: t * 170,
+      targetY: topTY,
+      color: '#58CC02',
+      type: 'triangle',
+      rotation: 0,
+      size: 6
+    })
+
+    // Bottom Decorative Border
+    const bottomY = 75 - (Math.sin((t + 1) * Math.PI) * 8)
+    const bottomTY = 170 - (Math.sin((t + 1) * Math.PI) * 16)
+    pts.push({
+      id: id++,
+      x: t * 75,
+      y: bottomY,
+      targetX: t * 170,
+      targetY: bottomTY,
+      color: '#58CC02',
+      type: 'triangle',
+      rotation: 180,
+      size: 6
+    })
+
+    // Left Wing Frame
+    const leftX = -75 - (Math.cos(t * Math.PI / 2) * 8)
+    const leftTX = -170 - (Math.cos(t * Math.PI / 2) * 16)
+    pts.push({
+      id: id++,
+      x: leftX,
+      y: t * 55,
+      targetX: leftTX,
+      targetY: t * 140,
+      color: '#0EA5E9',
+      type: 'triangle',
+      rotation: 90,
+      size: 6
+    })
+
+    // Right Wing Frame
+    const rightX = 75 + (Math.cos(t * Math.PI / 2) * 8)
+    const rightTX = 170 + (Math.cos(t * Math.PI / 2) * 16)
+    pts.push({
+      id: id++,
+      x: rightX,
+      y: t * 55,
+      targetX: rightTX,
+      targetY: t * 140,
+      color: '#0EA5E9',
+      type: 'triangle',
+      rotation: -90,
+      size: 6
+    })
+  }
+
+  // 3. Coordinate Dot Grid (Floating map elements)
+  const gridPositions = [
+    { x: -45, y: -45 }, { x: 45, y: -45 },
+    { x: -45, y: 45 }, { x: 45, y: 45 }
+  ]
+  gridPositions.forEach((pos) => {
+    pts.push({
+      id: id++,
+      x: pos.x,
+      y: pos.y,
+      targetX: pos.x * 2.5,
+      targetY: pos.y * 2.5,
+      color: '#F97316',
+      type: 'square',
+      rotation: 45,
+      size: 4
+    })
+  })
+
+  return pts
 }
+
+const pointsData = generateMicroGeometryPoints()
 
 export function Login() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+
+  // Scroll Container Ref for dynamic tracking
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Track scroll position of the custom snap container
+  const { scrollYProgress } = useScroll({ container: containerRef })
+
+  // Maps scroll progress to CSS variables for pure transform animations
+  const progress = useTransform(scrollYProgress, [0, 0.8], [0, 1])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,66 +166,139 @@ export function Login() {
   }
 
   return (
-    <div className="h-screen overflow-y-scroll snap-y snap-mandatory bg-background no-scrollbar">
+    <div 
+      ref={containerRef}
+      className="h-screen overflow-y-scroll snap-y snap-mandatory bg-[#FAFAF8] dark:bg-[#1A1A2E] text-foreground transition-colors duration-300 no-scrollbar"
+    >
       {/* SECTION 1: HERO FOLD */}
-      <section className="h-screen flex flex-col justify-between items-center py-10 px-6 text-center snap-start relative">
-        <div className="flex-1 flex flex-col justify-center items-center">
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 120 }}
-            className="text-6xl mb-4"
-          >
-            🗺️
-          </motion.div>
+      <section className="h-screen flex flex-col justify-between items-center py-12 px-6 text-center snap-start relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(#80808008_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff04_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+
+        <div className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-lg mx-auto">
+          {/* Header Description */}
           <motion.h1 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-5xl font-black text-foreground tracking-tight"
+            className="text-4xl sm:text-5xl font-black tracking-tight"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
-            Ready for a <span className="text-primary">Sidequest?</span>
+            Ready for a <span className="text-[#58CC02]">Sidequest?</span>
           </motion.h1>
+          
+          {/* Custom Dynamic Interactive Scroll-Linked Micro-Geometry Map */}
+          <div className="relative w-80 h-80 sm:w-96 sm:h-96 my-4 flex items-center justify-center">
+            {/* Soft backdrop map contours */}
+            <motion.div 
+              style={{ opacity: useTransform(scrollYProgress, [0, 0.8], [0.03, 0.15]) }}
+              className="absolute inset-0 rounded-full border border-dashed border-[#58CC02] dark:border-[#58CC02] pointer-events-none"
+            />
+            
+            <motion.svg 
+              viewBox="-200 -200 400 400" 
+              className="w-full h-full"
+              style={{ 
+                '--progress': progress,
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.05))'
+              } as any}
+            >
+              {/* Dynamic Coordinate Gridlines */}
+              <line x1="-180" y1="0" x2="180" y2="0" stroke="#808080" strokeOpacity="0.08" strokeDasharray="3 3" />
+              <line x1="0" y1="-180" x2="0" y2="180" stroke="#808080" strokeOpacity="0.08" strokeDasharray="3 3" />
+              
+              {/* Symmetrical central circular rings */}
+              <circle cx="0" cy="0" r="75" fill="none" stroke="#58cc02" strokeOpacity="0.06" strokeWidth="1" />
+              <circle cx="0" cy="0" r="170" fill="none" stroke="#0ea5e9" strokeOpacity="0.04" strokeWidth="1" />
+
+              {/* Renders Micro-Geometry Assets using triangle polygons */}
+              {pointsData.map((pt) => {
+                const renderShape = () => {
+                  if (pt.type === 'triangle') {
+                    // Sleek equilateral triangle polygon
+                    const half = pt.size / 2
+                    const height = (Math.sqrt(3) / 2) * pt.size
+                    return (
+                      <polygon 
+                        points={`0,${-height/2} ${half},${height/2} ${-half},${height/2}`}
+                        fill={pt.color}
+                        fillOpacity="0.95"
+                      />
+                    )
+                  } else if (pt.type === 'square') {
+                    const h = pt.size / 2
+                    return (
+                      <rect 
+                        x={-h} 
+                        y={-h} 
+                        width={pt.size} 
+                        height={pt.size} 
+                        fill={pt.color} 
+                        fillOpacity="0.95" 
+                      />
+                    )
+                  } else {
+                    return (
+                      <circle 
+                        r={pt.size / 2} 
+                        fill={pt.color} 
+                        fillOpacity="0.9" 
+                      />
+                    )
+                  }
+                }
+
+                return (
+                  <g
+                    key={pt.id}
+                    style={{
+                      transform: `
+                        translate(
+                          calc(${pt.x}px + (${pt.targetX - pt.x}px * var(--progress))), 
+                          calc(${pt.y}px + (${pt.targetY - pt.y}px * var(--progress)))
+                        )
+                        rotate(calc(${pt.rotation}deg + (360deg * var(--progress))))
+                      `,
+                      transformOrigin: '0 0',
+                      transition: 'transform 0.08s ease-out'
+                    }}
+                  >
+                    {renderShape()}
+                  </g>
+                )
+              })}
+            </motion.svg>
+          </div>
+
           <motion.p 
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-muted text-base sm:text-lg max-w-sm mt-3"
+            className="text-muted text-sm sm:text-base max-w-xs mt-1"
           >
-            Turn everyday hangouts into living RPG quests with your friends.
+            A real-world social RPG. Scroll down to claim your magic key and enter the map.
           </motion.p>
-          
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <GeometryAnimation />
-          </motion.div>
         </div>
 
         {/* Pulsing Scroll Indicator */}
         <motion.button
           onClick={scrollToAuth}
-          animate={{ y: [0, 8, 0] }}
+          animate={{ y: [0, 6, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="flex flex-col items-center gap-1 text-muted hover:text-primary transition-colors cursor-pointer"
+          className="flex flex-col items-center gap-1 text-muted hover:text-[#58CC02] transition-colors cursor-pointer z-10"
         >
-          <span className="text-xs font-bold tracking-wider uppercase">Scroll to Enter</span>
-          <ChevronDown className="w-5 h-5" />
+          <span className="text-[10px] font-black tracking-widest uppercase">Scroll to Unfold Map</span>
+          <ChevronDown className="w-5 h-5 text-[#58CC02]" />
         </motion.button>
       </section>
 
       {/* SECTION 2: AUTH CONTROLS */}
-      <section id="auth-section" className="h-screen flex flex-col justify-center items-center px-6 snap-start bg-gray-50/50 dark:bg-gray-900/30">
+      <section id="auth-section" className="h-screen flex flex-col justify-center items-center px-6 snap-start bg-gray-50/40 dark:bg-gray-900/10">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-md w-full bg-white dark:bg-gray-950 p-8 rounded-3xl border border-gray-100 dark:border-gray-900 shadow-xl shadow-black/5 dark:shadow-black/20 text-center"
+          className="max-w-md w-full bg-white dark:bg-gray-950 p-8 rounded-3xl border border-gray-200/50 dark:border-gray-900 shadow-xl shadow-black/3 dark:shadow-black/25 text-center"
         >
-          <h2 className="text-2xl font-extrabold text-foreground mb-1">Create Account / Login</h2>
-          <p className="text-muted text-sm mb-6">Access your dashboard via Google or a magic email link.</p>
+          <h2 className="text-2xl font-black text-foreground mb-1">Create Account / Login</h2>
+          <p className="text-muted text-sm mb-6">Start your adventure via Google or a magic link.</p>
           
           {status === 'success' ? (
             <motion.div 
@@ -164,7 +310,7 @@ export function Login() {
             </motion.div>
           ) : (
             <div className="flex flex-col gap-4">
-              {/* Sleek Google Auth Pill */}
+              {/* Google Auth Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -177,7 +323,7 @@ export function Login() {
                   })
                   if (error) console.error('Google login error:', error)
                 }}
-                className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold p-4 rounded-2xl shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold p-4 rounded-2xl shadow-sm border border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-100 transition-colors"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -188,19 +334,19 @@ export function Login() {
                 Continue with Google
               </motion.button>
 
-              <div className="relative py-2 flex items-center justify-center">
+              <div className="relative py-1.5 flex items-center justify-center">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-100 dark:border-gray-900" /></div>
                 <span className="relative px-3 bg-white dark:bg-gray-950 text-xs font-bold uppercase tracking-wider text-muted">or</span>
               </div>
 
-              {/* Magic Link Form */}
+              {/* Magic Link Login */}
               <form onSubmit={handleLogin} className="flex flex-col gap-4">
                 <input 
                   type="email" 
                   placeholder="Email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-4 rounded-2xl border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-primary bg-gray-50/50 dark:bg-gray-950 text-foreground"
+                  className="w-full p-4 rounded-2xl border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-primary bg-gray-50/20 dark:bg-gray-950 text-foreground"
                   required
                 />
                 
