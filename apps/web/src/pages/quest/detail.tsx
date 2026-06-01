@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star } from 'lucide-react'
+import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
@@ -25,7 +25,7 @@ const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
 
 export function QuestDetail() {
   const { id } = useParams({ from: '/quest/$id' })
-  const { } = useAuthStore()
+  const { profile } = useAuthStore()
   const { theme } = useSettingsStore()
   const { data, isLoading } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -310,6 +310,42 @@ export function QuestDetail() {
           </div>
         )}
       </div>
+
+      {/* STREAK RECOVERY ALERT BANNER (Floating above bottom bar if streak broken) */}
+      <AnimatePresence>
+        {profile && (profile as any).current_streak === 0 && (profile as any).previous_streak > 0 && (profile as any).lives > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            className="fixed bottom-[88px] left-4 right-4 z-40 bg-gradient-to-r from-red-500/95 to-orange-500/95 backdrop-blur-md text-white p-3 rounded-2xl shadow-xl flex items-center justify-between border border-red-400/30 max-w-md mx-auto"
+          >
+            <div className="flex items-center gap-2.5">
+              <Heart className="w-5 h-5 fill-current animate-pulse text-red-100 shrink-0" />
+              <div className="text-left">
+                <p className="text-[11px] font-black tracking-wider uppercase leading-none text-red-100">Streak Broken! 💔</p>
+                <p className="text-[10px] opacity-90 mt-0.5 leading-tight">Revive your {(profile as any).previous_streak}-day flame with 1 Life.</p>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const { data, error } = await supabase.rpc('restore_streak_with_life' as any)
+                  if (error) throw error
+                  if (data && (data as any).success) {
+                    await useAuthStore.getState().fetchProfile(profile.id)
+                  }
+                } catch (e: any) {
+                  console.error(e)
+                }
+              }}
+              className="px-3.5 py-1.5 bg-white text-red-600 text-[10px] font-black rounded-xl hover:bg-red-50 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+            >
+              RESTORE
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* BOTTOM BAR */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3 transition-colors">

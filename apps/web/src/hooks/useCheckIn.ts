@@ -49,8 +49,8 @@ export function useCheckIn(questId: string) {
     try {
       const { data, error: rpcError } = await supabase.rpc('check_in_to_quest' as any, {
         p_quest_id: questId,
-        p_user_lat: lat,
-        p_user_lng: lng
+        p_lat: lat,
+        p_lng: lng
       })
       
       if (rpcError) throw rpcError

@@ -43,6 +43,34 @@ export function StreaksPage() {
   const [groupDesc, setGroupDesc] = useState('')
   const [groupColor, setGroupColor] = useState('#6C63FF')
   const [creating, setCreating] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+
+  const handleRestoreStreak = async () => {
+    try {
+      setRestoring(true)
+      const { data, error } = await supabase.rpc('restore_streak_with_life' as any)
+      if (error) throw error
+      const res = data as any
+      if (res && res.success) {
+        addToast({
+          message: `✨ Streak revived to ${res.restored_streak} days! Remaining: ${res.new_lives} ❤️`,
+        })
+        fetchStreaksData()
+        if (user) {
+          await useAuthStore.getState().fetchProfile(user.id)
+        }
+      } else {
+        throw new Error(res?.error || 'Failed to restore streak')
+      }
+    } catch (err: any) {
+      console.error(err)
+      addToast({
+        message: err.message || 'Failed to restore streak'
+      })
+    } finally {
+      setRestoring(false)
+    }
+  }
 
   const presetColors = ['#58CC02', '#6C63FF', '#FF6B6B', '#FFD93D', '#3498DB', '#E67E22']
 
@@ -157,44 +185,92 @@ export function StreaksPage() {
       <main className="max-w-md mx-auto p-4 pt-6 pb-32 space-y-6">
         
         {/* RPG Lives Status Tracking (Absolute Top) */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500">
-                <Heart className="w-5 h-5" fill="currentColor" />
+        {(() => {
+          const lives = (profile as any)?.lives ?? 3
+          const livesPercent = Math.round((lives / 3) * 100)
+          return (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500">
+                    <Heart className="w-5 h-5" fill="currentColor" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
+                      Life
+                      <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
+                        Active
+                      </span>
+                    </h3>
+                    <p className="text-xs text-gray-400 font-bold mt-0.5">{lives} / 3 Hearts remaining</p>
+                  </div>
+                </div>
+                
+                {/* Visual Hearts Row */}
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Heart 
+                      key={i} 
+                      className={`w-5 h-5 transition-all ${
+                        i < lives 
+                          ? 'text-red-500 fill-current animate-pulse' 
+                          : 'text-gray-300 dark:text-gray-600'
+                      }`}
+                      style={i < lives ? { animationDelay: `${i * 0.2}s` } : {}}
+                    />
+                  ))}
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
-                  Life
-                  <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
-                    Active
-                  </span>
-                </h3>
-                <p className="text-xs text-gray-400 font-bold mt-0.5">3 / 3 Hearts remaining</p>
+              
+              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+                <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-red-500 rounded-full transition-all duration-500" 
+                    style={{ width: `${livesPercent}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-300 font-semibold mt-2.5 leading-relaxed">
+                  Missing planned quests reduces your hearts. Recharge by attending group events or verifying hidden gems!
+                </p>
               </div>
+            </motion.div>
+          )
+        })()}
+
+        {/* Streak Restoration Alert Card */}
+        {profile && profile.current_streak === 0 && (profile as any).previous_streak > 0 && (profile as any).lives > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-3xl p-5 shadow-lg flex flex-col items-center text-center space-y-4"
+          >
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-950/40 rounded-full flex items-center justify-center text-red-500">
+              <Heart className="w-6 h-6 animate-bounce" fill="currentColor" />
             </div>
-            
-            {/* Visual Hearts Row */}
-            <div className="flex items-center gap-1">
-              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" />
-              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" style={{ animationDelay: '0.2s' }} />
-              <Heart className="w-5 h-5 text-red-500 fill-current animate-pulse" style={{ animationDelay: '0.4s' }} />
+            <div>
+              <h3 className="font-black text-gray-900 dark:text-white text-base">Your Streak is Broken! 💔</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
+                You didn't check in on time or were too far. Save your <span className="text-orange-500">{(profile as any).previous_streak}-day streak</span> before it's gone forever!
+              </p>
             </div>
-          </div>
-          
-          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-            <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-red-500 rounded-full w-full" />
-            </div>
-            <p className="text-[11px] text-gray-400 dark:text-gray-300 font-semibold mt-2.5 leading-relaxed">
-              Missing planned quests reduces your hearts. Recharge by attending group events or verifying hidden gems!
-            </p>
-          </div>
-        </motion.div>
+            <button
+              onClick={handleRestoreStreak}
+              disabled={restoring}
+              className="w-full py-3.5 bg-red-500 hover:bg-red-650 disabled:opacity-50 text-white font-extrabold rounded-2xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/25"
+            >
+              {restoring ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                  <Heart className="w-4.5 h-4.5 fill-current" />
+                  Use 1 Life to Restore
+                </>
+              )}
+            </button>
+          </motion.div>
+        )}
 
         {/* Personal Streak Hero Card */}
         <motion.div 

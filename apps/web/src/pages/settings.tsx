@@ -15,11 +15,20 @@ import {
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useAuthStore } from '../stores/auth'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 
+import { useEffect } from 'react'
+
 export function SettingsPage() {
-  const { theme, toggleTheme, shareLocation, toggleShareLocation } = useSettingsStore()
+  const { 
+    theme, 
+    toggleTheme, 
+    shareLocation, 
+    setShareLocation, 
+    locationSharingScope, 
+    setLocationSharingScope 
+  } = useSettingsStore()
   const { user, profile } = useAuthStore()
   const navigate = useNavigate()
 
@@ -31,6 +40,54 @@ export function SettingsPage() {
   // Calendar visibility local state
   const [calendarVis, setCalendarVis] = useState((profile as any)?.calendar_visibility || 'friends')
   const [savingCal, setSavingCal] = useState(false)
+  const [savingLoc, setSavingLoc] = useState(false)
+
+  // Synchronize database location preferences to Zustand store on load
+  useEffect(() => {
+    if (profile) {
+      if ((profile as any).share_location !== undefined && (profile as any).share_location !== null) {
+        setShareLocation((profile as any).share_location)
+      }
+      if ((profile as any).location_sharing_scope) {
+        setLocationSharingScope((profile as any).location_sharing_scope as any)
+      }
+    }
+  }, [profile])
+
+  const handleLocationSharingToggle = async () => {
+    const newVal = !shareLocation
+    setShareLocation(newVal)
+    if (!user) return
+    setSavingLoc(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ share_location: newVal } as any)
+        .eq('id', user.id)
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Error updating location sharing:', err.message)
+    } finally {
+      setSavingLoc(false)
+    }
+  }
+
+  const handleLocationScopeChange = async (scope: 'friends' | 'crews' | 'nearby') => {
+    setLocationSharingScope(scope)
+    if (!user) return
+    setSavingLoc(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ location_sharing_scope: scope } as any)
+        .eq('id', user.id)
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Error updating location scope:', err.message)
+    } finally {
+      setSavingLoc(false)
+    }
+  }
 
   const handleVisibilityChange = async (val: string) => {
     if (!user) return
@@ -158,7 +215,7 @@ export function SettingsPage() {
             </div>
             
             <button 
-              onClick={toggleShareLocation}
+              onClick={handleLocationSharingToggle}
               className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${shareLocation ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
             >
               <motion.div 
@@ -169,6 +226,44 @@ export function SettingsPage() {
               />
             </button>
           </div>
+
+          {/* Location Sharing Sub-Setting Scope */}
+          <AnimatePresence>
+            {shareLocation && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="pt-4 border-t border-gray-100 dark:border-gray-700/50 space-y-3 overflow-hidden"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-gray-400 dark:text-gray-450 uppercase tracking-wider">Share Location With</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                  {[
+                    { label: 'Friends', value: 'friends' },
+                    { label: 'Crews', value: 'crews' },
+                    { label: 'Nearby', value: 'nearby' }
+                  ].map((scope) => (
+                    <button
+                      key={scope.value}
+                      type="button"
+                      disabled={savingLoc}
+                      onClick={() => handleLocationScopeChange(scope.value as any)}
+                      className={`py-2 px-3 text-xs font-black rounded-xl capitalize transition-all cursor-pointer ${
+                        locationSharingScope === scope.value
+                          ? 'bg-green-500 text-white shadow-md'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/40'
+                      }`}
+                    >
+                      {scope.label}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Calendar Visibility */}
           <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">

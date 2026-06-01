@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useFriendPresence } from '../hooks/useFriendPresence'
+import { useFriends } from '../hooks/useFriends'
 import { FilterBar } from '../components/map/FilterBar'
 import { BottomSheet } from '../components/map/BottomSheet'
 import { SearchBar } from '../components/map/SearchBar'
@@ -261,18 +262,50 @@ export function MapPage() {
 
 
 
+  const { data: friendshipsList = [] } = useFriends()
+
+  // Helper to calculate Haversine distance in meters
+  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3 // Earth radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }, [])
+
   const friendsList = useMemo(() => {
     return Array.from(friendsMap.values()).filter(f => {
-      // Find all groups this friend belongs to
-      const friendGroups = groupMembers.filter(gm => gm.user_id === f.user_id).map(gm => gm.group_id)
-      
-      // If the friend is not in any group, they are visible by default
-      if (friendGroups.length === 0) return true
-      
-      // Otherwise, they must belong to at least one group that is NOT hidden
-      return friendGroups.some(groupId => !hiddenGroupIds.includes(groupId))
+      // 1. Must explicitly share location (privacy safety check)
+      if (!f.share_location) return false
+
+      // 2. Filter based on their selected scope:
+      if (f.location_sharing_scope === 'friends') {
+        // Must be reciprocal accepted friends
+        const isFriend = friendshipsList.some(friend => friend.id === f.user_id)
+        if (!isFriend) return false
+      } else if (f.location_sharing_scope === 'crews') {
+        // Must share at least one active, non-hidden crew
+        const friendGroups = groupMembers.filter(gm => gm.user_id === f.user_id).map(gm => gm.group_id)
+        const myGroups = groupMembers.filter(gm => gm.user_id === profile?.id).map(gm => gm.group_id)
+        const shareCrew = friendGroups.some(groupId => myGroups.includes(groupId) && !hiddenGroupIds.includes(groupId))
+        if (!shareCrew) return false
+      } else if (f.location_sharing_scope === 'nearby') {
+        // Must be within 5km of the current user
+        if (userLoc.lat === null || userLoc.lng === null) return false
+        const distance = calculateDistance(userLoc.lat, userLoc.lng, f.lat, f.lng)
+        if (distance > 5000) return false // 5km limit
+      } else {
+        // Safe default: hide if anything else
+        return false
+      }
+
+      return true
     })
-  }, [friendsMap, groupMembers, hiddenGroupIds])
+  }, [friendsMap, groupMembers, hiddenGroupIds, friendshipsList, userLoc.lat, userLoc.lng, profile?.id, calculateDistance])
 
 
 

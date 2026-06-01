@@ -39,6 +39,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          badge_ids: string[] | null
+          bio: string | null
+          created_at: string | null
+          current_streak: number | null
+          display_name: string | null
+          id: string
+          level: number | null
+          longest_streak: number | null
+          map_flair: string | null
+          profile_color: string | null
+          title: string | null
+          total_gems_found: number | null
+          total_quests_attended: number | null
+          total_quests_organized: number | null
+          username: string
+          xp: number | null
+          share_location: boolean | null
+          location_sharing_scope: string | null
+          lives: number | null
+          previous_streak: number | null
+          streak_last_active_date: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          badge_ids?: string[] | null
+          bio?: string | null
+          created_at?: string | null
+          current_streak?: number | null
+          display_name?: string | null
+          id: string
+          level?: number | null
+          longest_streak?: number | null
+          map_flair?: string | null
+          profile_color?: string | null
+          title?: string | null
+          total_gems_found?: number | null
+          total_quests_attended?: number | null
+          total_quests_organized?: number | null
+          username: string
+          xp?: number | null
+          share_location?: boolean | null
+          location_sharing_scope?: string | null
+          lives?: number | null
+          previous_streak?: number | null
+          streak_last_active_date?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          badge_ids?: string[] | null
+          bio?: string | null
+          created_at?: string | null
+          current_streak?: number | null
+          display_name?: string | null
+          id?: string
+          level?: number | null
+          longest_streak?: number | null
+          map_flair?: string | null
+          profile_color?: string | null
+          title?: string | null
+          total_gems_found?: number | null
+          total_quests_attended?: number | null
+          total_quests_organized?: number | null
+          username?: string
+          xp?: number | null
+          share_location?: boolean | null
+          location_sharing_scope?: string | null
+          lives?: number | null
+          previous_streak?: number | null
+          streak_last_active_date?: string | null
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           category: string
@@ -416,66 +491,7 @@ export type Database = {
           },
         ]
       }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          badge_ids: string[] | null
-          bio: string | null
-          created_at: string | null
-          current_streak: number | null
-          display_name: string | null
-          id: string
-          level: number | null
-          longest_streak: number | null
-          map_flair: string | null
-          profile_color: string | null
-          title: string | null
-          total_gems_found: number | null
-          total_quests_attended: number | null
-          total_quests_organized: number | null
-          username: string
-          xp: number | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          badge_ids?: string[] | null
-          bio?: string | null
-          created_at?: string | null
-          current_streak?: number | null
-          display_name?: string | null
-          id: string
-          level?: number | null
-          longest_streak?: number | null
-          map_flair?: string | null
-          profile_color?: string | null
-          title?: string | null
-          total_gems_found?: number | null
-          total_quests_attended?: number | null
-          total_quests_organized?: number | null
-          username: string
-          xp?: number | null
-        }
-        Update: {
-          avatar_url?: string | null
-          badge_ids?: string[] | null
-          bio?: string | null
-          created_at?: string | null
-          current_streak?: number | null
-          display_name?: string | null
-          id?: string
-          level?: number | null
-          longest_streak?: number | null
-          map_flair?: string | null
-          profile_color?: string | null
-          title?: string | null
-          total_gems_found?: number | null
-          total_quests_attended?: number | null
-          total_quests_organized?: number | null
-          username?: string
-          xp?: number | null
-        }
-        Relationships: []
-      }
+
       quest_attendance: {
         Row: {
           arrived_at: string | null
