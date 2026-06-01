@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from '@tanstack/react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../stores/auth'
@@ -12,7 +12,11 @@ import {
   Check, 
   Loader2,
   ChevronLeft,
-  Heart
+  Heart,
+  ZoomIn,
+  ZoomOut,
+  Scissors,
+  Upload
 } from 'lucide-react'
 import { useToastStore } from '../stores/toastStore'
 
@@ -44,6 +48,160 @@ export function StreaksPage() {
   const [groupColor, setGroupColor] = useState('#6C63FF')
   const [creating, setCreating] = useState(false)
   const [restoring, setRestoring] = useState(false)
+
+  // Crew Avatar states
+  const [crewAvatarUrl, setCrewAvatarUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Cropper states
+  const [cropImage, setCropImage] = useState<string | null>(null)
+  const [cropZoom, setCropZoom] = useState(1.0)
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [popupMessage, setPopupMessage] = useState<string | null>(null)
+
+  // File selection triggers cropper instead of direct uploading
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files || e.target.files.length === 0) return
+      const file = e.target.files[0]
+      const reader = new FileReader()
+      reader.onload = () => {
+        setCropImage(reader.result as string)
+        setCropZoom(1.0)
+        setCropOffset({ x: 0, y: 0 })
+      }
+      reader.readAsDataURL(file)
+    } catch (err: any) {
+      console.error(err)
+      setPopupMessage(`File selection error: ${err.message}`)
+    }
+  }
+
+  // Perform crop on HTML5 Canvas and upload to Supabase Storage
+  const handlePerformCrop = async () => {
+    if (!cropImage || !user) return
+    setUploading(true)
+    const srcToCrop = cropImage
+    setCropImage(null)
+
+    try {
+      const img = new Image()
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = (err) => reject(new Error('Image failed to load: ' + err))
+        img.src = srcToCrop
+      })
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not create canvas context')
+
+      const targetSize = 400
+      canvas.width = targetSize
+      canvas.height = targetSize
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+      ctx.fillRect(0, 0, targetSize, targetSize)
+
+      const previewSize = 288 // matches w-72 preview
+      const ratio = targetSize / previewSize
+
+      ctx.save()
+      ctx.translate(targetSize / 2, targetSize / 2)
+      ctx.translate(cropOffset.x * ratio, cropOffset.y * ratio)
+      ctx.scale(cropZoom, cropZoom)
+
+      const imgRatio = img.naturalWidth / img.naturalHeight
+      let drawW = previewSize
+      let drawH = previewSize
+
+      if (imgRatio > 1) {
+        drawW = previewSize
+        drawH = previewSize / imgRatio
+      } else {
+        drawH = previewSize
+        drawW = previewSize * imgRatio
+      }
+
+      const finalW = drawW * ratio
+      const finalH = drawH * ratio
+
+      ctx.drawImage(img, -finalW / 2, -finalH / 2, finalW, finalH)
+      ctx.restore()
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setPopupMessage('Failed to crop image.')
+          setUploading(false)
+          return
+        }
+
+        try {
+          const fileName = `${user.id}/crew-${Date.now()}.png`
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, blob, { 
+              contentType: 'image/png',
+              upsert: true 
+            })
+
+          if (uploadError) throw uploadError
+
+          const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
+          setCrewAvatarUrl(data.publicUrl)
+        } catch (err: any) {
+          console.error(err)
+          setPopupMessage(`Upload failed: ${err.message}`)
+        } finally {
+          setUploading(false)
+        }
+      }, 'image/png')
+
+    } catch (err: any) {
+      console.error(err)
+      setPopupMessage(`Crop failed: ${err.message}`)
+      setUploading(false)
+    }
+  }
+
+  // Mouse & Touch Drag Handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setCropOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true)
+      setDragStart({
+        x: e.touches[0].clientX - cropOffset.x,
+        y: e.touches[0].clientY - cropOffset.y
+      })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return
+    setCropOffset({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    })
+  }
 
   const handleRestoreStreak = async () => {
     try {
@@ -105,6 +263,7 @@ export function StreaksPage() {
           name: groupName.trim(),
           description: groupDesc.trim() || null,
           group_color: groupColor,
+          avatar_url: crewAvatarUrl || null,
           created_by: user?.id,
           streak: 0,
           longest_streak: 0,
@@ -132,6 +291,7 @@ export function StreaksPage() {
 
       setGroupName('')
       setGroupDesc('')
+      setCrewAvatarUrl('')
       setIsCreateModalOpen(false)
       fetchStreaksData()
     } catch (err: any) {
@@ -376,12 +536,16 @@ export function StreaksPage() {
                     <div className="flex items-center gap-3">
                       {/* Crew Badge/Color */}
                       <div 
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg relative"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg relative overflow-hidden shrink-0"
                         style={{ backgroundColor: crew.group_color }}
                       >
-                        {crew.group_name[0].toUpperCase()}
+                        {crew.group_avatar ? (
+                          <img src={crew.group_avatar} className="w-full h-full object-cover" />
+                        ) : (
+                          crew.group_name[0].toUpperCase()
+                        )}
                         {crew.streak_frozen && (
-                          <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 text-[8px]">
+                          <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 text-[8px] z-10">
                             ❄️
                           </span>
                         )}
@@ -495,6 +659,43 @@ export function StreaksPage() {
               </p>
 
               <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div className="flex flex-col items-center gap-2.5 mb-6">
+                  {/* Crew Icon Circular Selector Container */}
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="relative w-24 h-24 rounded-full border-4 border-dashed border-gray-200 dark:border-gray-700/85 bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center text-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-colors shadow-inner"
+                    style={crewAvatarUrl ? { borderStyle: 'solid', borderColor: groupColor } : {}}
+                  >
+                    {crewAvatarUrl ? (
+                      <img src={crewAvatarUrl} alt="Crew Icon Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1 group-hover:text-primary transition-colors" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Upload Pic</span>
+                      </>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold">
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-black text-primary hover:text-[#46A302] active:scale-95 transition-all"
+                  >
+                    {crewAvatarUrl ? 'Change Photo' : 'Choose Crew Icon'}
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleFileChange}
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
                     Crew Name
@@ -565,6 +766,142 @@ export function StreaksPage() {
               </form>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Glassmorphic in-page popup modal replacing ugly browser alerts */}
+      <AnimatePresence>
+        {popupMessage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 pointer-events-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="max-w-sm w-full bg-white dark:bg-gray-950 p-6 rounded-3xl border border-gray-200 dark:border-gray-900 shadow-2xl text-center flex flex-col gap-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-foreground">Notice</h3>
+                <p className="text-sm text-muted mt-2 leading-relaxed">
+                  {popupMessage}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPopupMessage(null)}
+                className="w-full bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold p-3.5 rounded-2xl shadow-md cursor-pointer transition-all active:scale-98"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Full-Screen Dedicated Photo Cropper Page */}
+      <AnimatePresence>
+        {cropImage && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-50 flex flex-col justify-between bg-[#0a0d18] text-white select-none"
+          >
+            {/* Top Bar Header */}
+            <div className="w-full flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gray-950/20 backdrop-blur-md">
+              <button 
+                type="button" 
+                onClick={() => setCropImage(null)}
+                className="text-white/60 hover:text-white text-sm font-extrabold flex items-center gap-1 active:scale-95 transition-transform"
+              >
+                ← Back
+              </button>
+              <h3 className="text-lg font-black tracking-tight text-center text-white flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Crew Icon
+              </h3>
+              <div className="w-12" /> {/* spacer for center alignment */}
+            </div>
+
+            {/* Main Crop Viewport Center Container */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+              <div className="relative w-72 h-72 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleMouseUp}
+              >
+                <img
+                  src={cropImage}
+                  alt="Crop preview"
+                  style={{
+                    transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`,
+                    transformOrigin: 'center center',
+                  }}
+                  className="absolute w-full h-full object-contain pointer-events-none select-none"
+                />
+
+                {/* Aesthetic alignment overlay rules */}
+                <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />
+                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/10 pointer-events-none" />
+                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none" />
+              </div>
+              <p className="text-xs text-white/50 mt-6 tracking-wide uppercase font-bold">
+                Drag to Reposition
+              </p>
+            </div>
+
+            {/* Bottom Controls Panel */}
+            <div className="w-full max-w-md mx-auto px-6 pb-8 flex flex-col gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent">
+              {/* Zoom slider controls */}
+              <div className="w-full flex flex-col gap-2 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center text-xs text-white/60 font-black px-1">
+                  <span>ZOOM LEVEL</span>
+                  <span>{Math.round(cropZoom * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ZoomOut className="w-4 h-4 text-white/40" />
+                  <input 
+                    type="range" 
+                    min="1.0" 
+                    max="3.0" 
+                    step="0.05"
+                    value={cropZoom}
+                    onChange={(e) => setCropZoom(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#58CC02] focus:outline-none"
+                  />
+                  <ZoomIn className="w-4 h-4 text-white/40" />
+                </div>
+              </div>
+
+              {/* Actions button panel */}
+              <div className="flex gap-4 w-full">
+                <button
+                  type="button"
+                  onClick={() => setCropImage(null)}
+                  className="flex-1 border border-white/10 hover:bg-white/5 text-white font-extrabold py-4 rounded-2xl transition-colors cursor-pointer text-center text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePerformCrop}
+                  className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
+                >
+                  Save & Continue
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

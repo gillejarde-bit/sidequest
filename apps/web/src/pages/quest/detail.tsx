@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart } from 'lucide-react'
+import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart, Check } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
@@ -27,7 +27,7 @@ export function QuestDetail() {
   const { id } = useParams({ from: '/quest/$id' })
   const { profile } = useAuthStore()
   const { theme } = useSettingsStore()
-  const { data, isLoading } = useQuestDetail(id)
+  const { data, isLoading, refetch } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
 
@@ -68,7 +68,7 @@ export function QuestDetail() {
   const colors = CATEGORY_COLORS[quest.category] || CATEGORY_COLORS.Default
   const cost = '$'.repeat(quest.cost_tier) || 'Free'
   const isParticipant = my_status === 'accepted' || is_creator
-  const showCheckIn = isParticipant && !user_attended && isToday(new Date(quest.starts_at))
+  const showCheckIn = isParticipant && isToday(new Date(quest.starts_at))
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-[100px] transition-colors duration-300">
@@ -191,16 +191,26 @@ export function QuestDetail() {
                   className="snap-start shrink-0 text-center w-16"
                 >
                   <Link to="/profile/$id" params={{ id: att.user_id }}>
-                    <div className="w-14 h-14 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full mb-1 overflow-hidden">
-                      {att.avatar_url ? (
-                        <img src={att.avatar_url} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">
-                          {att.username[0].toUpperCase()}
+                    <div className="relative w-14 h-14 mx-auto mb-1">
+                      <div className="w-full h-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        {att.avatar_url ? (
+                          <img src={att.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">
+                            {att.username[0].toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      {att.has_attended && (
+                        <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 text-white rounded-full border border-white dark:border-gray-800 flex items-center justify-center shadow-sm">
+                          <Check className="w-3 h-3 stroke-[3]" />
                         </div>
                       )}
                     </div>
-                    <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate">{att.display_name || att.username}</p>
+                    <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate flex items-center justify-center gap-0.5">
+                      {att.display_name || att.username}
+                      {att.has_attended && <span className="text-green-500 font-bold shrink-0">✓</span>}
+                    </p>
                   </Link>
                 </motion.div>
               ))}
@@ -351,9 +361,10 @@ export function QuestDetail() {
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3 transition-colors">
         {showCheckIn && (
           <CheckInButton 
-            questId={quest.id} 
+            questId={quest.id}
+            initialCheckedIn={user_attended}
             onSuccess={() => {
-              // The component handles confetti internally, we just invalidate
+              refetch()
             }} 
           />
         )}
