@@ -30,6 +30,9 @@ export function useGemNomination() {
 
         if (uploadError) {
           console.error("Upload error", uploadError)
+          if (uploadError.message?.toLowerCase().includes('bucket') || uploadError.message?.toLowerCase().includes('not found')) {
+            throw new Error("Failed to upload photo. Please ensure a public storage bucket named 'gems' exists in your Supabase dashboard.")
+          }
           throw uploadError
         } else {
           const { data } = supabase.storage.from('gems').getPublicUrl(uploadData.path)

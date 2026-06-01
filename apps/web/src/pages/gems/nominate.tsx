@@ -8,7 +8,7 @@ import { useGeolocation } from '../../hooks/useGeolocation'
 export function GemNominationPage() {
   const navigate = useNavigate()
   const { lat, lng } = useGeolocation()
-  const { mutate: nominate, isPending } = useGemNomination()
+  const { mutate: nominate, isPending, error: nominationError } = useGemNomination()
   
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -189,6 +189,12 @@ export function GemNominationPage() {
                   Your current GPS coordinates will be used as the gem's location.
                 </p>
               </div>
+
+              {nominationError && (
+                <div className="p-4 rounded-xl bg-red-950/20 text-red-400 text-xs font-bold border border-red-900/50 mt-4 leading-relaxed">
+                  {(nominationError as any).message || 'Failed to submit nomination. Please try again.'}
+                </div>
+              )}
 
               <button
                 onClick={handleSubmit}
