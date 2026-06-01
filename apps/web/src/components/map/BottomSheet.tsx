@@ -100,7 +100,7 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
 
   return (
     <div className="space-y-4">
-      <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+      <div className="w-full h-32 rounded-2xl overflow-hidden mb-3 relative shadow-sm">
         {placeDetails?.photos?.[0] ? (
           <img 
             src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })} 
@@ -239,11 +239,11 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
             onClose()
           }
         }}
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="absolute bottom-[96px] left-0 right-0 bg-white dark:bg-[#1A1A2E] border-t border-gray-200 dark:border-gray-800 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20 pb-safe touch-none"
+        className="absolute bottom-[100px] left-4 right-4 mx-auto w-[calc(100%-32px)] max-w-[380px] bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl shadow-2xl z-20 pb-safe touch-none"
       >
         <div className="p-6 relative">
           <button 
@@ -257,7 +257,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
 
           {mode === 'location' ? (
             <div className="space-y-4">
-              <div className="w-full h-48 rounded-2xl overflow-hidden mb-4 relative shadow-sm">
+              <div className="w-full h-32 rounded-2xl overflow-hidden mb-3 relative shadow-sm">
                 {data.placeDetails?.photos?.[0] ? (
                   <img 
                     src={data.placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })} 

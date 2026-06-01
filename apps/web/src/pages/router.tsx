@@ -19,7 +19,7 @@ function BottomNav() {
   const [showMore, setShowMore] = useState(false)
 
   if (!user) return null
-  if (['/login', '/onboarding', '/quest/create'].includes(pathname)) return null
+  if (['/login', '/onboarding'].includes(pathname) || pathname.startsWith('/quest/')) return null
 
   const activeTab = pathname === '/' || pathname === '/map' ? 'map' 
                   : pathname.startsWith('/quests') ? 'quests'

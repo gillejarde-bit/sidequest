@@ -169,7 +169,7 @@ export function StreaksPage() {
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
-                  RPG Lives Tracker
+                  Life
                   <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
                     Active
                   </span>

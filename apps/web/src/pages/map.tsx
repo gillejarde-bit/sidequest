@@ -351,68 +351,71 @@ export function MapPage() {
         </div>
         
         <FilterBar className="pointer-events-auto w-full overflow-x-auto no-scrollbar flex gap-2" />
-
-        {/* Happening Soon collapsible panel */}
-        {happeningSoonQuests.length > 0 && (
-          <div className="pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3.5 shadow-xl transition-all w-full max-w-[360px]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                Happening Soon ({happeningSoonQuests.length})
-              </span>
-              
-              <button
-                type="button"
-                onClick={() => setIsSoonPanelCollapsed(!isSoonPanelCollapsed)}
-                className="text-[10px] font-black text-primary hover:underline cursor-pointer focus:outline-none"
-              >
-                {isSoonPanelCollapsed ? 'Expand' : 'Collapse'}
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {!isSoonPanelCollapsed && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-                    {happeningSoonQuests.map((q: any) => {
-                      const diffMs = new Date(q.starts_at).getTime() - Date.now()
-                      const startsSoon = diffMs > 0 && diffMs < 60 * 60 * 1000 // < 1 hour
-                      const timeUntilStr = getTimeUntil(q.starts_at)
-                      
-                      return (
-                        <div
-                          key={q.id}
-                          onClick={() => handleSoonQuestTap(q)}
-                          className={`min-w-[180px] max-w-[200px] p-3 rounded-2xl border transition-all text-left cursor-pointer shrink-0 bg-gray-50/50 dark:bg-gray-900/50 ${
-                            startsSoon
-                              ? 'border-red-500 shadow-md shadow-red-500/10 animate-pulse'
-                              : 'border-gray-100 dark:border-gray-800 hover:bg-gray-150/40 dark:hover:bg-gray-800/40'
-                          }`}
-                        >
-                          <h4 className="text-xs font-black text-gray-900 dark:text-white truncate leading-tight">{q.name}</h4>
-                          <p className={`text-[10px] font-extrabold mt-1 flex items-center gap-1 ${startsSoon ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
-                            <Clock className="w-3 h-3" />
-                            <span>{startsSoon ? 'starts soon! ' : ''}{timeUntilStr}</span>
-                          </p>
-                          <p className="text-[9px] text-gray-400 font-bold mt-0.5 truncate flex items-center gap-0.5">
-                            <MapPin className="w-2.5 h-2.5" />
-                            {q.location_name}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
       </div>
+
+      {/* Happening Soon collapsible panel in top right corner */}
+      {happeningSoonQuests.length > 0 && (
+        <div 
+          className="absolute top-4 right-4 pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3 shadow-xl transition-all w-full max-w-[280px] md:max-w-[320px]"
+          style={{ zIndex: Z_INDEX.map_ui }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Happening Soon ({happeningSoonQuests.length})
+            </span>
+            
+            <button
+              type="button"
+              onClick={() => setIsSoonPanelCollapsed(!isSoonPanelCollapsed)}
+              className="text-[9px] font-black text-primary hover:underline cursor-pointer focus:outline-none"
+            >
+              {isSoonPanelCollapsed ? 'Expand' : 'Collapse'}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {!isSoonPanelCollapsed && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto no-scrollbar py-1">
+                  {happeningSoonQuests.map((q: any) => {
+                    const diffMs = new Date(q.starts_at).getTime() - Date.now()
+                    const startsSoon = diffMs > 0 && diffMs < 60 * 60 * 1000 // < 1 hour
+                    const timeUntilStr = getTimeUntil(q.starts_at)
+                    
+                    return (
+                      <div
+                        key={q.id}
+                        onClick={() => handleSoonQuestTap(q)}
+                        className={`w-full p-2.5 rounded-xl border transition-all text-left cursor-pointer bg-gray-50/50 dark:bg-gray-900/50 ${
+                          startsSoon
+                            ? 'border-red-500 shadow-md shadow-red-500/10 animate-pulse'
+                            : 'border-gray-100 dark:border-gray-800 hover:bg-gray-150/40 dark:hover:bg-gray-800/40'
+                        }`}
+                      >
+                        <h4 className="text-xs font-black text-gray-900 dark:text-white truncate leading-tight">{q.name}</h4>
+                        <p className={`text-[9px] font-extrabold mt-0.5 flex items-center gap-1 ${startsSoon ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{startsSoon ? 'starts soon! ' : ''}{timeUntilStr}</span>
+                        </p>
+                        <p className="text-[8px] text-gray-450 dark:text-gray-450 font-bold mt-0.5 truncate flex items-center gap-0.5">
+                          <MapPin className="w-2 h-2" />
+                          {q.location_name}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <Map
         ref={mapRef}

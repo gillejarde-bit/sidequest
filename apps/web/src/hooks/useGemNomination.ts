@@ -40,7 +40,7 @@ export function useGemNomination() {
       // 2. Call nominate_hidden_gem RPC
       const { data, error } = await supabase.rpc('nominate_hidden_gem', {
         p_name: args.name,
-        p_category: args.category,
+        p_category: args.category.toLowerCase(),
         p_description: args.description,
         p_lat: args.lat,
         p_lng: args.lng,

@@ -210,15 +210,21 @@ export function QuestForm() {
       const allInvitees = Array.from(inviteeIds)
 
       // Create Invites
-      if (allInvitees.length > 0) {
-        const invites = allInvitees.map(invitedUserId => ({
-          quest_id: quest.id,
-          user_id: invitedUserId,
-          status: 'pending'
-        }))
-        const { error: invitesError } = await supabase.from('quest_invites').insert(invites)
-        if (invitesError) console.error('Invites error:', invitesError)
-      }
+      const invites = allInvitees.map(invitedUserId => ({
+        quest_id: quest.id,
+        user_id: invitedUserId,
+        status: 'pending'
+      }))
+
+      // Auto-join the creator as accepted
+      invites.push({
+        quest_id: quest.id,
+        user_id: user!.id,
+        status: 'accepted'
+      })
+
+      const { error: invitesError } = await supabase.from('quest_invites').insert(invites)
+      if (invitesError) console.error('Invites error:', invitesError)
 
       // 4. Award XP
       awardXP({ points: 30, action: 'organize_quest', referenceId: quest.id })

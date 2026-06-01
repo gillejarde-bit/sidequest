@@ -39,11 +39,11 @@ export function QuestsPage() {
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-32">
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 pt-safe transition-colors duration-300">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="max-w-md mx-auto flex items-center justify-between px-6 py-4">
           <h1 className="text-2xl font-black text-gray-900 dark:text-white">Quests</h1>
         </div>
         
-        <div className="flex px-4 relative overflow-x-auto hide-scrollbar whitespace-nowrap">
+        <div className="max-w-md mx-auto flex px-4 relative">
           <TabButton active={activeTab === 'upcoming'} onClick={() => setActiveTab('upcoming')} label="Upcoming" />
           <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')} label="Invites" />
           <TabButton active={activeTab === 'my_quests'} onClick={() => setActiveTab('my_quests')} label="Mine" />

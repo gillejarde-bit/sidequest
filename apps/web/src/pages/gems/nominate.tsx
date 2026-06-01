@@ -13,12 +13,12 @@ export function GemNominationPage() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Viewpoint',
+    category: 'Food',
     description: '',
     photos: [] as File[]
   })
 
-  const categories = ['Viewpoint', 'Street Art', 'Historical', 'Nature', 'Architecture', 'Other']
+  const categories = ['Food', 'Outdoors', 'Nightlife', 'Culture', 'Fitness', 'Gaming', 'Other']
 
   const handleNext = () => {
     if (step < 3) setStep(step + 1)

@@ -60,10 +60,12 @@ export function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [selectedQuests, setSelectedQuests] = useState<CalendarQuest[]>([])
 
-  // Friend schedules compare state
+  // Friend & Crew schedules compare state
   const [friendsList, setFriendsList] = useState<any[]>([])
+  const [crewsList, setCrewsList] = useState<any[]>([])
   const [showFriendPicker, setShowFriendPicker] = useState(false)
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
+  const [selectedCrews, setSelectedCrews] = useState<string[]>([])
   const [friendsCalendars, setFriendsCalendars] = useState<Record<string, any>>({})
 
   // Fetch calendar quests from RPC
@@ -112,6 +114,18 @@ export function CalendarPage() {
     }
   }
 
+  // Fetch crews list
+  const fetchCrews = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase.rpc('get_my_streaks')
+      if (error) throw error
+      setCrewsList(data || [])
+    } catch (err: any) {
+      console.error('Error fetching crews:', err.message)
+    }
+  }
+
   // Fetch friend calendars
   const fetchSelectedFriendsCalendars = async (friendIds: string[]) => {
     try {
@@ -138,15 +152,37 @@ export function CalendarPage() {
   useEffect(() => {
     fetchCalendarData()
     fetchFriends()
+    fetchCrews()
   }, [currentDate])
 
   useEffect(() => {
-    if (selectedFriends.length > 0) {
-      fetchSelectedFriendsCalendars(selectedFriends)
-    } else {
-      setFriendsCalendars({})
+    async function resolveAndFetch() {
+      const targetUserIds = new Set<string>(selectedFriends)
+      
+      if (selectedCrews.length > 0) {
+        const { data, error } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .in('group_id', selectedCrews)
+        
+        if (!error && data) {
+          data.forEach((m: any) => targetUserIds.add(m.user_id))
+        }
+      }
+
+      // Always filter out current user from schedules to compare
+      targetUserIds.delete(user?.id || '')
+      
+      const resolvedList = Array.from(targetUserIds)
+      if (resolvedList.length > 0) {
+        await fetchSelectedFriendsCalendars(resolvedList)
+      } else {
+        setFriendsCalendars({})
+      }
     }
-  }, [selectedFriends, currentDate])
+    
+    resolveAndFetch()
+  }, [selectedFriends, selectedCrews, currentDate, user?.id])
 
   const handlePrevDate = () => {
     if (viewMode === 'month') {
@@ -264,7 +300,7 @@ export function CalendarPage() {
   }
 
   const getFreeTimeHints = () => {
-    if (selectedFriends.length === 0) return null
+    if (Object.keys(friendsCalendars).length === 0) return null
     
     // Check next Saturday afternoon 12pm-5pm
     const sat = new Date()
@@ -279,7 +315,7 @@ export function CalendarPage() {
       }
     })
     
-    selectedFriends.forEach(fId => {
+    Object.keys(friendsCalendars).forEach(fId => {
       const cal = friendsCalendars[fId]
       if (cal?.busy_blocks) {
         cal.busy_blocks.forEach((block: any) => {
@@ -306,7 +342,7 @@ export function CalendarPage() {
         if (qStart.getHours() >= 12 && qStart.getHours() <= 17) sunBusy = true
       }
     })
-    selectedFriends.forEach(fId => {
+    Object.keys(friendsCalendars).forEach(fId => {
       const cal = friendsCalendars[fId]
       if (cal?.busy_blocks) {
         cal.busy_blocks.forEach((block: any) => {
@@ -394,6 +430,7 @@ export function CalendarPage() {
           <button
             onClick={() => {
               fetchFriends()
+              fetchCrews()
               setShowFriendPicker(true)
             }}
             className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-lg shadow-indigo-500/15 active:scale-95 transition-all cursor-pointer"
@@ -401,9 +438,12 @@ export function CalendarPage() {
             <Users className="w-3.5 h-3.5" />
             Compare Schedules
           </button>
-          {selectedFriends.length > 0 && (
+          {(selectedFriends.length > 0 || selectedCrews.length > 0) && (
             <button
-              onClick={() => setSelectedFriends([])}
+              onClick={() => {
+                setSelectedFriends([])
+                setSelectedCrews([])
+              }}
               className="text-[10px] text-red-500 font-black bg-red-50 dark:bg-red-950/20 border border-red-100 px-3 py-2 rounded-xl cursor-pointer hover:bg-red-100"
             >
               Clear comparison
@@ -428,11 +468,20 @@ export function CalendarPage() {
                 exit={{ opacity: 0, y: -15 }}
                 className="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/60"
               >
-                {/* Friend Schedule Comparison Legend */}
-                {selectedFriends.length > 0 && (
+                {/* Friend/Crew Schedule Comparison Legend */}
+                {(selectedFriends.length > 0 || selectedCrews.length > 0) && (
                   <div className="mb-4 bg-gray-50 dark:bg-gray-900 rounded-2xl p-3 border border-gray-100 dark:border-gray-800 space-y-2">
-                    <p className="text-[10px] font-black text-gray-450 dark:text-gray-450 uppercase tracking-wider">Comparing Schedules ({selectedFriends.length} friends)</p>
+                    <p className="text-[10px] font-black text-gray-450 dark:text-gray-450 uppercase tracking-wider">Comparing Schedules ({selectedFriends.length} friends, {selectedCrews.length} crews)</p>
                     <div className="flex flex-wrap items-center gap-2">
+                      {selectedCrews.map((cId) => {
+                        const crewInfo = crewsList.find(c => c.group_id === cId)
+                        return (
+                          <div key={cId} className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-xl text-[10px] font-extrabold border border-indigo-150 dark:border-indigo-900/50">
+                            <span className="w-2 h-2 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: crewInfo?.group_color || '#6C63FF' }} />
+                            <span>👥 {crewInfo?.group_name || 'Crew'}</span>
+                          </div>
+                        )
+                      })}
                       {selectedFriends.map((fId, fIdx) => {
                         const friendInfo = friendsList.find(f => f.id === fId)
                         const color = FRIEND_PALETTE[fIdx % FRIEND_PALETTE.length]
@@ -469,9 +518,9 @@ export function CalendarPage() {
                                     today.getMonth() === dayObj.date.getMonth() &&
                                     today.getDate() === dayObj.date.getDate()
                     
-                    // Friend overlaps
+                    // Friend and Crew overlaps
                     const busyFriends: any[] = []
-                    selectedFriends.forEach((fId, fIdx) => {
+                    Object.keys(friendsCalendars).forEach((fId, fIdx) => {
                       const friendBusy = getFriendBusyOnDay(dayObj.date, fId)
                       if (friendBusy.length > 0) {
                         const friendInfo = friendsList.find(f => f.id === fId)
@@ -679,53 +728,112 @@ export function CalendarPage() {
               style={{ zIndex: Z_INDEX.popups_menus }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-sm bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-150 dark:border-gray-700 shadow-2xl focus:outline-none"
             >
-              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Compare Friend Schedules</h3>
-              <p className="text-xs text-gray-400 font-bold mb-4">Select friends to overlay their busy slots on your calendar.</p>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1">Compare Schedules</h3>
+              <p className="text-xs text-gray-400 font-bold mb-4">Select friends and crews to overlay busy slots on your calendar.</p>
               
-              <div className="space-y-2.5 max-h-[220px] overflow-y-auto no-scrollbar mb-6 pr-1">
-                {friendsList.length === 0 ? (
-                  <p className="text-xs text-gray-400 font-bold text-center py-6">No accepted friends yet.</p>
-                ) : (
-                  friendsList.map((friend) => {
-                    const isSelected = selectedFriends.includes(friend.id)
-                    return (
-                      <button
-                        key={friend.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedFriends(selectedFriends.filter(id => id !== friend.id))
-                          } else {
-                            setSelectedFriends([...selectedFriends, friend.id])
-                          }
-                        }}
-                        className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
-                          isSelected 
-                            ? 'bg-primary/5 border-primary/45 text-primary' 
-                            : 'bg-gray-50/50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {friend.avatar_url ? (
-                            <img src={friend.avatar_url} className="w-8 h-8 rounded-xl object-cover" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-xl text-white font-bold flex items-center justify-center text-xs" style={{ backgroundColor: friend.profile_color || '#6C63FF' }}>
-                              {friend.username[0].toUpperCase()}
+              <div className="space-y-4 max-h-[300px] overflow-y-auto no-scrollbar mb-6 pr-1">
+                {/* Crews Section */}
+                <div>
+                  <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    👥 Crews
+                  </h4>
+                  {crewsList.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold text-center py-2 bg-gray-50/50 dark:bg-gray-900/30 rounded-2xl">No crews joined yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {crewsList.map((crew) => {
+                        const isSelected = selectedCrews.includes(crew.group_id)
+                        return (
+                          <button
+                            key={crew.group_id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedCrews(selectedCrews.filter(id => id !== crew.group_id))
+                              } else {
+                                setSelectedCrews([...selectedCrews, crew.group_id])
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all text-left ${
+                              isSelected 
+                                ? 'bg-primary/5 border-primary/45 text-primary' 
+                                : 'bg-gray-50/30 dark:bg-gray-900/30 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-8 h-8 rounded-xl text-white font-black flex items-center justify-center text-xs" 
+                                style={{ backgroundColor: crew.group_color || '#6C63FF' }}
+                              >
+                                {crew.group_name[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-gray-900 dark:text-white leading-none">{crew.group_name}</p>
+                                <p className="text-[9px] text-gray-400 font-bold mt-1">{crew.member_count} members</p>
+                              </div>
                             </div>
-                          )}
-                          <div>
-                            <p className="text-xs font-black text-gray-900 dark:text-white leading-none">{friend.display_name || friend.username}</p>
-                            <p className="text-[10px] text-gray-400 font-semibold mt-1">Level {friend.level}</p>
-                          </div>
-                        </div>
-                        
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
-                          {isSelected && <span className="text-[9px] font-black">✓</span>}
-                        </div>
-                      </button>
-                    )
-                  })
-                )}
+                            
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                              {isSelected && <span className="text-[8px] font-black">✓</span>}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Friends Section */}
+                <div>
+                  <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    👤 Friends
+                  </h4>
+                  {friendsList.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold text-center py-2 bg-gray-50/50 dark:bg-gray-900/30 rounded-2xl">No accepted friends yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {friendsList.map((friend) => {
+                        const isSelected = selectedFriends.includes(friend.id)
+                        return (
+                          <button
+                            key={friend.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedFriends(selectedFriends.filter(id => id !== friend.id))
+                              } else {
+                                setSelectedFriends([...selectedFriends, friend.id])
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all text-left ${
+                              isSelected 
+                                ? 'bg-primary/5 border-primary/45 text-primary' 
+                                : 'bg-gray-50/30 dark:bg-gray-900/30 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {friend.avatar_url ? (
+                                <img src={friend.avatar_url} className="w-8 h-8 rounded-xl object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-xl text-white font-bold flex items-center justify-center text-xs" style={{ backgroundColor: friend.profile_color || '#6C63FF' }}>
+                                  {friend.username[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-xs font-black text-gray-900 dark:text-white leading-none">{friend.display_name || friend.username}</p>
+                                <p className="text-[9px] text-gray-400 font-bold mt-1">Level {friend.level}</p>
+                              </div>
+                            </div>
+                            
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-primary bg-primary text-white' : 'border-gray-300'}`}>
+                              {isSelected && <span className="text-[8px] font-black">✓</span>}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <button
@@ -733,7 +841,7 @@ export function CalendarPage() {
                 onClick={() => setShowFriendPicker(false)}
                 className="w-full py-3 bg-primary text-white font-extrabold rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer"
               >
-                Compare ({selectedFriends.length})
+                Compare ({selectedFriends.length + selectedCrews.length})
               </button>
             </motion.div>
           </>
