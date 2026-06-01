@@ -30,8 +30,7 @@ export function useGemNomination() {
 
         if (uploadError) {
           console.error("Upload error", uploadError)
-          // throw uploadError // Commenting this out to avoid blocking if the bucket doesn't exist
-          photoUrls.push(`https://mockurl.com/${fileName}`)
+          throw uploadError
         } else {
           const { data } = supabase.storage.from('gems').getPublicUrl(uploadData.path)
           photoUrls.push(data.publicUrl)
