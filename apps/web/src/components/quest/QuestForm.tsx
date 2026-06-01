@@ -43,9 +43,33 @@ export function QuestForm() {
   const [privacy, setPrivacy] = useState('friends')
   const [description, setDescription] = useState('')
   
-  // Friends
+  // Friends & Crews
   const { data: friends = [] } = useFriends()
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
+  
+  const [crews, setCrews] = useState<{ group_id: string; group_name: string; group_color: string | null; member_count: number }[]>([])
+  const [selectedCrews, setSelectedCrews] = useState<string[]>([])
+
+  useEffect(() => {
+    async function fetchCrews() {
+      if (!user) return
+      try {
+        const { data, error } = await supabase.rpc('get_my_streaks')
+        if (!error && data) {
+          setCrews(data as any[])
+        }
+      } catch (err) {
+        console.error('Error fetching crews:', err)
+      }
+    }
+    fetchCrews()
+  }, [user])
+
+  const toggleCrew = (crewId: string) => {
+    setSelectedCrews(prev => 
+      prev.includes(crewId) ? prev.filter(id => id !== crewId) : [...prev, crewId]
+    )
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -157,18 +181,39 @@ export function QuestForm() {
           description,
           creator_id: user!.id,
           location_id: locationId,
-          status: 'planned'
+          status: 'planned',
+          group_id: selectedCrews.length > 0 ? selectedCrews[0] : null,
+          is_group_quest: selectedCrews.length > 0
         })
         .select('id')
         .single()
 
       if (questError) throw questError
 
-      // 3. Create Invites
-      if (selectedFriends.length > 0) {
-        const invites = selectedFriends.map(friendId => ({
+      // 3. Gather unique invitees from both friends and crews
+      const inviteeIds = new Set<string>(selectedFriends)
+      
+      if (selectedCrews.length > 0) {
+        const { data: members, error: membersError } = await supabase
+          .from('group_members')
+          .select('user_id')
+          .in('group_id', selectedCrews)
+        
+        if (!membersError && members) {
+          members.forEach(m => inviteeIds.add(m.user_id))
+        }
+      }
+
+      // Always filter out the creator themselves from the invites list
+      inviteeIds.delete(user!.id)
+
+      const allInvitees = Array.from(inviteeIds)
+
+      // Create Invites
+      if (allInvitees.length > 0) {
+        const invites = allInvitees.map(invitedUserId => ({
           quest_id: quest.id,
-          user_id: friendId,
+          user_id: invitedUserId,
           status: 'pending'
         }))
         const { error: invitesError } = await supabase.from('quest_invites').insert(invites)
@@ -356,6 +401,47 @@ export function QuestForm() {
               )
             })}
           </div>
+        </motion.div>
+
+        {/* Invite Crews */}
+        <motion.div variants={item} className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
+            <Shield className="w-4 h-4 text-indigo-500" /> Invite Crews
+          </label>
+          
+          {!crews || crews.length === 0 ? (
+            <div className="bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+              You haven't joined any Crews yet! Create a Crew in the Social tab to start questing together.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {crews.map(crew => {
+                const isSelected = selectedCrews.includes(crew.group_id)
+                return (
+                  <button
+                    key={crew.group_id}
+                    type="button"
+                    onClick={() => toggleCrew(crew.group_id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+                      isSelected 
+                        ? 'border-indigo-500 bg-indigo-55 dark:bg-indigo-500/20' 
+                        : 'border-transparent bg-white/60 dark:bg-gray-900/60 hover:bg-white dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div 
+                      className="w-5 h-5 rounded-md flex items-center justify-center text-white font-extrabold text-[10px]"
+                      style={{ backgroundColor: crew.group_color || '#6C63FF' }}
+                    >
+                      {crew.group_name[0].toUpperCase()}
+                    </div>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      {crew.group_name}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </motion.div>
 
         {/* Invite Friends */}

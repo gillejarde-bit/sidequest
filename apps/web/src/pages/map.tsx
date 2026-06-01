@@ -79,6 +79,68 @@ export function MapPage() {
   const [groupMembers, setGroupMembers] = useState<{ group_id: string; user_id: string }[]>([])
 
   const [quests, setQuests] = useState<QuestRow[]>([])
+  const [questAttendees, setQuestAttendees] = useState<Record<string, { username: string; avatar_url: string | null }[]>>({})
+
+  useEffect(() => {
+    if (quests.length === 0) return
+
+    async function fetchAttendees() {
+      const questIds = quests.map(q => q.id)
+      const { data, error } = await supabase
+        .from('quest_invites')
+        .select(`
+          quest_id,
+          profiles:user_id (
+            username,
+            avatar_url
+          )
+        `)
+        .in('quest_id', questIds)
+        .eq('status', 'accepted')
+
+      if (!error && data) {
+        const mapping: Record<string, { username: string; avatar_url: string | null }[]> = {}
+        data.forEach((row: any) => {
+          const questId = row.quest_id
+          const profile = row.profiles
+          if (profile) {
+            const prof = Array.isArray(profile) ? profile[0] : profile
+            if (prof) {
+              if (!mapping[questId]) mapping[questId] = []
+              mapping[questId].push({
+                username: prof.username,
+                avatar_url: prof.avatar_url
+              })
+            }
+          }
+        })
+        setQuestAttendees(mapping)
+      }
+    }
+
+    fetchAttendees()
+  }, [quests])
+
+  const getQuestPartyAvatars = useCallback((questId: string, creatorUsername: string | null, creatorAvatar: string | null) => {
+    const list: { username: string; avatar_url: string | null }[] = []
+    
+    // Add creator first
+    list.push({
+      username: creatorUsername || 'Host',
+      avatar_url: creatorAvatar
+    })
+    
+    // Add other accepted attendees
+    const attendeesList = questAttendees[questId] || []
+    attendeesList.forEach(att => {
+      if (att.username !== creatorUsername) {
+        list.push(att)
+      }
+    })
+    
+    return list
+  }, [questAttendees])
+
   const [gems, setGems] = useState<any[]>([])
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [selectedQuest, setSelectedQuest] = useState<QuestRow | null>(null)
@@ -199,10 +261,8 @@ export function MapPage() {
 
 
 
-  // ── GeoJSON Sources ────────────────────────────────────────────────────────
-
-  const friendsGeoJSON = useMemo(() => {
-    const filteredFriends = Array.from(friendsMap.values()).filter(f => {
+  const friendsList = useMemo(() => {
+    return Array.from(friendsMap.values()).filter(f => {
       // Find all groups this friend belongs to
       const friendGroups = groupMembers.filter(gm => gm.user_id === f.user_id).map(gm => gm.group_id)
       
@@ -212,15 +272,6 @@ export function MapPage() {
       // Otherwise, they must belong to at least one group that is NOT hidden
       return friendGroups.some(groupId => !hiddenGroupIds.includes(groupId))
     })
-
-    return {
-      type: 'FeatureCollection' as const,
-      features: filteredFriends.map(f => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [f.lng, f.lat] },
-        properties: { username: f.username, level: f.level }
-      }))
-    }
   }, [friendsMap, groupMembers, hiddenGroupIds])
 
 
@@ -443,32 +494,64 @@ export function MapPage() {
         )}
 
         {/* Quests Markers */}
-        {quests.map((q: any) => q.location_lng && q.location_lat && (
-          <Marker 
-            key={`quest-${q.id}`} 
-            longitude={q.location_lng} 
-            latitude={q.location_lat} 
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation()
-              setSelectedQuest({
-                id: q.id,
-                title: q.name,
-                name: q.name,
-                category: q.category,
-                time: `Starts at ${new Date(q.starts_at).toLocaleString()}`,
-                description: q.description,
-                joined_count: q.attendee_count,
-              } as any)
-              setSelectedLocation(null)
-              setSelectedGem(null)
-            }}
-          >
-            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,166,35,0.6)] border-2 border-white cursor-pointer hover:scale-110 transition-transform">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            </div>
-          </Marker>
-        ))}
+        {quests.map((q: any) => {
+          if (!q.location_lng || !q.location_lat) return null
+          
+          const avatars = getQuestPartyAvatars(q.id, q.creator_username, q.creator_avatar)
+          const totalPeople = avatars.length
+          const displayAvatars = totalPeople >= 5 ? avatars.slice(0, 4) : avatars
+          const extraCount = totalPeople >= 5 ? totalPeople - 4 : 0
+
+          return (
+            <Marker 
+              key={`quest-${q.id}`} 
+              longitude={q.location_lng} 
+              latitude={q.location_lat} 
+              anchor="bottom"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation()
+                setSelectedQuest({
+                  id: q.id,
+                  title: q.name,
+                  name: q.name,
+                  category: q.category,
+                  time: `Starts at ${new Date(q.starts_at).toLocaleString()}`,
+                  description: q.description,
+                  joined_count: q.attendee_count,
+                } as any)
+                setSelectedLocation(null)
+                setSelectedGem(null)
+              }}
+            >
+              <div className="flex flex-col items-center group cursor-pointer">
+                {/* Star Pin */}
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,166,35,0.6)] border-2 border-white transition-transform group-hover:scale-110">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                </div>
+                
+                {/* Avatars overlapping stack */}
+                {totalPeople > 0 && (
+                  <div className="flex -space-x-1.5 mt-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-0.5 rounded-full shadow-md border border-gray-100 dark:border-gray-800 transition-transform group-hover:scale-105 z-10">
+                    {displayAvatars.map((av, index) => (
+                      <div key={index} className="w-4 h-4 rounded-full border border-white dark:border-gray-900 overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
+                        <img 
+                          src={getAvatarUrl(av.avatar_url, av.username)} 
+                          alt={av.username} 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    ))}
+                    {extraCount > 0 && (
+                      <div className="w-4 h-4 rounded-full bg-orange-500 text-white text-[7px] font-black flex items-center justify-center border border-white dark:border-gray-900 shrink-0 shadow-sm">
+                        +{extraCount}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Marker>
+          )
+        })}
 
         {/* Gems Markers */}
         {gems.map((g: any) => (
@@ -494,19 +577,40 @@ export function MapPage() {
         ))}
 
         {/* Friends */}
-        <Source id="friends-source" type="geojson" data={friendsGeoJSON}>
-          <Layer
-            id="friends-layer"
-            type="circle"
-            paint={{
-              'circle-radius': 12,
-              'circle-color': '#58CC02',
-              'circle-stroke-width': 3,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-opacity': 1,
-            }}
-          />
-        </Source>
+        {(activeFilters.length === 0 || activeFilters.includes('Friends')) && friendsList.map((f) => (
+          <Marker 
+            key={`friend-${f.user_id}`} 
+            longitude={f.lng} 
+            latitude={f.lat} 
+            anchor="center"
+          >
+            <div className="relative flex items-center justify-center group cursor-pointer">
+              {/* Green pulsing presence ring */}
+              <motion.div 
+                animate={{ scale: [1, 1.25], opacity: [0.4, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                className="absolute w-10 h-10 bg-[#58CC02] rounded-full"
+              />
+              {/* Avatar Container */}
+              <div className="w-8 h-8 bg-white dark:bg-gray-800 rounded-full p-0.5 shadow-lg relative z-10 border-2 border-[#58CC02] transition-transform group-hover:scale-110">
+                <img 
+                  src={getAvatarUrl(f.avatar_url, f.username)} 
+                  alt={f.username} 
+                  className="w-full h-full rounded-full object-cover" 
+                />
+                {/* Level badge */}
+                <span className="absolute -bottom-1 -right-1 bg-[#58CC02] text-white text-[7px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-900 shadow-sm">
+                  {f.level || 1}
+                </span>
+              </div>
+              
+              {/* Hover Name Tag */}
+              <div className="absolute -top-7 bg-gray-900/90 dark:bg-white/90 backdrop-blur-sm text-white dark:text-gray-900 px-2 py-0.5 rounded-lg text-[9px] font-extrabold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md border border-white/10 dark:border-gray-200 z-50">
+                @{f.username}
+              </div>
+            </div>
+          </Marker>
+        ))}
 
         {/* Search Result Pin */}
         {searchResultPin && (
