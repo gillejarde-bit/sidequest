@@ -16,7 +16,7 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin } from 'lucide-react'
+import { Clock, MapPin, AlertCircle, Diamond } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ export function MapPage() {
         setQuests((questData as any[]) ?? [])
       }
 
-      const { data: gemsData, error: gemsError } = await supabase.rpc('get_hidden_gems', { p_status: 'approved' })
+      const { data: gemsData, error: gemsError } = await supabase.rpc('get_hidden_gems', { p_status: 'all' })
       if (gemsError) {
         console.error('[Map] gems fetch error:', gemsError)
       } else {
@@ -557,27 +557,41 @@ export function MapPage() {
         })}
 
         {/* Gems Markers */}
-        {gems.map((g: any) => (
-          <Marker
-            key={`gem-${g.id}`}
-            longitude={g.lng}
-            latitude={g.lat}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation()
-              setSelectedGem(g)
-              setSelectedLocation(null)
-              setSelectedQuest(null)
-            }}
-          >
-            <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
-              <div className="absolute w-10 h-10 bg-indigo-500 rounded-full animate-ping opacity-40" />
-              <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.6)] border-2 border-indigo-200 z-10">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              </div>
-            </div>
-          </Marker>
-        ))}
+        {(activeFilters.length === 0 || activeFilters.includes('Gems')) && gems.map((g: any) => {
+          const isPending = g.gem_status === 'pending'
+          return (
+            <Marker
+              key={`gem-${g.id}`}
+              longitude={g.lng}
+              latitude={g.lat}
+              anchor="bottom"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation()
+                setSelectedGem(g)
+                setSelectedLocation(null)
+                setSelectedQuest(null)
+              }}
+            >
+              {isPending ? (
+                /* Pending nominated gem: flashing amber warning icon */
+                <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+                  <div className="absolute w-9 h-9 bg-amber-500 rounded-full animate-ping opacity-45" />
+                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.7)] border-2 border-amber-200 z-10 animate-pulse">
+                    <AlertCircle className="w-5 h-5 text-white stroke-[3.5]" />
+                  </div>
+                </div>
+              ) : (
+                /* Completed/Approved nominated gem: blue diamond icon */
+                <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+                  <div className="absolute w-9 h-9 bg-blue-500 rounded-full animate-ping opacity-40" />
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.7)] border-2 border-blue-200 z-10">
+                    <Diamond className="w-4.5 h-4.5 text-white fill-white" />
+                  </div>
+                </div>
+              )}
+            </Marker>
+          )
+        })}
 
         {/* Friends */}
         {(activeFilters.length === 0 || activeFilters.includes('Friends')) && friendsList.map((f) => (
