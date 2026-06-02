@@ -7,6 +7,8 @@ import { useXP } from '../../hooks/useXP';
 import { BadgeGrid as CustomBadgeGrid } from '../../components/profile/badges';
 import { usePursuitsStore } from '../../features/pursuits/pursuits.store';
 import { fetchUserPursuitXP } from '../../features/pursuits/pursuitsData';
+import { archetypeLore } from '../../features/pursuits/lore.config';
+import { pursuits, PursuitKey } from '../../features/pursuits/pursuits.config';
 import { AvatarBorder } from '../../components/profile/borders';
 import { ExperienceBreakdown } from '../../components/profile/ExperienceBreakdown';
 import { ProfileDevPanel } from '../../components/profile/ProfileDevPanel';
@@ -53,6 +55,46 @@ export function MeProfile() {
   const { xpIntoCurrentLevel, xpForNextLevelTotal, progressPercent } = getXPProgress();
   const archetype = getArchetype();
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [isProfileLoreExpanded, setIsProfileLoreExpanded] = useState(false);
+
+  // Resolve archetype reason
+  const getArchetypeReason = () => {
+    if (archetype.kind === 'default') {
+      return 'You are at the start of your journey! Earn XP in any pursuit to unlock custom classes.';
+    }
+    
+    const sorted = Object.entries(usePursuitsStore.getState().pursuitXP)
+      .map(([key, xp]) => ({ key: key as PursuitKey, xp: xp ?? 0 }))
+      .sort((a, b) => b.xp - a.xp);
+
+    const p1 = sorted[0];
+    const p2 = sorted[1];
+
+    if (archetype.kind === 'pure') {
+      const leadingNoun = pursuits[p1.key].noun;
+      if (!p2 || p2.xp === 0) {
+        return `A pure ${leadingNoun} focused entirely on your passion for this pursuit.`;
+      }
+      return `A pure ${leadingNoun} driven primarily by your dedication to ${leadingNoun}.`;
+    } else {
+      const ratioVal = (p1.xp / p2.xp).toFixed(2);
+      return `Hybrid of ${pursuits[p1.key].noun} (Primary) and ${pursuits[p2.key].noun} (Secondary). Domination ratio is ${ratioVal}x (hybrid resolves under 1.4x).`;
+    }
+  };
+
+  // Resolve archetype lore
+  const getArchetypeLoreItem = () => {
+    if (archetype.kind === 'default') {
+      return archetypeLore['wanderer'];
+    } else if (archetype.kind === 'pure') {
+      return archetype.primary ? archetypeLore[archetype.primary] : null;
+    } else {
+      const sortedPair = [archetype.primary, archetype.secondary].sort().join('+');
+      return archetypeLore[sortedPair] || null;
+    }
+  };
+
+  const archetypeLoreItem = getArchetypeLoreItem();
 
   // ... (keep the other hooks)
 
@@ -218,6 +260,36 @@ export function MeProfile() {
         >
           {archetype.name}
         </motion.div>
+
+        {/* Archetype blurb */}
+        {archetypeLoreItem && (
+          <div className="mt-4 max-w-sm text-center px-4 flex flex-col items-center">
+            <p className="text-xs text-gray-650 dark:text-gray-300 leading-relaxed font-semibold">
+              {archetypeLoreItem.short}
+            </p>
+            <AnimatePresence initial={false}>
+              {isProfileLoreExpanded ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-gray-500 dark:text-gray-400 mt-2 text-[11px] leading-relaxed text-center flex flex-col gap-1.5 bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-gray-100/50 dark:border-gray-800/40 w-full"
+                >
+                  <p className="leading-relaxed font-medium">{archetypeLoreItem.long}</p>
+                  <p className="text-[10px] text-gray-450 dark:text-gray-500 font-semibold italic">({getArchetypeReason()})</p>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+            <button
+              onClick={() => setIsProfileLoreExpanded(!isProfileLoreExpanded)}
+              className="text-[10px] font-black uppercase tracking-wider mt-2 hover:underline focus:outline-none cursor-pointer inline-flex items-center gap-0.5"
+              style={{ color: archetype.baseColor }}
+            >
+              {isProfileLoreExpanded ? 'Read Less ▲' : 'Read More ▼'}
+            </button>
+          </div>
+        )}
 
         {profile.bio && (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 max-w-md">
