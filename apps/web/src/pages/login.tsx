@@ -1,8 +1,32 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronDown } from 'lucide-react'
 import { SceneContainer } from '../components/globe/SceneContainer'
 import { ScrollController } from '../components/globe/ScrollController'
+
+class WebGLErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("WebGL / Canvas loading crash caught gracefully:", error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#0a0d18] via-[#101424] to-[#0a0d18] opacity-80 z-0" />
+      )
+    }
+    return this.props.children
+  }
+}
 
 export function Login() {
   const [email, setEmail] = useState('')
@@ -68,8 +92,10 @@ export function Login() {
         {/* Soft coordinate space gridlines background */}
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:24px_24px] pointer-events-none z-10" />
 
-        {/* 3D R3F Canvas Container (Stays in the background) */}
-        <SceneContainer progressRef={progressRef} />
+        {/* 3D R3F Canvas Container (Stays in the background) wrapped in WebGL safety boundary */}
+        <WebGLErrorBoundary>
+          <SceneContainer progressRef={progressRef} />
+        </WebGLErrorBoundary>
 
         {/* 1. HERO FOLD: Title & Description (Fades out on scroll) */}
         <div 

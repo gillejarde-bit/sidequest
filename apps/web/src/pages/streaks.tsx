@@ -106,7 +106,7 @@ export function StreaksPage() {
       ctx.fillStyle = 'rgba(0, 0, 0, 0)'
       ctx.fillRect(0, 0, targetSize, targetSize)
 
-      const previewSize = 288 // matches w-72 preview
+      const previewSize = 256 // matches w-64 preview
       const ratio = targetSize / previewSize
 
       ctx.save()
@@ -830,8 +830,8 @@ export function StreaksPage() {
             </div>
 
             {/* Main Crop Viewport Center Container */}
-            <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
-              <div className="relative w-72 h-72 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none"
+            <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-6 relative min-h-0">
+              <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -855,13 +855,13 @@ export function StreaksPage() {
                 <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/10 pointer-events-none" />
                 <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none" />
               </div>
-              <p className="text-xs text-white/50 mt-6 tracking-wide uppercase font-bold">
+              <p className="text-xs text-white/50 mt-4 sm:mt-6 tracking-wide uppercase font-bold">
                 Drag to Reposition
               </p>
             </div>
 
             {/* Bottom Controls Panel */}
-            <div className="w-full max-w-md mx-auto px-6 pb-8 flex flex-col gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent">
+            <div className="w-full max-w-md mx-auto px-6 pb-4 sm:pb-8 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent shrink-0">
               {/* Zoom slider controls */}
               <div className="w-full flex flex-col gap-2 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                 <div className="flex justify-between items-center text-xs text-white/60 font-black px-1">
