@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Soft outer glowing brand circle -->
-  <circle cx="256" cy="256" r="220" stroke="#7CFC00" stroke-width="24" stroke-opacity="0.15" fill="none" />
-  <!-- Inner solid dark background container -->
-  <circle cx="256" cy="256" r="180" stroke="#7CFC00" stroke-width="12" fill="#0a0d18" />
-  <!-- Sleek brand coordinate compass star in center -->
-  <path d="M256 100 L288 224 L412 256 L288 288 L256 412 L224 288 L100 256 L224 224 Z" fill="#7CFC00" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="circular-mask">
+      <!-- Perfectly clips the circular emblem, removing the square black corners -->
+      <circle cx="256" cy="256" r="248" />
+    </clipPath>
+  </defs>
+  <!-- Render the high-resolution logo.png inside the circular clip mask -->
+  <image href="/logo.png" x="0" y="0" width="512" height="512" clip-path="url(#circular-mask)" />
 </svg>

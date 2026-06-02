@@ -83,7 +83,7 @@ export function SearchBar({ onLocationSelect, className }: SearchBarProps) {
           {!isReady ? (
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
           ) : (
-            <img src="/logo.png" className="h-6 w-6 object-contain rounded-full border border-gray-100/50 dark:border-gray-800 shadow-sm" alt="Logo" />
+            <img src="/favicon.svg" className="h-6 w-6 object-contain rounded-full border border-gray-100/50 dark:border-gray-800 shadow-sm" alt="Logo" />
           )}
         </div>
         {hasSearch && (
