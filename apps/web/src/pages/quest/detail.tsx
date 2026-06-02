@@ -32,6 +32,7 @@ export function QuestDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
   const [showInvitePopup, setShowInvitePopup] = useState(false)
+  const [invitingState, setInvitingState] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({})
   const { data: friendsList = [], isLoading: friendsLoading } = useFriends()
 
   useEffect(() => {
@@ -450,7 +451,9 @@ export function QuestDetail() {
                           <span className="px-3.5 py-1.5 text-xs font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl uppercase tracking-wider">Pending</span>
                         ) : (
                           <button
+                            disabled={invitingState[friend.id] === 'sending' || invitingState[friend.id] === 'sent'}
                             onClick={async () => {
+                              setInvitingState(prev => ({ ...prev, [friend.id]: 'sending' }))
                               const { error } = await supabase
                                 .from('quest_invites')
                                 .insert({
@@ -458,11 +461,28 @@ export function QuestDetail() {
                                   user_id: friend.id,
                                   status: 'pending'
                                 })
-                              if (!error) refetch()
+                              if (!error) {
+                                setInvitingState(prev => ({ ...prev, [friend.id]: 'sent' }))
+                                refetch()
+                              } else {
+                                setInvitingState(prev => ({ ...prev, [friend.id]: 'error' }))
+                                alert('Error sending invite: ' + (error.message || 'Check your database connection or RLS policy.'))
+                              }
                             }}
-                            className="px-4 py-1.5 text-xs font-black bg-primary hover:bg-[#46A302] text-white rounded-xl active:scale-95 transition-all shadow-md cursor-pointer"
+                            className={`px-4 py-1.5 text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer ${
+                              invitingState[friend.id] === 'sending'
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
+                                : invitingState[friend.id] === 'sent'
+                                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-not-allowed'
+                                : invitingState[friend.id] === 'error'
+                                ? 'bg-red-500 hover:bg-red-650 text-white'
+                                : 'bg-primary hover:bg-[#46A302] text-white'
+                            }`}
                           >
-                            Invite
+                            {invitingState[friend.id] === 'sending' ? 'Sending...'
+                             : invitingState[friend.id] === 'sent' ? 'Sent!'
+                             : invitingState[friend.id] === 'error' ? 'Retry'
+                             : 'Invite'}
                           </button>
                         )}
                       </div>

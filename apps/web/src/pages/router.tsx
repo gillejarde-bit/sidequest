@@ -229,6 +229,92 @@ import { LevelUpModal } from '../components/xp/LevelUpModal'
 
 function RootLayout() {
   const { theme } = useSettingsStore()
+  const { user } = useAuthStore()
+  const [activeToast, setActiveToast] = useState<{ questId: string; questName: string; creatorName: string } | null>(null)
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!activeToast) return
+    const timer = setTimeout(() => {
+      setActiveToast(null)
+    }, 8000)
+    return () => clearTimeout(timer)
+  }, [activeToast])
+
+  // Real-time quest invite listener
+  useEffect(() => {
+    if (!user?.id) return
+
+    const channel = supabase
+      .channel(`user-invites-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'quest_invites',
+          filter: `user_id=eq.${user.id}`
+        },
+        async (payload) => {
+          const newInvite = payload.new as { quest_id: string | null; status: string }
+          if (!newInvite || !newInvite.quest_id || newInvite.status !== 'pending') return
+
+          // Play an elegant real-time invite arpeggio audio chime
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+            const playNote = (freq: number, start: number, duration: number) => {
+              const osc = ctx.createOscillator()
+              const gain = ctx.createGain()
+              osc.type = 'sine'
+              osc.frequency.setValueAtTime(freq, start)
+              gain.gain.setValueAtTime(0, start)
+              gain.gain.linearRampToValueAtTime(0.15, start + 0.05)
+              gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+              osc.connect(gain)
+              gain.connect(ctx.destination)
+              osc.start(start)
+              osc.stop(start + duration)
+            }
+            const now = ctx.currentTime
+            playNote(523.25, now, 0.4) // C5
+            playNote(659.25, now + 0.1, 0.5) // E5
+            playNote(783.99, now + 0.2, 0.6) // G5
+          } catch (e) {
+            console.error('Audio failed to play', e)
+          }
+
+          // Fetch quest details robustly using separate queries
+          const { data: questData, error: questError } = await supabase
+            .from('quests')
+            .select('name, creator_id')
+            .eq('id', newInvite.quest_id)
+            .single()
+
+          if (questError || !questData || !questData.creator_id) return
+
+          const { data: creatorData, error: creatorError } = await supabase
+            .from('profiles')
+            .select('username, display_name')
+            .eq('id', questData.creator_id)
+            .single()
+
+          const creatorName = !creatorError && creatorData 
+            ? (creatorData.display_name || creatorData.username) 
+            : 'Someone'
+
+          setActiveToast({
+            questId: newInvite.quest_id,
+            questName: questData.name,
+            creatorName: creatorName
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -240,6 +326,47 @@ function RootLayout() {
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">
+      <AnimatePresence>
+        {activeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            style={{ zIndex: 9999 }}
+            className="fixed top-4 left-4 right-4 max-w-[420px] mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-4 shadow-2xl flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0 animate-pulse">
+                <Swords className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div className="text-left">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-primary">Quest Invite! ⚔️</h4>
+                <p className="text-xs text-gray-700 dark:text-gray-200 font-bold mt-0.5 leading-snug">
+                  <span className="text-primary font-black">@{activeToast.creatorName}</span> invited you to <span className="underline decoration-primary/45 font-black">{activeToast.questName}</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setActiveToast(null)
+                  router.navigate({ to: '/quest/$id', params: { id: activeToast.questId } })
+                }}
+                className="px-3.5 py-2 bg-primary hover:bg-[#46A302] text-white text-[11px] font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider"
+              >
+                View
+              </button>
+              <button
+                onClick={() => setActiveToast(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 flex items-center justify-center active:scale-95 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Outlet />
       <BottomNav />
       <XPPopup />
