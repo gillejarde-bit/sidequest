@@ -61,13 +61,13 @@ export function useFriendPresence({ lat, lng, heading }: UseFriendPresenceArgs) 
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Broadcast initial position immediately on subscribe
+          // Broadcast initial position immediately on subscribe only if coordinates are loaded
           const storeState = useSettingsStore.getState()
-          if (storeState.shareLocation) {
+          if (storeState.shareLocation && lat !== null && lng !== null) {
             await channel.track({
               user_id: userId,
-              lat: lat ?? 36.1699,
-              lng: lng ?? -115.1398,
+              lat,
+              lng,
               heading: heading ?? null,
               updated_at: new Date().toISOString(),
               username: profile?.username ?? 'explorer',

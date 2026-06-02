@@ -131,7 +131,7 @@ export function StampCeremony({ onComplete }: StampCeremonyProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 dark:bg-black/85 backdrop-blur-md px-6 select-none"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 dark:bg-black/40 backdrop-blur-[1px] px-6 select-none"
       >
         <motion.div
           animate={shake ? {
