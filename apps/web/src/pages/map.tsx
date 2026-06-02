@@ -17,7 +17,7 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin, AlertCircle, Diamond } from 'lucide-react'
+import { Clock, MapPin, AlertCircle, Diamond, Locate } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -185,6 +185,16 @@ export function MapPage() {
       } as any)
     }
   }
+
+  const handleRecenter = useCallback(() => {
+    if (userLoc.lat !== null && userLoc.lng !== null) {
+      mapRef.current?.flyTo({
+        center: [userLoc.lng, userLoc.lat],
+        zoom: 15,
+        duration: 1500
+      })
+    }
+  }, [userLoc.lat, userLoc.lng])
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -692,6 +702,30 @@ export function MapPage() {
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
+
+      {/* Re-center floating button */}
+      <motion.button
+        type="button"
+        onClick={handleRecenter}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ 
+          scale: 1, 
+          opacity: 1,
+          y: sheetMode ? -340 : 0
+        }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className="absolute right-4 bottom-28 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900"
+        style={{ zIndex: Z_INDEX.map_ui }}
+        title="Re-center map"
+      >
+        <Locate 
+          className={`w-6 h-6 text-primary transition-transform duration-500 ${
+            userLoc.loading ? 'animate-spin' : ''
+          }`} 
+        />
+      </motion.button>
 
       {/* Empty state */}
       {quests.length === 0 && gems.length === 0 && (
