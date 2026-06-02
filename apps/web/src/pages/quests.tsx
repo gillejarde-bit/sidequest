@@ -1,12 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { QuestBook } from '../components/quest/QuestBook'
-import { StampCeremony } from '../components/quest/StampCeremony'
-import { useStampsStore } from '../features/stamps/stampsStore'
 
 export function QuestsPage() {
-  // Stable individual property selector for Zustand store
-  const pendingCeremony = useStampsStore(state => state.pendingCeremony)
 
   // Single high-performance fetch for all quest feed items
   const { data: allQuests = [], isLoading, refetch } = useQuery({
@@ -43,18 +39,9 @@ export function QuestsPage() {
           inviteQuests={inviteQuests}
           myQuests={myQuests}
           isLoading={isLoading}
+          onCeremonyComplete={refetch}
         />
       </main>
-
-      {/* Stamping Ceremony Overlay (Plays if there is a pending check-in ceremony) */}
-      {pendingCeremony && (
-        <StampCeremony 
-          onComplete={() => {
-            // Refetch quest feeds to register attendance changes in lists!
-            refetch()
-          }}
-        />
-      )}
     </div>
   )
 }

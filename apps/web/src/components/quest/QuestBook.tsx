@@ -6,7 +6,7 @@ import { usePursuitsStore } from '../../features/pursuits/pursuits.store'
 import { deriveArchetype } from '../../features/archetype/deriveArchetype'
 import { Stamp, StampKind } from './Stamp'
 import { QuestCard } from './QuestCard'
-import { Plus, Compass, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react'
+import { Plus, Compass, ChevronLeft, ChevronRight, Bookmark, Sparkles, Award, Landmark } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
 
@@ -15,9 +15,10 @@ interface QuestBookProps {
   inviteQuests: any[]
   myQuests: any[]
   isLoading: boolean
+  onCeremonyComplete?: () => void
 }
 
-export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }: QuestBookProps) {
+export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, onCeremonyComplete }: QuestBookProps) {
   const { user, profile } = useAuthStore()
   
   // Stable Zustand selectors to prevent infinite re-render loops
@@ -27,12 +28,22 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }:
   const hasMore = useStampsStore(state => state.hasMore)
   const currentPageIndex = useStampsStore(state => state.currentPageIndex)
   const setCurrentPageIndex = useStampsStore(state => state.setCurrentPageIndex)
+  const pendingCeremony = useStampsStore(state => state.pendingCeremony)
 
   const pursuitXP = usePursuitsStore(state => state.pursuitXP)
   // Derive locally to keep selector return references perfectly stable
   const activeArchetype = deriveArchetype(pursuitXP)
 
   const [isWide, setIsWide] = useState(false)
+  const [shake, setShake] = useState(false)
+  const [ceremonyPhase, setCeremonyPhase] = useState<'open' | 'descent' | 'impact' | 'settle' | 'tally'>('open')
+
+  // Auto-navigate to History Page 1 if there's a pending ceremony
+  useEffect(() => {
+    if (pendingCeremony) {
+      setCurrentPageIndex(isWide ? 4 : 5)
+    }
+  }, [pendingCeremony, isWide, setCurrentPageIndex])
   const historyScrollRef = useRef<HTMLDivElement>(null)
 
   // Listen to screen size to toggle single vs dual page
@@ -279,6 +290,16 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }:
                   const stamp = stamps[stampIdx]
                   
                   if (stamp) {
+                    if (stampIdx === 0 && pendingCeremony) {
+                      return (
+                        <CeremonyStampSlot
+                          key={stamp.id}
+                          stamp={stamp}
+                          setShake={setShake}
+                          onPhaseChange={setCeremonyPhase}
+                        />
+                      )
+                    }
                     return (
                       <div key={stamp.id} className="flex flex-col items-center justify-center p-1.5 bg-gray-50/20 dark:bg-gray-800/10 rounded-2xl border border-gray-150/40 dark:border-gray-800/20 text-center relative group">
                         <Stamp 
@@ -342,7 +363,12 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }:
       )}
 
       {/* Main Physical Fake Book Mockup Frame */}
-      <div 
+      <motion.div 
+        animate={shake ? {
+          x: [0, -6, 6, -4, 4, -2, 2, 0],
+          y: [0, 4, -4, 3, -3, 1, -1, 0]
+        } : {}}
+        transition={{ duration: 0.25 }}
         className={`
           w-full bg-[#E6DCC3] dark:bg-[#121319] border-8 border-[#3A2D1F] rounded-3xl relative shadow-2xl overflow-hidden
           aspect-[3.2/4] max-h-[calc(100dvh-180px)] flex transition-colors duration-300
@@ -424,6 +450,199 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }:
             <ChevronRight className="w-5 h-5 text-gray-800 dark:text-gray-250" />
           </button>
         )}
+      </motion.div>
+
+      {/* Loose Leaf Parchment Certificate / XP Tally Card Overlay */}
+      <AnimatePresence>
+        {pendingCeremony && ceremonyPhase === 'tally' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: '-30%' }}
+            animate={{ opacity: 1, scale: 1, y: '-50%' }}
+            exit={{ opacity: 0, scale: 0.9, y: '-30%' }}
+            className="absolute z-50 top-1/2 left-1/2 -translate-x-1/2 bg-[#FDFBF7] dark:bg-[#1C1D24] border-4 border-[#3A2D1F] rounded-3xl p-5 shadow-2xl text-center space-y-4 w-[85%] max-w-sm transition-colors duration-300 shadow-amber-950/25"
+          >
+            <div className="flex justify-center items-center gap-1.5 text-primary">
+              <Sparkles className="w-4 h-4 animate-bounce text-amber-500" />
+              <span className="text-[10px] font-black tracking-widest uppercase">QUEST CERTIFIED!</span>
+              <Sparkles className="w-4 h-4 animate-bounce text-amber-500" />
+            </div>
+            
+            <h3 className="font-extrabold text-base text-gray-900 dark:text-white leading-tight">
+              {pendingCeremony.questName}
+            </h3>
+
+            <div className="flex justify-center items-center gap-2">
+              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-black flex items-center gap-1">
+                <Award className="w-3.5 h-3.5" />
+                +{pendingCeremony.xpAwarded} XP
+              </div>
+              {pendingCeremony.isPioneer && (
+                <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-wider uppercase flex items-center gap-1">
+                  <Landmark className="w-3 h-3" />
+                  PIONEER!
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                useStampsStore.getState().setPendingCeremony(null)
+                if (onCeremonyComplete) onCeremonyComplete()
+              }}
+              className="w-full py-2.5 rounded-2xl bg-[#3A2D1F] hover:bg-[#2A1F13] text-white font-black text-center shadow-lg active:scale-95 transition-all text-xs cursor-pointer"
+            >
+              CLOSE CHRONICLE
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function playStampSound() {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    
+    const oscThud = ctx.createOscillator()
+    const gainThud = ctx.createGain()
+    oscThud.connect(gainThud)
+    gainThud.connect(ctx.destination)
+    oscThud.type = 'sine'
+    oscThud.frequency.setValueAtTime(120, ctx.currentTime)
+    oscThud.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.18)
+    gainThud.gain.setValueAtTime(1.0, ctx.currentTime)
+    gainThud.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22)
+    oscThud.start()
+    oscThud.stop(ctx.currentTime + 0.25)
+
+    const oscChime = ctx.createOscillator()
+    const gainChime = ctx.createGain()
+    oscChime.connect(gainChime)
+    gainChime.connect(ctx.destination)
+    oscChime.type = 'triangle'
+    oscChime.frequency.setValueAtTime(880, ctx.currentTime)
+    oscChime.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.35)
+    gainChime.gain.setValueAtTime(0.25, ctx.currentTime)
+    gainChime.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+    oscChime.start()
+    oscChime.stop(ctx.currentTime + 0.55)
+  } catch (err) {
+    console.warn('Web Audio synthesis failed:', err)
+  }
+}
+
+interface CeremonyStampSlotProps {
+  stamp: any
+  setShake: (shake: boolean) => void
+  onPhaseChange: (phase: 'open' | 'descent' | 'impact' | 'settle' | 'tally') => void
+}
+
+function CeremonyStampSlot({ stamp, setShake, onPhaseChange }: CeremonyStampSlotProps) {
+  const pendingCeremony = useStampsStore(state => state.pendingCeremony)
+  const [phase, setPhase] = useState<'open' | 'descent' | 'impact' | 'settle' | 'tally'>('open')
+  const [inkBurst, setInkBurst] = useState(false)
+
+  useEffect(() => {
+    if (!pendingCeremony) return
+
+    onPhaseChange('open')
+
+    const descentTimeout = setTimeout(() => {
+      setPhase('descent')
+      onPhaseChange('descent')
+    }, 450)
+
+    const impactTimeout = setTimeout(() => {
+      setPhase('impact')
+      onPhaseChange('impact')
+      setInkBurst(true)
+      setShake(true)
+      
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([100, 50, 80])
+      }
+      playStampSound()
+      
+      setTimeout(() => setShake(false), 250)
+    }, 850)
+
+    const settleTimeout = setTimeout(() => {
+      setPhase('settle')
+      onPhaseChange('settle')
+    }, 1250)
+
+    const tallyTimeout = setTimeout(() => {
+      setPhase('tally')
+      onPhaseChange('tally')
+    }, 1650)
+
+    return () => {
+      clearTimeout(descentTimeout)
+      clearTimeout(impactTimeout)
+      clearTimeout(settleTimeout)
+      clearTimeout(tallyTimeout)
+    }
+  }, [pendingCeremony])
+
+  return (
+    <div className="flex flex-col items-center justify-center p-1.5 bg-gray-50/20 dark:bg-gray-800/10 rounded-2xl border border-gray-150/40 dark:border-gray-800/20 text-center relative w-full h-full min-h-[92px]">
+      {(phase === 'open' || phase === 'descent') && (
+        <div className="absolute w-12 h-12 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center bg-gray-100/10 opacity-60 z-0">
+          <div className="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-700 opacity-40 animate-pulse" />
+        </div>
+      )}
+
+      <AnimatePresence>
+        {inkBurst && (
+          <motion.div
+            initial={{ scale: 0.1, opacity: 0 }}
+            animate={{ scale: 2.2, opacity: [0.6, 0.8, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.55, ease: 'easeOut' }}
+            className="absolute w-12 h-12 rounded-full bg-primary/20 pointer-events-none mix-blend-screen z-10"
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="h-16 w-16 flex items-center justify-center relative">
+        <AnimatePresence>
+          {(phase === 'descent' || phase === 'impact' || phase === 'settle' || phase === 'tally') && (
+            <motion.div
+              initial={{ scale: 4.8, rotate: -25, opacity: 0, y: -80 }}
+              animate={phase === 'impact' 
+                ? { scale: 0.95, rotate: -4, opacity: 1, y: 0 } 
+                : phase === 'settle' || phase === 'tally'
+                ? { scale: 1.05, rotate: -6, opacity: 1, y: 0 }
+                : { scale: 2.5, rotate: -15, opacity: 0.8, y: -20 }
+              }
+              transition={{
+                type: 'spring',
+                stiffness: phase === 'impact' ? 450 : 250,
+                damping: phase === 'impact' ? 22 : 15
+              }}
+              className="z-20 relative"
+            >
+              <Stamp 
+                kind={stamp.stamp_kind as StampKind} 
+                isFoil={stamp.is_foil} 
+                size={54} 
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="mt-2 text-left w-full px-1 z-10">
+        <p className="text-[9px] font-black text-gray-900 dark:text-white line-clamp-1 uppercase tracking-tight">
+          {stamp.district || 'Quest'}
+        </p>
+        <p className="text-[7px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+          {format(new Date(stamp.earned_at), 'dd MMM yyyy')}
+        </p>
       </div>
     </div>
   )

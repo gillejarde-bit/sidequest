@@ -201,15 +201,18 @@ export function QuestDetail() {
                           </div>
                         )}
                       </div>
-                      {att.has_attended && (
-                        <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 text-white rounded-full border border-white dark:border-gray-800 flex items-center justify-center shadow-sm">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                      )}
+                      {/* RSVP going / check-in attendance indicator badges */}
+                      <div className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border border-white dark:border-gray-800 flex items-center justify-center shadow-sm ${
+                        att.has_attended 
+                          ? 'bg-amber-500 text-white border-yellow-300 animate-pulse' 
+                          : 'bg-green-500 text-white'
+                      }`}>
+                        <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                      </div>
                     </div>
-                    <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate flex items-center justify-center gap-0.5">
+                    <p className="text-[10px] font-bold text-gray-700 dark:text-gray-300 truncate flex items-center justify-center gap-0.5 mt-1">
                       {att.display_name || att.username}
-                      {att.has_attended && <span className="text-green-500 font-bold shrink-0">✓</span>}
+                      {att.has_attended && <span className="text-amber-500 font-extrabold shrink-0">★</span>}
                     </p>
                   </Link>
                 </motion.div>

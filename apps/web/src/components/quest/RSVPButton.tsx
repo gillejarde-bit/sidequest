@@ -10,10 +10,47 @@ interface RSVPButtonProps {
   isCreator: boolean
 }
 
+function playSuccessChime() {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    
+    const osc1 = ctx.createOscillator()
+    const osc2 = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    
+    osc1.connect(gainNode)
+    osc2.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    
+    osc1.type = 'sine'
+    osc1.frequency.setValueAtTime(523.25, ctx.currentTime) // C5
+    osc1.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.3) // G5
+    
+    osc2.type = 'sine'
+    osc2.frequency.setValueAtTime(659.25, ctx.currentTime) // E5
+    osc2.frequency.exponentialRampToValueAtTime(1046.50, ctx.currentTime + 0.35) // C6
+    
+    gainNode.gain.setValueAtTime(0.01, ctx.currentTime)
+    gainNode.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.05)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+    
+    osc1.start()
+    osc1.stop(ctx.currentTime + 0.6)
+    osc2.start()
+    osc2.stop(ctx.currentTime + 0.6)
+  } catch (err) {
+    console.warn(err)
+  }
+}
+
 export function RSVPButton({ questId, currentStatus, isCreator }: RSVPButtonProps) {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
   const [showOptions, setShowOptions] = useState(false)
+  const [showSuccessCheck, setShowSuccessCheck] = useState(false)
 
   const handleUpdate = async (status: 'accepted' | 'declined') => {
     if (!user) return
@@ -44,6 +81,13 @@ export function RSVPButton({ questId, currentStatus, isCreator }: RSVPButtonProp
       console.error(error)
     } else {
       queryClient.invalidateQueries({ queryKey: ['quest-detail', questId] })
+      if (status === 'accepted') {
+        setShowSuccessCheck(true)
+        playSuccessChime()
+        setTimeout(() => {
+          setShowSuccessCheck(false)
+        }, 1800)
+      }
     }
   }
 
@@ -146,6 +190,61 @@ export function RSVPButton({ questId, currentStatus, isCreator }: RSVPButtonProp
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Giant Green Check RSVP Animation Overlay */}
+      <AnimatePresence>
+        {showSuccessCheck && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/45 backdrop-blur-[2px]"
+          >
+            <motion.div
+              initial={{ scale: 0.3, rotate: -15, opacity: 0 }}
+              animate={{ scale: [0.3, 1.1, 1], rotate: 0, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+              className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-150 dark:border-gray-700 shadow-2xl relative"
+            >
+              {/* Particle Sparks */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1.5, opacity: [0.8, 1, 0] }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className="absolute w-24 h-24 rounded-full border-4 border-green-500/30 pointer-events-none"
+              />
+              
+              {/* Glowing animated green checkmark */}
+              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/40 relative z-10 border-4 border-green-200 dark:border-green-600">
+                <svg 
+                  className="w-10 h-10 text-white" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor" 
+                  strokeWidth="4"
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5, delay: 0.15, ease: 'easeInOut' }}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              
+              <h3 className="text-xl font-black mt-6 text-gray-900 dark:text-white uppercase tracking-wider">
+                You're Going! 🎉
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-extrabold tracking-widest mt-1.5 uppercase">
+                Meetup Registered
+              </p>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
