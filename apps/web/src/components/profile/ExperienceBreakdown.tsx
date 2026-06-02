@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Star } from 'lucide-react';
 import { usePursuitsStore } from '../../features/pursuits/pursuits.store';
-import { pursuits, PursuitKey, ARCHETYPE_DOMINANCE_RATIO } from '../../features/pursuits/pursuits.config';
+import { pursuits, PursuitKey } from '../../features/pursuits/pursuits.config';
 
 interface ExperienceBreakdownProps {
   isOpen: boolean;
@@ -49,13 +49,11 @@ export function ExperienceBreakdown({ isOpen, onClose }: ExperienceBreakdownProp
     if (archetype.kind === 'pure') {
       const leadingNoun = pursuits[p1.key].noun;
       if (!p2 || p2.xp === 0) {
-        return `${leadingNoun} — Sole active class with experience points.`;
+        return `A pure ${leadingNoun} focused entirely on your passion for this pursuit.`;
       }
-      const ratioVal = (p1.xp / p2.xp).toFixed(2);
-      return `${leadingNoun} — ${pursuits[p1.key].noun} experience dominates ${pursuits[p2.key].noun} by ${ratioVal}x (threshold is ${ARCHETYPE_DOMINANCE_RATIO}x).`;
+      return `A pure ${leadingNoun} driven primarily by your dedication to ${leadingNoun}.`;
     } else {
-      const ratioVal = (p1.xp / p2.xp).toFixed(2);
-      return `${archetype.name} — Hybrid of ${pursuits[p1.key].noun} (Primary) and ${pursuits[p2.key].noun} (Secondary). Domination ratio is ${ratioVal}x (hybrid resolves under ${ARCHETYPE_DOMINANCE_RATIO}x).`;
+      return `A unique blend combining the qualities of ${pursuits[p1.key].noun} and ${pursuits[p2.key].noun}.`;
     }
   };
 
