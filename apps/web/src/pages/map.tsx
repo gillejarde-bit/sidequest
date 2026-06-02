@@ -150,6 +150,19 @@ export function MapPage() {
   const [mapLoaded, setMapLoaded] = useState(false)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d')
 
+  const hasCenteredOnUserRef = useRef(false)
+
+  useEffect(() => {
+    if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded && !hasCenteredOnUserRef.current) {
+      hasCenteredOnUserRef.current = true
+      mapRef.current?.flyTo({
+        center: [userLoc.lng, userLoc.lat],
+        zoom: 14,
+        duration: 1500
+      })
+    }
+  }, [userLoc.lat, userLoc.lng, mapLoaded])
+
   const { activeFilters } = useMapStore()
   const { theme } = useSettingsStore()
 
