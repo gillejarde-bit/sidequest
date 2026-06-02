@@ -17,7 +17,7 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers } from 'lucide-react'
+import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers, X } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +149,7 @@ export function MapPage() {
   const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d')
+  const [showEmptyState, setShowEmptyState] = useState(true)
 
   const hasCenteredOnUserRef = useRef(false)
 
@@ -428,6 +429,20 @@ export function MapPage() {
         </div>
         
         <FilterBar className="pointer-events-auto w-full overflow-x-auto no-scrollbar flex gap-2" />
+
+        {/* Subtle no quests pill shown if user dismissed the empty state */}
+        {!showEmptyState && quests.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="pointer-events-auto self-start bg-white/90 dark:bg-[#1A1A2E]/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-150 dark:border-gray-800 shadow-md flex items-center gap-2"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-650 animate-pulse" />
+            <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              0 Active Quests Nearby
+            </span>
+          </motion.div>
+        )}
       </div>
 
       {/* Happening Soon collapsible panel in top right corner */}
@@ -794,14 +809,21 @@ export function MapPage() {
       </motion.button>
 
       {/* Empty state */}
-      {quests.length === 0 && gems.length === 0 && (
+      {quests.length === 0 && gems.length === 0 && showEmptyState && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.5 }}
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center z-0"
         >
-          <div className="bg-white/90 dark:bg-[#1A1A2E]/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl">
+          <div className="bg-white/90 dark:bg-[#1A1A2E]/85 backdrop-blur-md px-6 py-4 pr-10 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl relative pointer-events-auto">
+            <button 
+              onClick={() => setShowEmptyState(false)}
+              className="absolute top-2.5 right-2.5 p-1 rounded-full text-gray-450 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
             <h3 className="text-gray-900 dark:text-white font-bold text-lg">No quests nearby... yet.</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Be the first to start an adventure 🧭</p>
           </div>
