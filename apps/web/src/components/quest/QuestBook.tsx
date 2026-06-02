@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../stores/auth'
 import { useStampsStore } from '../../features/stamps/stampsStore'
 import { usePursuitsStore } from '../../features/pursuits/pursuits.store'
+import { deriveArchetype } from '../../features/archetype/deriveArchetype'
 import { Stamp, StampKind } from './Stamp'
 import { QuestCard } from './QuestCard'
 import { Plus, Compass, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react'
@@ -18,8 +19,19 @@ interface QuestBookProps {
 
 export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }: QuestBookProps) {
   const { user, profile } = useAuthStore()
-  const { stamps, fetchUserStamps, loading: stampsLoading, hasMore, currentPageIndex, setCurrentPageIndex } = useStampsStore()
-  const activeArchetype = usePursuitsStore(state => state.getArchetype())
+  
+  // Stable Zustand selectors to prevent infinite re-render loops
+  const stamps = useStampsStore(state => state.stamps)
+  const fetchUserStamps = useStampsStore(state => state.fetchUserStamps)
+  const stampsLoading = useStampsStore(state => state.loading)
+  const hasMore = useStampsStore(state => state.hasMore)
+  const currentPageIndex = useStampsStore(state => state.currentPageIndex)
+  const setCurrentPageIndex = useStampsStore(state => state.setCurrentPageIndex)
+
+  const pursuitXP = usePursuitsStore(state => state.pursuitXP)
+  // Derive locally to keep selector return references perfectly stable
+  const activeArchetype = deriveArchetype(pursuitXP)
+
   const [isWide, setIsWide] = useState(false)
   const historyScrollRef = useRef<HTMLDivElement>(null)
 

@@ -53,7 +53,11 @@ function playStampSound() {
 }
 
 export function StampCeremony({ onComplete }: StampCeremonyProps) {
-  const { pendingCeremony, setPendingCeremony, setCurrentPageIndex } = useStampsStore()
+  // Stable selectors for Zustand store properties
+  const pendingCeremony = useStampsStore(state => state.pendingCeremony)
+  const setPendingCeremony = useStampsStore(state => state.setPendingCeremony)
+  const setCurrentPageIndex = useStampsStore(state => state.setCurrentPageIndex)
+
   const [phase, setPhase] = useState<'open' | 'descent' | 'impact' | 'settle' | 'tally'>('open')
   const [shake, setShake] = useState(false)
   const [inkBurst, setInkBurst] = useState(false)

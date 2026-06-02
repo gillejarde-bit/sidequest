@@ -5,7 +5,8 @@ import { StampCeremony } from '../components/quest/StampCeremony'
 import { useStampsStore } from '../features/stamps/stampsStore'
 
 export function QuestsPage() {
-  const { pendingCeremony } = useStampsStore()
+  // Stable individual property selector for Zustand store
+  const pendingCeremony = useStampsStore(state => state.pendingCeremony)
 
   // Single high-performance fetch for all quest feed items
   const { data: allQuests = [], isLoading, refetch } = useQuery({
