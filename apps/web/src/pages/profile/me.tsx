@@ -3,8 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/auth';
 import { supabase } from '../../lib/supabase';
 import { useXP } from '../../hooks/useXP';
-import { XPBar } from '../../components/xp/XPBar';
-import { BadgeGrid } from '../../components/xp/BadgeGrid';
+
+import { BadgeGrid as CustomBadgeGrid } from '../../components/profile/badges';
+import { usePursuitsStore } from '../../features/pursuits/pursuits.store';
+import { AvatarBorder } from '../../components/profile/borders';
+import { ExperienceBreakdown } from '../../components/profile/ExperienceBreakdown';
+import { ProfileDevPanel } from '../../components/profile/ProfileDevPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -17,6 +21,22 @@ export function MeProfile() {
   const { user, profile, initialized } = useAuthStore();
   const { data: xpStats, isLoading: isXpLoading, error: xpError } = useXP();
 
+  // Pursuits PoC store extraction
+  const { 
+    activeBorderId, 
+    unlockedBadgeIds, 
+    getTotalXP, 
+    getLevel, 
+    getXPProgress, 
+    getArchetype
+  } = usePursuitsStore();
+
+  const totalXP = getTotalXP();
+  const derivedLevel = getLevel();
+  const { xpIntoCurrentLevel, xpForNextLevelTotal, progressPercent } = getXPProgress();
+  const archetype = getArchetype();
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+
   // ... (keep the other hooks)
 
   const queryClient = useQueryClient();
@@ -26,13 +46,7 @@ export function MeProfile() {
   const [editBio, setEditBio] = useState('');
   const [editColor, setEditColor] = useState('');
 
-  const { data: allBadges = [] } = useQuery({
-    queryKey: ['badges'],
-    queryFn: async () => {
-      const { data } = await supabase.from('badges').select('*').order('rarity', { ascending: false });
-      return data || [];
-    }
-  });
+
 
   const { data: allTitles = [] } = useQuery({
     queryKey: ['titles'],
@@ -155,27 +169,38 @@ export function MeProfile() {
         </div>
 
         <div className="relative">
-          <img 
-            src={getAvatarUrl(profile.avatar_url, profile.username || user?.id)} 
-            alt="Avatar"
-            className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-lg object-cover bg-white"
-          />
+          <AvatarBorder borderId={activeBorderId} level={derivedLevel} archetype={archetype}>
+            <img 
+              src={getAvatarUrl(profile.avatar_url, profile.username || user?.id)} 
+              alt="Avatar"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full shadow-lg object-cover bg-white"
+            />
+          </AvatarBorder>
           <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full border-2 border-white shadow-sm flex items-center gap-1">
             <Star size={12} fill="currentColor" />
-            Lvl {xpStats.level}
+            Lvl {derivedLevel}
           </div>
         </div>
 
         <h1 className="mt-4 text-2xl font-bold">{profile.display_name || 'Anonymous'}</h1>
         <p className="text-gray-500 font-medium">@{profile.username || user?.id?.slice(0, 8)}</p>
         
-        {/* Active Title Badge */}
-        <div 
-          className="mt-3 px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide"
-          style={{ backgroundColor: `${profile.profile_color || '#6C63FF'}20`, color: profile.profile_color || '#6C63FF' }}
+        {/* Active Archetype Badge */}
+        <motion.div 
+          key={archetype.name}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+          className="mt-3 px-4 py-1.5 rounded-full text-sm font-black tracking-wide text-white shadow-md flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+          style={{ 
+            background: archetype.kind === 'hybrid'
+              ? `linear-gradient(135deg, ${archetype.baseColor}, ${archetype.accentColor})`
+              : archetype.baseColor
+          }}
+          onClick={() => setIsBreakdownOpen(true)}
         >
-          {profile.title || 'Wanderer'}
-        </div>
+          {archetype.name}
+        </motion.div>
 
         {profile.bio && (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 max-w-md">
@@ -186,21 +211,37 @@ export function MeProfile() {
 
       <div className="max-w-4xl mx-auto px-4 space-y-8 mt-4">
         {/* XP SECTION */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <motion.div 
+          whileHover={{ y: -2 }}
+          onClick={() => setIsBreakdownOpen(true)}
+          className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer active:scale-[0.99] transition-all"
+        >
           <div className="flex justify-between items-end mb-4">
             <div>
               <h2 className="text-lg font-bold">Experience</h2>
-              <p className="text-sm text-gray-500">{xpStats.current_xp_in_level} / {xpStats.xp_for_next_level_total - xpStats.xp_to_next_level + xpStats.current_xp_in_level} XP to next level</p>
+              <p className="text-sm text-gray-500">{xpIntoCurrentLevel} / {xpForNextLevelTotal} XP (Level Progress)</p>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-black text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${profile.profile_color}, #A78BFA)` }}>
-                {xpStats.xp}
+              <span className="text-2xl font-black text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${archetype.baseColor}, ${archetype.accentColor})` }}>
+                {totalXP}
               </span>
               <span className="text-xs text-gray-500 ml-1 block">Total XP</span>
             </div>
           </div>
-          <XPBar xp={xpStats.xp} level={xpStats.level} showDetails={true} />
-        </div>
+          
+          <div className="h-3 bg-gray-200/60 dark:bg-gray-800 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="h-full rounded-full"
+              style={{ 
+                background: `linear-gradient(to right, ${archetype.baseColor}, ${archetype.accentColor})`
+              }}
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2 text-right">Tap to view Experience Breakdown</p>
+        </motion.div>
 
         {/* STATS GRID */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -217,7 +258,7 @@ export function MeProfile() {
           <h2 className="text-lg font-bold px-2">Titles</h2>
           <div className="flex gap-3 overflow-x-auto pb-4 snap-x px-2 scrollbar-hide">
             {allTitles.map((t: any) => {
-              const isUnlocked = xpStats.level >= t.min_level;
+              const isUnlocked = derivedLevel >= t.min_level;
               const isActive = profile.title === t.name;
               return (
                 <div 
@@ -249,9 +290,8 @@ export function MeProfile() {
         <div className="space-y-3">
           <h2 className="text-lg font-bold px-2">Badges</h2>
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <BadgeGrid 
-              badges={allBadges} 
-              earnedBadgeIds={xpStats.badge_ids || []} 
+            <CustomBadgeGrid 
+              unlockedBadgeIds={unlockedBadgeIds} 
             />
           </div>
         </div>
@@ -351,6 +391,11 @@ export function MeProfile() {
         )}
       </AnimatePresence>
 
+      {/* DEV DEMO HARNESS PANEL */}
+      <ProfileDevPanel />
+
+      {/* EXPERIENCE BREAKDOWN MODAL */}
+      <ExperienceBreakdown isOpen={isBreakdownOpen} onClose={() => setIsBreakdownOpen(false)} />
     </div>
   );
 }
