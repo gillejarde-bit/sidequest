@@ -107,13 +107,20 @@ export const usePursuitsStore = create<PursuitsState>((set, get) => ({
 
     const newArchetype = get().getArchetype();
 
-    // Show toast for each grant
-    grants.forEach(g => {
-      const noun = pursuits[g.pursuit]?.noun || g.pursuit;
+    // Show toast: consolidated summary if reason is provided, else individual
+    if (opts?.reason) {
+      const summaryText = grants.map(g => `+${g.amount} ${pursuits[g.pursuit]?.noun || g.pursuit}`).join(' · ');
       addToast({
-        message: `+${g.amount} XP: ${noun}${opts?.reason ? ` (${opts.reason})` : ''}`
+        message: `${opts.reason}: ${summaryText}`
       });
-    });
+    } else {
+      grants.forEach(g => {
+        const noun = pursuits[g.pursuit]?.noun || g.pursuit;
+        addToast({
+          message: `+${g.amount} XP: ${noun}`
+        });
+      });
+    }
 
     // Check if archetype changed
     if (oldArchetype.name !== newArchetype.name && oldArchetype.name !== 'Wanderer') {

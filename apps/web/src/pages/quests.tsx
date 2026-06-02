@@ -1,120 +1,59 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { QuestCard } from '../components/quest/QuestCard'
-import { Plus } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
-
-type FilterStatus = 'planned' | 'active' | 'completed'
-type Tab = 'upcoming' | 'invites' | 'my_quests' | 'past'
+import { QuestBook } from '../components/quest/QuestBook'
+import { StampCeremony } from '../components/quest/StampCeremony'
+import { useStampsStore } from '../features/stamps/stampsStore'
 
 export function QuestsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('upcoming')
+  const { pendingCeremony } = useStampsStore()
 
-  const { data: quests = [], isLoading } = useQuery({
-    queryKey: ['quests-feed', activeTab],
+  // Single high-performance fetch for all quest feed items
+  const { data: allQuests = [], isLoading, refetch } = useQuery({
+    queryKey: ['quests-book-data'],
     queryFn: async () => {
-      let filterStatus: FilterStatus | null = null
-      if (activeTab === 'upcoming') filterStatus = 'planned'
-      if (activeTab === 'past') filterStatus = 'completed'
-
-      // Actually the RPC handles the filter, but we need to fetch all logic
-      const { data, error } = await supabase.rpc('get_my_quests' as any, { filter_status: filterStatus })
+      const { data, error } = await supabase.rpc('get_my_quests' as any)
       if (error) throw error
-
-      if (activeTab === 'my_quests') {
-        // Only show quests I created or accepted
-        return data.filter((q: any) => q.my_status === 'accepted' || q.my_status === 'creator')
-      }
-
-      if (activeTab === 'invites') {
-        return data.filter((q: any) => q.my_status === 'pending')
-      }
-
-      return data
+      return data || []
     }
   })
 
+  // Filter quest feeds client-side into chunks mapped to the Quest Book pages
+  const upcomingQuests = allQuests.filter((q: any) => q.status === 'planned' && q.my_status !== 'pending')
+  const inviteQuests = allQuests.filter((q: any) => q.my_status === 'pending')
+  const myQuests = allQuests.filter((q: any) => q.my_status === 'creator' || q.my_status === 'accepted')
+
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-32">
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 pt-safe transition-colors duration-300">
-        <div className="max-w-md mx-auto flex items-center justify-between px-6 py-4">
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white">Quests</h1>
-        </div>
-        
-        <div className="max-w-md mx-auto flex px-4 relative">
-          <TabButton active={activeTab === 'upcoming'} onClick={() => setActiveTab('upcoming')} label="Upcoming" />
-          <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')} label="Invites" />
-          <TabButton active={activeTab === 'my_quests'} onClick={() => setActiveTab('my_quests')} label="Mine" />
-          <TabButton active={activeTab === 'past'} onClick={() => setActiveTab('past')} label="Past" />
-        </div>
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-36 pt-4 relative">
+      
+      {/* Book header */}
+      <header className="max-w-md mx-auto px-6 mb-6 text-center">
+        <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center justify-center gap-2">
+          📖 Quest Book
+        </h1>
+        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">
+          Open your chronicle of completed memories
+        </p>
       </header>
 
-      <main className="max-w-md mx-auto p-4">
-        {isLoading ? (
-          <div className="flex justify-center p-8">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-          </div>
-        ) : quests.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-12 p-8">
-            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⚔️</div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              {activeTab === 'past' ? 'No completed quests yet' : activeTab === 'invites' ? 'No pending invites' : 'No quests yet'}
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">
-              {activeTab === 'past' ? 'Get out there and complete some quests!' : activeTab === 'invites' ? "You're all caught up!" : 'Create your first adventure and invite your squad.'}
-            </p>
-            <Link to="/quest/create" className="inline-flex items-center gap-2 bg-primary text-white font-bold py-3 px-8 rounded-full hover:bg-primary-hover active:scale-95 transition-all">
-              <Plus className="w-5 h-5" />
-              Create Quest
-            </Link>
-          </motion.div>
-        ) : (
-          <motion.div 
-            className="space-y-4"
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.06 }
-              }
-            }}
-          >
-            {quests.map((quest: any) => (
-              <motion.div 
-                key={quest.id}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-              >
-                <QuestCard quest={quest} />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+      {/* Main Quest Book Shell */}
+      <main className="w-full">
+        <QuestBook 
+          upcomingQuests={upcomingQuests}
+          inviteQuests={inviteQuests}
+          myQuests={myQuests}
+          isLoading={isLoading}
+        />
       </main>
-    </div>
-  )
-}
 
-function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 pb-4 relative text-sm font-bold transition-colors ${active ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}
-    >
-      {label}
-      {active && (
-        <motion.div
-          layoutId="quest-tab-indicator"
-          className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      {/* Stamping Ceremony Overlay (Plays if there is a pending check-in ceremony) */}
+      {pendingCeremony && (
+        <StampCeremony 
+          onComplete={() => {
+            // Refetch quest feeds to register attendance changes in lists!
+            refetch()
+          }}
         />
       )}
-    </button>
+    </div>
   )
 }

@@ -120,22 +120,36 @@ export const XP_REWARDS = {
   friendAccepted: 5,     // Fellowship
 } as const;
 
-export const pursuitTagMap: Record<string, PursuitKey> = {
-  food: 'gastronomy',
-  outdoors: 'wilds',
-  nightlife: 'revelry',
-  athletics: 'athletics',
-  fitness: 'athletics',
-  culture: 'lore',
-  gaming: 'lore'
+export const XP_RULES = {
+  topicFull: 20,         // Layer 1, the category's pursuit
+  propertyBonus: 12,     // each Layer-2 property pursuit that fires
+  vibeNudge: 5,          // the vibe-related pursuit
+  pioneerBonus: 15,      // Discovery, first-ever check-in at a location
+  wayfaringMinKm: 8,     // distance threshold for the Wayfaring bonus
+  hostQuest: 15,         // host checks into their own quest
+} as const;
+
+export const DIMINISHING_RETURNS_CURVE = [1.0, 1.0, 0.7, 0.5, 0.25]; // 1st, 2nd, 3rd, 4th, 5th+ checkin multipliers
+
+export const categoryPursuitMap: Record<string, PursuitKey> = {
+  food:      "gastronomy",
+  outdoors:  "wilds",
+  nightlife: "revelry",
+  culture:   "lore",
+  fitness:   "athletics",
+  gaming:    "lore",
 };
 
-export const pursuitVibeMap: Record<string, PursuitKey> = {
-  chill: 'wayfaring',
-  wild: 'wilds',
-  active: 'athletics',
-  cultural: 'lore',
-  cozy: 'fellowship',
-  chaotic: 'revelry'
+export const pursuitTagMap = categoryPursuitMap; // Alias for backward compatibility
+
+export const vibePursuitNudge: Record<string, PursuitKey | null> = {
+  active:   "athletics",
+  cultural: "lore",
+  cozy:     "fellowship",
+  wild:     "revelry",
+  chill:    null,
+  chaotic:  null,
 };
+
+export const pursuitVibeMap = vibePursuitNudge; // Alias for backward compatibility
 

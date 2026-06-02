@@ -366,6 +366,14 @@ export function QuestDetail() {
             category={quest.category}
             vibe={quest.vibe}
             creatorId={creator.id}
+            isFellowshipEligible={
+              quest.privacy === 'group' || 
+              quest.is_group_quest || 
+              quest.max_party_size >= 3 || 
+              (attendees && attendees.length >= 3)
+            }
+            locationName={location?.name}
+            questName={quest?.name}
             onSuccess={() => {
               refetch()
             }} 

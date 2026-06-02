@@ -1,0 +1,448 @@
+import React, { useEffect, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuthStore } from '../../stores/auth'
+import { useStampsStore } from '../../features/stamps/stampsStore'
+import { usePursuitsStore } from '../../features/pursuits/pursuits.store'
+import { Stamp, StampKind } from './Stamp'
+import { QuestCard } from './QuestCard'
+import { Plus, Compass, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { format } from 'date-fns'
+
+interface QuestBookProps {
+  upcomingQuests: any[]
+  inviteQuests: any[]
+  myQuests: any[]
+  isLoading: boolean
+}
+
+export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading }: QuestBookProps) {
+  const { user, profile } = useAuthStore()
+  const { stamps, fetchUserStamps, loading: stampsLoading, hasMore, currentPageIndex, setCurrentPageIndex } = useStampsStore()
+  const activeArchetype = usePursuitsStore(state => state.getArchetype())
+  const [isWide, setIsWide] = useState(false)
+  const historyScrollRef = useRef<HTMLDivElement>(null)
+
+  // Listen to screen size to toggle single vs dual page
+  useEffect(() => {
+    const handleResize = () => {
+      setIsWide(window.innerWidth >= 900)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Load stamps on mount
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserStamps(user.id, true)
+    }
+  }, [user?.id, fetchUserStamps])
+
+  // Infinite scroll trigger for stamps on Page 6+
+  const handleHistoryScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!user?.id || stampsLoading || !hasMore) return
+    const target = e.currentTarget
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 60) {
+      fetchUserStamps(user.id)
+    }
+  }
+
+  // Book Navigation helper: wide layout jumps by 2 pages, mobile by 1 page
+  const nextPage = () => {
+    const step = isWide ? 2 : 1
+    const maxPage = 5 + Math.max(1, Math.ceil(stamps.length / 6))
+    if (currentPageIndex + step <= maxPage) {
+      setCurrentPageIndex(currentPageIndex + step)
+    }
+  }
+
+  const prevPage = () => {
+    const step = isWide ? 2 : 1
+    if (currentPageIndex - step >= 0) {
+      setCurrentPageIndex(currentPageIndex - step)
+    }
+  }
+
+  // Render individual page contents
+  const renderPageContent = (pageIdx: number) => {
+    switch (pageIdx) {
+      case 0: // PAGE 1: Frontispiece
+        return (
+          <div className="flex flex-col h-full justify-between p-6 text-gray-800 dark:text-gray-200">
+            <div className="text-center mt-4">
+              <span className="text-[10px] font-black tracking-widest text-primary uppercase">OFFICIAL CHRONICLE</span>
+              <h2 className="text-2xl font-black mt-2 tracking-tight">QUESTER'S BOOK</h2>
+              <div className="w-12 h-1 bg-primary/20 mx-auto mt-3 rounded-full" />
+            </div>
+
+            {/* Profile Crest Showcase */}
+            <div className="flex flex-col items-center my-6 relative">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary/20 shadow-md relative bg-gray-150 dark:bg-gray-800">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-black text-gray-400 text-3xl">
+                    {profile?.username?.[0]?.toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 text-center">
+                <p className="font-extrabold text-sm text-gray-900 dark:text-white">
+                  @{profile?.username || 'explorer'}
+                </p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                  Level {profile?.level || 1} {activeArchetype?.name || 'Wanderer'}
+                </p>
+              </div>
+            </div>
+
+            {/* Stats list */}
+            <div className="space-y-2.5 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800/50">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-gray-500">Quests Completed</span>
+                <span className="text-gray-900 dark:text-white">{stamps.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-gray-500">Pioneer Mints</span>
+                <span className="text-gray-900 dark:text-white">
+                  {stamps.filter(s => s.is_pioneer).length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-gray-500">Foil Crowns</span>
+                <span className="text-gray-900 dark:text-white">
+                  {stamps.filter(s => s.is_foil).length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-gray-500">Member Since</span>
+                <span className="text-gray-900 dark:text-white">
+                  {profile?.created_at ? format(new Date(profile.created_at), 'MMM yyyy') : 'Recently'}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[9px] text-center font-bold text-gray-400 dark:text-gray-500 tracking-wider">
+              SIDEQUEST CORP · CHRONICLE VOL. I
+            </div>
+          </div>
+        )
+
+      case 1: // PAGE 2: Table of Contents
+        return (
+          <div className="flex flex-col h-full justify-between p-6 text-gray-800 dark:text-gray-200">
+            <div className="text-center mt-4">
+              <h2 className="text-xl font-black uppercase tracking-wider">CONTENTS</h2>
+              <div className="w-8 h-0.5 bg-gray-300 dark:bg-gray-700 mx-auto mt-2" />
+            </div>
+
+            <div className="space-y-1 my-auto pr-2">
+              <TOCItem 
+                index="I." 
+                label="Upcoming Quests" 
+                count={upcomingQuests.length} 
+                onClick={() => setCurrentPageIndex(isWide ? 2 : 2)} 
+              />
+              <TOCItem 
+                index="II." 
+                label="Quest Invites" 
+                count={inviteQuests.length} 
+                onClick={() => setCurrentPageIndex(isWide ? 2 : 3)} 
+              />
+              <TOCItem 
+                index="III." 
+                label="My Quests" 
+                count={myQuests.length} 
+                onClick={() => setCurrentPageIndex(isWide ? 4 : 4)} 
+              />
+              <TOCItem 
+                index="IV." 
+                label="History of Quests" 
+                count={stamps.length} 
+                onClick={() => setCurrentPageIndex(isWide ? 4 : 5)} 
+              />
+            </div>
+
+            <div className="flex justify-center mb-2">
+              <Link to="/quest/create" className="flex items-center gap-2 bg-primary text-white font-bold py-2.5 px-6 rounded-full hover:bg-primary-hover active:scale-95 transition-all text-xs shadow-md">
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                Create New Quest
+              </Link>
+            </div>
+          </div>
+        )
+
+      case 2: // PAGE 3: Upcoming Quests
+        return (
+          <div className="flex flex-col h-full p-6">
+            <div className="mb-4">
+              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER I</span>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">Upcoming Quests</h2>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+              ) : upcomingQuests.length === 0 ? (
+                <EmptyPageContent icon="⚔️" text="No upcoming adventures" />
+              ) : (
+                upcomingQuests.map(q => <QuestCard key={q.id} quest={q} />)
+              )}
+            </div>
+          </div>
+        )
+
+      case 3: // PAGE 4: Quest Invites
+        return (
+          <div className="flex flex-col h-full p-6">
+            <div className="mb-4">
+              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER II</span>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">Quest Invites</h2>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+              ) : inviteQuests.length === 0 ? (
+                <EmptyPageContent icon="✉️" text="No pending invitations" />
+              ) : (
+                inviteQuests.map(q => <QuestCard key={q.id} quest={q} />)
+              )}
+            </div>
+          </div>
+        )
+
+      case 4: // PAGE 5: My Quests
+        return (
+          <div className="flex flex-col h-full p-6">
+            <div className="mb-4">
+              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER III</span>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">My Quests</h2>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+              ) : myQuests.length === 0 ? (
+                <EmptyPageContent icon="🛡️" text="No organizing quests" />
+              ) : (
+                myQuests.map(q => <QuestCard key={q.id} quest={q} />)
+              )}
+            </div>
+          </div>
+        )
+
+      default: // PAGE 5+: History Pages (Chronological Stamp Grid)
+        const stampPageIndex = pageIdx - 5
+        const stampsPerPage = 6
+        const startStampIdx = stampPageIndex * stampsPerPage
+        const pageStamps = stamps.slice(startStampIdx, startStampIdx + stampsPerPage)
+
+        // Show blanks/embossed slots to fill up to 6 slots
+        const slots = Array.from({ length: 6 })
+
+        return (
+          <div className="flex flex-col h-full p-5 justify-between">
+            <div className="mb-3">
+              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER IV · CHRONICLES</span>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">History of Quests</h2>
+            </div>
+
+            {stamps.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto">
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl mb-4 border border-dashed border-gray-300">📖</div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-sm">Your book is unwritten</h3>
+                <p className="text-[11px] text-gray-500 leading-normal max-w-[200px]">Complete your first quest to earn your first stamp!</p>
+              </div>
+            ) : (
+              <div 
+                ref={pageIdx === currentPageIndex ? historyScrollRef : null}
+                onScroll={handleHistoryScroll}
+                className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 gap-x-3 gap-y-4 py-2 pr-1 max-h-[calc(100%-50px)]"
+              >
+                {slots.map((_, idx) => {
+                  const stampIdx = startStampIdx + idx
+                  const stamp = stamps[stampIdx]
+                  
+                  if (stamp) {
+                    return (
+                      <div key={stamp.id} className="flex flex-col items-center justify-center p-1.5 bg-gray-50/20 dark:bg-gray-800/10 rounded-2xl border border-gray-150/40 dark:border-gray-800/20 text-center relative group">
+                        <Stamp 
+                          kind={stamp.stamp_kind as StampKind} 
+                          isFoil={stamp.is_foil} 
+                          size={64} 
+                        />
+                        <div className="mt-2 text-left w-full px-1">
+                          <p className="text-[9px] font-black text-gray-900 dark:text-white line-clamp-1 uppercase tracking-tight">
+                            {stamp.district || 'Quest'}
+                          </p>
+                          <p className="text-[7px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                            {format(new Date(stamp.earned_at), 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  // Render an empty embossed placeholder slot
+                  return (
+                    <div 
+                      key={`empty-${idx}`} 
+                      className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-dashed border-gray-200/50 dark:border-gray-800/40 text-center select-none"
+                    >
+                      <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 dark:border-gray-800/60 flex items-center justify-center opacity-30">
+                        <Compass className="w-5 h-5 text-gray-400" />
+                      </div>
+                      <div className="w-10 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-3 opacity-30" />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            
+            {stamps.length > 0 && (
+              <div className="text-[8px] text-center text-gray-400 font-bold tracking-widest mt-2 uppercase">
+                Stamps {startStampIdx + 1} - {Math.min(stamps.length, startStampIdx + pageStamps.length)} of {stamps.length}
+              </div>
+            )}
+          </div>
+        )
+    }
+  }
+
+  // Calculate current dual pages to display
+  const leftPageIndex = isWide ? currentPageIndex : currentPageIndex
+  const rightPageIndex = leftPageIndex + 1
+
+  return (
+    <div className="w-full flex flex-col items-center select-none px-4 max-w-4xl mx-auto relative">
+      {/* Table of Contents Bookmark Ribbon */}
+      {currentPageIndex > 1 && (
+        <button
+          onClick={() => setCurrentPageIndex(isWide ? 0 : 1)}
+          className="absolute -top-3 right-8 z-30 flex flex-col items-center text-primary filter drop-shadow hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <Bookmark className="w-6 h-10 text-primary fill-current" />
+          <span className="text-[7px] font-black text-white absolute top-1.5 tracking-tight uppercase">TOC</span>
+        </button>
+      )}
+
+      {/* Main Physical Fake Book Mockup Frame */}
+      <div 
+        className={`
+          w-full bg-[#E6DCC3] dark:bg-[#121319] border-8 border-[#3A2D1F] rounded-3xl relative shadow-2xl overflow-hidden
+          aspect-[3.2/4] max-h-[calc(100dvh-180px)] flex transition-colors duration-300
+        `}
+      >
+        {/* Leather texture backdrop details */}
+        <div className="absolute inset-0 pointer-events-none bg-black/[0.04] dark:bg-white/[0.02]" />
+
+        <div className="flex-1 flex relative">
+          <AnimatePresence mode="wait">
+            {isWide ? (
+              // WIDE VIEWPORT: Two-page spread
+              <motion.div
+                key={`spread-${leftPageIndex}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
+                className="w-full h-full flex"
+              >
+                {/* Left Page */}
+                <div className="flex-1 bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  {renderPageContent(leftPageIndex)}
+                  {/* Outer corner page numbering */}
+                  <div className="absolute bottom-4 left-4 text-[9px] font-bold text-gray-400">
+                    {leftPageIndex + 1}
+                  </div>
+                </div>
+
+                {/* Center Creased shadow gutter */}
+                <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/35 to-black/20 dark:from-black/40 dark:via-black/60 dark:to-black/40" />
+                </div>
+
+                {/* Right Page */}
+                <div className="flex-1 bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  {renderPageContent(rightPageIndex)}
+                  {/* Outer corner page numbering */}
+                  <div className="absolute bottom-4 right-4 text-[9px] font-bold text-gray-400">
+                    {rightPageIndex + 1}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              // MOBILE VIEWPORT: Single page
+              <motion.div
+                key={`single-${currentPageIndex}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="w-full h-full bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden"
+              >
+                {renderPageContent(currentPageIndex)}
+                {/* Outer corner page numbering */}
+                <div className="absolute bottom-4 right-4 text-[9px] font-bold text-gray-400">
+                  {currentPageIndex + 1}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Dynamic page turn navigation overlays (Left/Right overlay buttons) */}
+        {currentPageIndex > 0 && (
+          <button
+            onClick={prevPage}
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 dark:bg-gray-800/70 border border-gray-250/20 shadow-md flex items-center justify-center hover:bg-white dark:hover:bg-gray-800 active:scale-90 transition-all z-30 cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-800 dark:text-gray-250" />
+          </button>
+        )}
+
+        {(isWide ? rightPageIndex < 5 + Math.max(1, Math.ceil(stamps.length / 6)) : currentPageIndex < 5 + Math.max(1, Math.ceil(stamps.length / 6))) && (
+          <button
+            onClick={nextPage}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 dark:bg-gray-800/70 border border-gray-250/20 shadow-md flex items-center justify-center hover:bg-white dark:hover:bg-gray-800 active:scale-90 transition-all z-30 cursor-pointer"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-800 dark:text-gray-250" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Sub-components to keep layout clean
+function TOCItem({ index, label, count, onClick }: { index: string; label: string; count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex justify-between items-center py-3 border-b border-dashed border-gray-200 dark:border-gray-800/60 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 px-2 rounded-xl transition-colors cursor-pointer text-left"
+    >
+      <div className="flex gap-2.5 items-center">
+        <span className="text-[10px] font-black text-primary w-4">{index}</span>
+        <span className="text-xs font-bold text-gray-900 dark:text-white">{label}</span>
+      </div>
+      <div className="flex gap-1.5 items-center">
+        <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
+          {count}
+        </span>
+        <ChevronRight className="w-3.5 h-3.5 opacity-30" />
+      </div>
+    </button>
+  )
+}
+
+function EmptyPageContent({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center my-auto opacity-70">
+      <span className="text-3xl mb-2">{icon}</span>
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{text}</p>
+    </div>
+  )
+}

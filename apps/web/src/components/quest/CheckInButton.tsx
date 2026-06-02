@@ -4,6 +4,8 @@ import { MapPin, Loader2 } from 'lucide-react'
 import { useGeolocation, useCheckIn } from '../../hooks/useCheckIn'
 import ConfettiExplosion from 'react-confetti-explosion'
 import { useAuthStore } from '../../stores/auth'
+import { useNavigate } from '@tanstack/react-router'
+import { useStampsStore } from '../../features/stamps/stampsStore'
 
 interface CheckInButtonProps {
   questId: string
@@ -12,6 +14,9 @@ interface CheckInButtonProps {
   category?: string
   vibe?: string
   creatorId?: string
+  isFellowshipEligible?: boolean
+  locationName?: string
+  questName?: string
 }
 
 export function CheckInButton({ 
@@ -20,11 +25,15 @@ export function CheckInButton({
   onSuccess,
   category,
   vibe,
-  creatorId
+  creatorId,
+  isFellowshipEligible,
+  locationName,
+  questName
 }: CheckInButtonProps) {
   const { location, loading: geoLoading } = useGeolocation()
   const { checkIn, loading: checkInLoading, error } = useCheckIn(questId)
   const { user, fetchProfile } = useAuthStore()
+  const navigate = useNavigate()
   const [checkedIn, setCheckedIn] = useState(initialCheckedIn)
   const [showConfetti, setShowConfetti] = useState(false)
 
@@ -37,17 +46,36 @@ export function CheckInButton({
     const res = await checkIn(location.lat, location.lng, { 
       category: category || '', 
       vibe: vibe || '', 
-      creatorId: creatorId || '' 
+      creatorId: creatorId || '',
+      isFellowshipEligible: isFellowshipEligible || false,
+      locationName: locationName || '',
+      questName: questName || ''
     })
 
-    
     // Always refresh profile state to capture updated streak and lives!
     await fetchProfile(user.id)
 
     if (res && res.success) {
       setCheckedIn(true)
       setShowConfetti(true)
+
+      // Set pending ceremony in the stamps store
+      useStampsStore.getState().setPendingCeremony({
+        questId,
+        category: category || 'Default',
+        vibe: vibe || 'Chill',
+        isPioneer: res.is_pioneer || false,
+        xpAwarded: res.xp_awarded || 20,
+        district: locationName || 'Unknown District',
+        questName: questName || 'Quest'
+      })
+
       onSuccess(res.xp_awarded)
+
+      // Navigate to /quests after 1.2 seconds of confetti burst
+      setTimeout(() => {
+        navigate({ to: '/quests' })
+      }, 1200)
     }
   }
 
