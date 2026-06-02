@@ -17,7 +17,7 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin, AlertCircle, Diamond, Locate } from 'lucide-react'
+import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -745,13 +745,15 @@ export function MapPage() {
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="absolute right-4 bottom-44 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 text-xs font-black uppercase tracking-wider"
+        className="absolute right-4 bottom-44 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900"
         style={{ zIndex: Z_INDEX.map_ui }}
         title={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
       >
-        <span className="text-primary select-none">
-          {viewMode === '3d' ? '2D' : '3D'}
-        </span>
+        {viewMode === '3d' ? (
+          <MapIcon className="w-5 h-5 text-primary" />
+        ) : (
+          <Layers className="w-5 h-5 text-primary" />
+        )}
       </motion.button>
 
       {/* Re-center floating button */}
