@@ -26,9 +26,17 @@ export function RSVPButton({ questId, currentStatus, isCreator }: RSVPButtonProp
       return { ...old, my_status: status }
     })
 
-    const { error } = await supabase
-      .from('quest_invites')
-      .upsert({ quest_id: questId, user_id: user.id, status })
+    const query = currentStatus
+      ? supabase
+          .from('quest_invites')
+          .update({ status })
+          .eq('quest_id', questId)
+          .eq('user_id', user.id)
+      : supabase
+          .from('quest_invites')
+          .insert({ quest_id: questId, user_id: user.id, status })
+
+    const { error } = await query
 
     if (error) {
       // Revert on error
