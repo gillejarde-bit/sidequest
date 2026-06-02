@@ -194,7 +194,6 @@ export function useCheckIn(questId: string) {
           let isFoil = false;
           let isPioneer = false;
           if (data.is_pioneer) {
-            stampKind = 'gem';
             isFoil = true;
             isPioneer = true;
           }

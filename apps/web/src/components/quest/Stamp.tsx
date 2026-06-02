@@ -67,7 +67,7 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             {/* Bowl / Ramen bowl */}
             <path
               d="M 10,40 Q 10,70 40,70 Q 70,70 70,40 Z"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               opacity="0.85"
             />
             {/* Soup line */}
@@ -81,21 +81,21 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             <path
               d="M 25,25 Q 30,15 25,5"
               fill="none"
-              stroke={info.color}
+              stroke={isFoil ? `url(#${gradientId})` : info.color}
               strokeWidth="4"
               strokeLinecap="round"
             />
             <path
               d="M 40,28 Q 45,18 40,8"
               fill="none"
-              stroke={info.color}
+              stroke={isFoil ? `url(#${gradientId})` : info.color}
               strokeWidth="4"
               strokeLinecap="round"
             />
             <path
               d="M 55,25 Q 60,15 55,5"
               fill="none"
-              stroke={info.color}
+              stroke={isFoil ? `url(#${gradientId})` : info.color}
               strokeWidth="4"
               strokeLinecap="round"
             />
@@ -107,12 +107,12 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             {/* Two mountain peaks */}
             <polygon
               points="10,65 35,20 60,65"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               opacity="0.6"
             />
             <polygon
               points="30,65 50,30 70,65"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               opacity="0.9"
             />
             {/* Tiny Pine Tree */}
@@ -125,7 +125,7 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
               cx="55"
               cy="20"
               r="6"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
             />
           </g>
         )
@@ -135,13 +135,13 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             {/* Large Crescent Moon */}
             <path
               d="M 25,15 A 25,25 0 1,0 65,55 A 18,18 0 1,1 25,15 Z"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               opacity="0.9"
             />
             {/* Sparkle/Star */}
             <path
               d="M 50,20 L 52,25 L 57,27 L 52,29 L 50,34 L 48,29 L 43,27 L 48,25 Z"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
             />
             <path
               d="M 35,40 L 36.5,43 L 39.5,44 L 36.5,45 L 35,48 L 33.5,45 L 30.5,44 L 33.5,43 Z"
@@ -155,7 +155,7 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             {/* Open Book */}
             <path
               d="M 40,55 Q 25,48 10,55 L 10,20 Q 25,13 40,20 Q 55,13 70,20 L 70,55 Q 55,48 40,55 Z"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               opacity="0.85"
             />
             {/* Book Spine Center Gutter */}
@@ -193,14 +193,14 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
             <path
               d="M 12,35 C 12,60 30,62 40,62 C 50,62 68,60 68,35"
               fill="none"
-              stroke={info.color}
+              stroke={isFoil ? `url(#${gradientId})` : info.color}
               strokeWidth="6"
               strokeLinecap="round"
             />
             {/* Strong Bolt / Lightning Bolt */}
             <polygon
               points="45,8 25,38 38,38 35,62 55,32 42,32"
-              fill={info.color}
+              fill={isFoil ? `url(#${gradientId})` : info.color}
               stroke="#FFF"
               strokeWidth="3"
               strokeLinejoin="round"
@@ -297,7 +297,7 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
           cy="50"
           r="45"
           fill="none"
-          stroke={info.color}
+          stroke={isFoil ? '#D97706' : info.color}
           strokeWidth="3.5"
           strokeDasharray="6 3"
         />
@@ -309,9 +309,9 @@ export function Stamp({ kind, isFoil = false, className = '', style, size = 120 
       {/* Circular Pressed Stamp Label */}
       <div 
         className="absolute bottom-2 font-black tracking-widest text-[7px]"
-        style={{ color: info.color, transform: 'scaleX(0.95)' }}
+        style={{ color: isFoil ? '#D97706' : info.color, transform: 'scaleX(0.95)' }}
       >
-        {info.label}
+        {isFoil ? 'PIONEER' : info.label}
       </div>
     </div>
   )
