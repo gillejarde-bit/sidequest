@@ -148,6 +148,7 @@ export function MapPage() {
   const [selectedGem, setSelectedGem] = useState<any | null>(null)
   const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d')
 
   const { activeFilters } = useMapStore()
   const { theme } = useSettingsStore()
@@ -195,6 +196,26 @@ export function MapPage() {
       })
     }
   }, [userLoc.lat, userLoc.lng])
+
+  const handleToggleViewMode = useCallback(() => {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+
+    if (viewMode === '3d') {
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000
+      })
+      setViewMode('2d')
+    } else {
+      map.easeTo({
+        pitch: 60,
+        duration: 1000
+      })
+      setViewMode('3d')
+    }
+  }, [viewMode])
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -473,6 +494,14 @@ export function MapPage() {
         antialias={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
+        onMove={() => {
+          const map = mapRef.current?.getMap()
+          if (map) {
+            const pitch = map.getPitch()
+            const mode = pitch < 15 ? '2d' : '3d'
+            setViewMode(mode)
+          }
+        }}
         onLoad={() => {
           setMapLoaded(true)
           const map = mapRef.current?.getMap()
@@ -702,6 +731,28 @@ export function MapPage() {
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
+
+      {/* 2D/3D View toggle floating button */}
+      <motion.button
+        type="button"
+        onClick={handleToggleViewMode}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ 
+          scale: 1, 
+          opacity: 1,
+          y: sheetMode ? -340 : 0
+        }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className="absolute right-4 bottom-44 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 text-xs font-black uppercase tracking-wider"
+        style={{ zIndex: Z_INDEX.map_ui }}
+        title={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
+      >
+        <span className="text-primary select-none">
+          {viewMode === '3d' ? '2D' : '3D'}
+        </span>
+      </motion.button>
 
       {/* Re-center floating button */}
       <motion.button
