@@ -80,7 +80,7 @@ export function useCheckIn(questId: string) {
       if (rpcError) throw rpcError
       
       if (data && !data.success) {
-        setError(data.error === 'too_far' ? `You are ${data.distance_meters}m away` : data.error)
+        setError(data.error === 'too_far' ? `You are ${Math.round(data.distance || 0)}m away` : data.error)
       } else {
         setResult(data)
         

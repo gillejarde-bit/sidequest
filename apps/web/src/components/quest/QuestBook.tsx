@@ -173,6 +173,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                 label="Quest Invites" 
                 count={inviteQuests.length} 
                 onClick={() => setCurrentPageIndex(isWide ? 2 : 3)} 
+                isRedBadge={true}
               />
               <TOCItem 
                 index="III." 
@@ -649,7 +650,7 @@ function CeremonyStampSlot({ stamp, setShake, onPhaseChange }: CeremonyStampSlot
 }
 
 // Sub-components to keep layout clean
-function TOCItem({ index, label, count, onClick }: { index: string; label: string; count: number; onClick: () => void }) {
+function TOCItem({ index, label, count, onClick, isRedBadge }: { index: string; label: string; count: number; onClick: () => void; isRedBadge?: boolean }) {
   return (
     <button
       onClick={onClick}
@@ -660,7 +661,11 @@ function TOCItem({ index, label, count, onClick }: { index: string; label: strin
         <span className="text-xs font-bold text-gray-900 dark:text-white">{label}</span>
       </div>
       <div className="flex gap-1.5 items-center">
-        <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+          isRedBadge && count > 0 
+            ? 'bg-red-500 text-white animate-pulse' 
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+        }`}>
           {count}
         </span>
         <ChevronRight className="w-3.5 h-3.5 opacity-30" />

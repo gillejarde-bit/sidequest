@@ -11,12 +11,30 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useEffect, useState } from 'react'
 import { Z_INDEX } from '../lib/zIndex'
+import { useQuery } from '@tanstack/react-query'
 
 function BottomNav() {
   const { count } = usePendingRequests()
   const { pathname } = useLocation()
   const { user } = useAuthStore()
   const [showMore, setShowMore] = useState(false)
+
+  // Real-time polling for pending quest invites
+  const { data: inviteCount = 0 } = useQuery({
+    queryKey: ['pending-quest-invites-count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0
+      const { count: exactCount, error } = await supabase
+        .from('quest_invites')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+      if (error) return 0
+      return exactCount || 0
+    },
+    enabled: !!user?.id,
+    refetchInterval: 10000 // Poll every 10 seconds for real-time responsiveness
+  })
 
   if (!user) return null
   if (['/login', '/onboarding'].includes(pathname) || pathname.startsWith('/quest/')) return null
@@ -147,6 +165,11 @@ function BottomNav() {
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
           <Swords className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'quests' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+          {inviteCount > 0 && (
+            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-20 shadow-md border-2 border-white dark:border-gray-900 animate-pulse">
+              {inviteCount}
+            </span>
+          )}
         </Link>
 
         {/* [ 🔥 Streaks ] */}

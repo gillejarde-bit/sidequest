@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart, Check } from 'lucide-react'
+import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart, Check, Plus } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
 import { RSVPButton } from '../../components/quest/RSVPButton'
 import { CheckInButton } from '../../components/quest/CheckInButton'
 import { QuestChat } from '../../components/quest/QuestChat'
+import { useFriends } from '../../hooks/useFriends'
 import { format, isToday } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import Map, { Marker } from 'react-map-gl'
@@ -30,6 +31,8 @@ export function QuestDetail() {
   const { data, isLoading, refetch } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
+  const [showInvitePopup, setShowInvitePopup] = useState(false)
+  const { data: friendsList = [], isLoading: friendsLoading } = useFriends()
 
   useEffect(() => {
     if (!data?.location?.osm_id) return
@@ -217,6 +220,21 @@ export function QuestDetail() {
                   </Link>
                 </motion.div>
               ))}
+
+              {/* Special Invite button (plus symbol) at the end of the Party list */}
+              {is_creator && (
+                <div className="snap-start shrink-0 text-center w-16">
+                  <button 
+                    onClick={() => setShowInvitePopup(true)}
+                    className="w-14 h-14 mx-auto mb-1 rounded-full border-2 border-dashed border-primary text-primary hover:bg-primary/10 active:scale-95 flex items-center justify-center transition-all cursor-pointer bg-gray-50/50 dark:bg-gray-800/10"
+                  >
+                    <Plus className="w-6 h-6 stroke-[3]" />
+                  </button>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-wider mt-1.5 text-center leading-none">
+                    Invite
+                  </p>
+                </div>
+              )}
             </div>
             {is_creator && data.invited && data.invited.length > data.attendee_count && (
               <div className="mt-3 text-xs text-center text-gray-400 dark:text-gray-500 font-medium border-t border-gray-100 dark:border-gray-700 pt-3">
@@ -384,6 +402,85 @@ export function QuestDetail() {
         )}
         <RSVPButton questId={quest.id} currentStatus={my_status} isCreator={is_creator} />
       </div>
+
+      {/* Invite Friends Modal Popup */}
+      <AnimatePresence>
+        {showInvitePopup && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowInvitePopup(false)}
+              className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 rounded-t-3xl p-6 z-[101] pb-safe max-h-[80vh] flex flex-col transition-colors duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
+            >
+              <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6 shrink-0" />
+              <h3 className="text-xl font-black text-center mb-6 text-gray-900 dark:text-white shrink-0">Invite Friends</h3>
+              
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-4">
+                {friendsLoading ? (
+                  <div className="text-center py-8 text-xs font-bold text-gray-400">Loading friends...</div>
+                ) : friendsList.length === 0 ? (
+                  <div className="text-center py-8 text-xs font-bold text-gray-400">You don't have any friends yet!</div>
+                ) : (
+                  friendsList.map(friend => {
+                    const isAttending = attendees?.some((att: any) => att.user_id === friend.id)
+                    const isInvited = data.invited?.some((inv: any) => inv.user_id === friend.id)
+                    
+                    return (
+                      <div key={friend.id} className="flex items-center justify-between p-3.5 bg-gray-50/50 dark:bg-gray-850/30 rounded-2xl border border-gray-100/50 dark:border-gray-800/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <img src={friend.avatar_url || ''} alt="" className="w-10 h-10 rounded-full object-cover bg-gray-150 dark:bg-gray-800" />
+                          <div>
+                            <h4 className="font-bold text-sm text-gray-900 dark:text-white">@{friend.username}</h4>
+                            <p className="text-[10px] text-gray-450 dark:text-gray-500 font-extrabold uppercase tracking-widest mt-0.5">Level {friend.level}</p>
+                          </div>
+                        </div>
+
+                        {isAttending ? (
+                          <span className="px-3.5 py-1.5 text-xs font-black bg-green-500/10 text-green-600 dark:text-green-400 rounded-xl uppercase tracking-wider">Going</span>
+                        ) : isInvited ? (
+                          <span className="px-3.5 py-1.5 text-xs font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl uppercase tracking-wider">Pending</span>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from('quest_invites')
+                                .insert({
+                                  quest_id: quest.id,
+                                  user_id: friend.id,
+                                  status: 'pending'
+                                })
+                              if (!error) refetch()
+                            }}
+                            className="px-4 py-1.5 text-xs font-black bg-primary hover:bg-[#46A302] text-white rounded-xl active:scale-95 transition-all shadow-md cursor-pointer"
+                          >
+                            Invite
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setShowInvitePopup(false)} 
+                className="w-full py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-extrabold text-base active:scale-95 transition-all cursor-pointer shrink-0"
+              >
+                Done
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

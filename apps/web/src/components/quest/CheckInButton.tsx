@@ -122,6 +122,20 @@ export function CheckInButton({
             </span>
           </motion.div>
         )}
+
+        {error && !error.includes('away') && !error.includes('too_far') && !error.includes('too_early') && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className="w-full bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 p-3 rounded-2xl border border-red-200/50 text-left flex flex-col gap-0.5 text-xs font-semibold leading-relaxed"
+          >
+            <span className="font-extrabold text-red-600 flex items-center gap-1">⚠️ Check-in Failed</span>
+            <span className="text-[10px] opacity-90 leading-normal">
+              {error}
+            </span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {checkedIn ? (
