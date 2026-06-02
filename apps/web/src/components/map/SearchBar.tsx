@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Search, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 // Add types for Google Maps
 declare global {
@@ -79,11 +79,11 @@ export function SearchBar({ onLocationSelect, className }: SearchBarProps) {
           placeholder="Search for a location..."
           className="w-full bg-white/90 dark:bg-[#1A1A2E]/90 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-2xl py-3 pl-12 pr-4 text-gray-900 dark:text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
         />
-        <div className="absolute left-4 text-gray-400">
+        <div className="absolute left-3.5 flex items-center justify-center pointer-events-none">
           {!isReady ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
           ) : (
-            <Search className="h-5 w-5" />
+            <img src="/logo.png" className="h-6 w-6 object-contain rounded-full border border-gray-100/50 dark:border-gray-800 shadow-sm" alt="Logo" />
           )}
         </div>
         {hasSearch && (
