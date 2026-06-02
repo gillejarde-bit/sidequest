@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toastStore'
 import { useAwardXP } from './useXP'
+import { usePursuitsStore } from '../features/pursuits/pursuits.store'
+import { XP_REWARDS } from '../features/pursuits/pursuits.config'
 
 export interface Friend {
   id: string
@@ -171,6 +173,12 @@ export function useRespondToRequest() {
         
         // Award XP to the current user
         awardXP({ points: 10, action: 'make_friend', referenceId: requesterId })
+        
+        // Award Pursuits XP to fellowship
+        usePursuitsStore.getState().grantPursuitXP(
+          [{ pursuit: 'fellowship', amount: XP_REWARDS.friendAccepted }], 
+          { reason: 'Friend Accepted' }
+        )
         
       } else {
         const { error } = await supabase

@@ -108,3 +108,34 @@ export const hybridNames: Record<string, string> = {
   "revelry+wilds":         "Wildfire",       // bonfires, beach parties, open-air festivals
   "wayfaring+wilds":       "Trailblazer",    // blazes wild routes across regions
 };
+
+export const XP_REWARDS = {
+  checkinPrimary: 20,    // quest primary pursuit
+  checkinSecondary: 10,  // each additional mapped pursuit
+  pioneerBonus: 15,      // Discovery, on first-ever check-in at a location
+  hostQuest: 15,         // host checks into their own quest
+  gemNominate: 10,       // Discovery
+  gemApproved: 25,       // Discovery
+  gemVerify: 10,         // Discovery
+  friendAccepted: 5,     // Fellowship
+} as const;
+
+export const pursuitTagMap: Record<string, PursuitKey> = {
+  food: 'gastronomy',
+  outdoors: 'wilds',
+  nightlife: 'revelry',
+  athletics: 'athletics',
+  fitness: 'athletics',
+  culture: 'lore',
+  gaming: 'lore'
+};
+
+export const pursuitVibeMap: Record<string, PursuitKey> = {
+  chill: 'wayfaring',
+  wild: 'wilds',
+  active: 'athletics',
+  cultural: 'lore',
+  cozy: 'fellowship',
+  chaotic: 'revelry'
+};
+

@@ -9,9 +9,19 @@ interface CheckInButtonProps {
   questId: string
   initialCheckedIn?: boolean
   onSuccess: (xpAwarded: number) => void
+  category?: string
+  vibe?: string
+  creatorId?: string
 }
 
-export function CheckInButton({ questId, initialCheckedIn = false, onSuccess }: CheckInButtonProps) {
+export function CheckInButton({ 
+  questId, 
+  initialCheckedIn = false, 
+  onSuccess,
+  category,
+  vibe,
+  creatorId
+}: CheckInButtonProps) {
   const { location, loading: geoLoading } = useGeolocation()
   const { checkIn, loading: checkInLoading, error } = useCheckIn(questId)
   const { user, fetchProfile } = useAuthStore()
@@ -24,7 +34,12 @@ export function CheckInButton({ questId, initialCheckedIn = false, onSuccess }: 
 
   const handleCheckIn = async () => {
     if (!location || !user) return
-    const res = await checkIn(location.lat, location.lng)
+    const res = await checkIn(location.lat, location.lng, { 
+      category: category || '', 
+      vibe: vibe || '', 
+      creatorId: creatorId || '' 
+    })
+
     
     // Always refresh profile state to capture updated streak and lives!
     await fetchProfile(user.id)

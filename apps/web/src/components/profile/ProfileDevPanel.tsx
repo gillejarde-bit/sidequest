@@ -8,6 +8,10 @@ import { ALL_MOCK_BADGES } from './badges';
 const springConfig = { type: 'spring', stiffness: 300, damping: 30 } as const;
 
 export function ProfileDevPanel() {
+  if (!import.meta.env.DEV) {
+    return null;
+  }
+
   const [isOpen, setIsOpen] = useState(false);
   
   const { 

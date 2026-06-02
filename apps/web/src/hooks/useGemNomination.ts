@@ -11,12 +11,15 @@ interface NominateArgs {
   photos: File[]
 }
 
+import { usePursuitsStore } from '../features/pursuits/pursuits.store'
+import { XP_REWARDS } from '../features/pursuits/pursuits.config'
+
 export function useGemNomination() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (args: NominateArgs) => {
-      // 1. Upload photos to Supabase Storage bucket 'gems'
+      // ... (rest remains the same)
       const photoUrls: string[] = []
       
       for (const photo of args.photos) {
@@ -59,6 +62,10 @@ export function useGemNomination() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gems'] })
+      usePursuitsStore.getState().grantPursuitXP(
+        [{ pursuit: 'discovery', amount: XP_REWARDS.gemNominate }], 
+        { reason: 'Gem Nominated', localOnly: true }
+      )
     },
   })
 }

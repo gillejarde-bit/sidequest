@@ -36,6 +36,9 @@ export function useGeolocation() {
 }
 
 import { useAwardXP } from './useXP'
+import { usePursuitsStore } from '../features/pursuits/pursuits.store'
+import { XP_REWARDS, pursuitTagMap, pursuitVibeMap } from '../features/pursuits/pursuits.config'
+import { useAuthStore } from '../stores/auth'
 
 export function useCheckIn(questId: string) {
   const [loading, setLoading] = useState(false)
@@ -43,7 +46,11 @@ export function useCheckIn(questId: string) {
   const [result, setResult] = useState<any>(null)
   const { mutate: awardXP } = useAwardXP()
 
-  const checkIn = async (lat: number, lng: number) => {
+  const checkIn = async (
+    lat: number,
+    lng: number,
+    questInfo?: { category: string; vibe: string; creatorId: string }
+  ) => {
     setLoading(true)
     setError(null)
     try {
@@ -59,7 +66,39 @@ export function useCheckIn(questId: string) {
         setError(data.error === 'too_far' ? `You are ${data.distance_meters}m away` : data.error)
       } else {
         setResult(data)
+        
+        // 1. Award legacy XP
         awardXP({ points: 20, action: 'attend_quest', referenceId: questId })
+
+        // 2. Award Pursuits XP
+        const currentUserId = useAuthStore.getState().user?.id;
+        const grants: { pursuit: any; amount: number }[] = [];
+
+        // Primary Category pursuit XP
+        const primaryCat = questInfo?.category?.toLowerCase() || '';
+        const primaryPursuit = pursuitTagMap[primaryCat] || 'fellowship'; // defaults to fellowship
+        grants.push({ pursuit: primaryPursuit, amount: XP_REWARDS.checkinPrimary });
+
+        // Secondary Vibe pursuit XP
+        const vibeLower = questInfo?.vibe?.toLowerCase() || '';
+        const secondaryPursuit = pursuitVibeMap[vibeLower];
+        // Only grant if secondary exists and is different from primary
+        if (secondaryPursuit && secondaryPursuit !== primaryPursuit) {
+          grants.push({ pursuit: secondaryPursuit, amount: XP_REWARDS.checkinSecondary });
+        }
+
+        // Pioneer Bonus
+        if (data.is_pioneer) {
+          grants.push({ pursuit: 'discovery', amount: XP_REWARDS.pioneerBonus });
+        }
+
+        // Host Quest Bonus
+        if (questInfo?.creatorId && currentUserId === questInfo.creatorId) {
+          grants.push({ pursuit: 'fellowship', amount: XP_REWARDS.hostQuest });
+        }
+
+        // Trigger unified grantPursuitXP
+        usePursuitsStore.getState().grantPursuitXP(grants, { reason: 'Check-in' });
       }
       return data
     } catch (err: any) {
@@ -72,3 +111,4 @@ export function useCheckIn(questId: string) {
 
   return { checkIn, loading, error, result }
 }
+

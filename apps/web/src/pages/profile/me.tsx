@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/auth';
 import { supabase } from '../../lib/supabase';
@@ -6,6 +6,7 @@ import { useXP } from '../../hooks/useXP';
 
 import { BadgeGrid as CustomBadgeGrid } from '../../components/profile/badges';
 import { usePursuitsStore } from '../../features/pursuits/pursuits.store';
+import { fetchUserPursuitXP } from '../../features/pursuits/pursuitsData';
 import { AvatarBorder } from '../../components/profile/borders';
 import { ExperienceBreakdown } from '../../components/profile/ExperienceBreakdown';
 import { ProfileDevPanel } from '../../components/profile/ProfileDevPanel';
@@ -28,8 +29,24 @@ export function MeProfile() {
     getTotalXP, 
     getLevel, 
     getXPProgress, 
-    getArchetype
+    getArchetype,
+    hydrateStore
   } = usePursuitsStore();
+
+  const { data: pursuitsData, isLoading: isPursuitsLoading } = useQuery({
+    queryKey: ['user-pursuits', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      return fetchUserPursuitXP(user.id);
+    },
+    enabled: !!user?.id
+  });
+
+  useEffect(() => {
+    if (pursuitsData) {
+      hydrateStore(pursuitsData);
+    }
+  }, [pursuitsData, hydrateStore]);
 
   const totalXP = getTotalXP();
   const derivedLevel = getLevel();
@@ -94,7 +111,7 @@ export function MeProfile() {
     );
   }
 
-  if (isXpLoading) {
+  if (isXpLoading || isPursuitsLoading) {
     return (
       <div className="flex-1 flex items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -392,7 +409,7 @@ export function MeProfile() {
       </AnimatePresence>
 
       {/* DEV DEMO HARNESS PANEL */}
-      <ProfileDevPanel />
+      {import.meta.env.DEV && <ProfileDevPanel />}
 
       {/* EXPERIENCE BREAKDOWN MODAL */}
       <ExperienceBreakdown isOpen={isBreakdownOpen} onClose={() => setIsBreakdownOpen(false)} />

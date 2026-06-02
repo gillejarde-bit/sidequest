@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
+import { usePursuitsStore } from '../features/pursuits/pursuits.store'
+import { XP_REWARDS } from '../features/pursuits/pursuits.config'
+
 export function useGemVoting() {
   const queryClient = useQueryClient()
 
@@ -20,6 +23,10 @@ export function useGemVoting() {
     onSuccess: () => {
       // Invalidate gems query so it refetches
       queryClient.invalidateQueries({ queryKey: ['gems'] })
+      usePursuitsStore.getState().grantPursuitXP(
+        [{ pursuit: 'discovery', amount: XP_REWARDS.gemVerify }], 
+        { reason: 'Gem Verified' }
+      )
     },
   })
 }

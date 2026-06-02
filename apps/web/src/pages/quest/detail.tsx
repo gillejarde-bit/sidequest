@@ -363,6 +363,9 @@ export function QuestDetail() {
           <CheckInButton 
             questId={quest.id}
             initialCheckedIn={user_attended}
+            category={quest.category}
+            vibe={quest.vibe}
+            creatorId={creator.id}
             onSuccess={() => {
               refetch()
             }} 
