@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Mulish:wght@400;600;800;900&display=swap');
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
@@ -14,10 +13,10 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --font-sans: "DM Sans", sans-serif;
+  --font-sans: "SideQuest Sans", system-ui, sans-serif;
   
-  --font-display: "Baloo 2", "DM Sans", sans-serif;
-  --font-body: "Mulish", "DM Sans", sans-serif;
+  --font-display: "SideQuest Sans", system-ui, sans-serif;
+  --font-body: "SideQuest Sans", system-ui, sans-serif;
 }
 
 @layer base {
@@ -75,7 +74,7 @@
   --color-dark: var(--forge-black);
   --color-muted: var(--faded-ink);
   
-  font-family: "Mulish", sans-serif;
+  font-family: "SideQuest Sans", system-ui, sans-serif;
   background-color: var(--forge-black) !important;
   color: var(--parchment) !important;
 }
@@ -85,7 +84,7 @@
 [data-theme="ember"] h3,
 [data-theme="ember"] h4,
 [data-theme="ember"] .font-display {
-  font-family: "Baloo 2", sans-serif !important;
+  font-family: "SideQuest Sans", system-ui, sans-serif !important;
 }
 
 /* Global class overrides when Ember theme is active on root */

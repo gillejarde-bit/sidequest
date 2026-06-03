@@ -42,7 +42,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['DM Sans', 'sans-serif'],
+        sans: ["'SideQuest Sans'", 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg: '1rem',

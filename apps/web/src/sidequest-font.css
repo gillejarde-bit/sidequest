@@ -1,0 +1,25 @@
+@font-face {
+  font-family: 'SideQuest Sans';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/SideQuestSans-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'SideQuest Sans';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/SideQuestSans-Bold.woff2') format('woff2');
+}
+*, *::before, *::after {
+  font-family: 'SideQuest Sans', system-ui, sans-serif;
+}
+body {
+  font-family: 'SideQuest Sans', system-ui, sans-serif;
+  font-weight: 600;
+}
+h1, h2, h3, h4, h5, h6,
+button, [role="button"] {
+  font-weight: 700;
+}

@@ -105,7 +105,7 @@ export function Login() {
           <div className="bg-[#120B06]/65 backdrop-blur-[32px] border border-white/10 p-8 sm:p-10 rounded-[28px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)] text-center flex flex-col gap-3">
             <h1 
               className="text-4xl sm:text-5xl font-black tracking-tight"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              style={{ fontFamily: "'SideQuest Sans', system-ui, sans-serif" }}
             >
               Ready for a <span className="text-[#EE6C1F] drop-shadow-[0_0_15px_rgba(238,108,31,0.35)]">Sidequest?</span>
             </h1>
