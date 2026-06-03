@@ -21,7 +21,7 @@ class WebGLErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#0a0d18] via-[#101424] to-[#0a0d18] opacity-80 z-0" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#1B1410] via-[#29201A] to-[#1B1410] opacity-80 z-0" />
       )
     }
     return this.props.children
@@ -79,7 +79,7 @@ export function Login() {
   }
 
   return (
-    <div className="relative min-h-[250vh] bg-[#0a0d18] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
+    <div className="relative min-h-[250vh] bg-[#1B1410] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
       
       {/* 3D Morphing Globe Scroll Timeline Controller */}
       <ScrollController progressRef={progressRef} />
@@ -106,7 +106,7 @@ export function Login() {
             className="text-4xl sm:text-5xl font-black tracking-tight"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
-            Ready for a <span className="text-[#7CFC00] drop-shadow-[0_0_15px_rgba(124,252,0,0.35)]">Sidequest?</span>
+            Ready for a <span className="text-[#EE6C1F] drop-shadow-[0_0_15px_rgba(238,108,31,0.35)]">Sidequest?</span>
           </h1>
           <p className="text-gray-400 text-xs sm:text-sm max-w-xs mt-3">
             A real-world social RPG. Scroll down to claim your magic key and enter the map.
@@ -130,7 +130,7 @@ export function Login() {
             </div>
             
             {status === 'success' && !isSignInMode ? (
-              <div className="bg-[#7CFC00]/10 border border-[#7CFC00]/25 text-[#7CFC00] font-semibold p-5 rounded-2xl shadow-inner backdrop-blur-md">
+              <div className="bg-[#EE6C1F]/10 border border-[#EE6C1F]/25 text-[#EE6C1F] font-semibold p-5 rounded-2xl shadow-inner backdrop-blur-md">
                 ✨ Magic link sent! Check your email inbox.
               </div>
             ) : (
@@ -159,7 +159,7 @@ export function Login() {
 
                 <div className="relative py-1 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
-                  <span className="relative px-3 bg-[#0a0d18] rounded-full border border-white/5 text-[9px] font-semibold uppercase tracking-widest text-gray-500">or</span>
+                  <span className="relative px-3 bg-[#1B1410] rounded-full border border-white/5 text-[9px] font-semibold uppercase tracking-widest text-gray-500">or</span>
                 </div>
 
                 {isSignInMode ? (
@@ -170,7 +170,7 @@ export function Login() {
                       placeholder="Email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#EE6C1F]/30 focus:border-[#EE6C1F]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
                       required
                     />
                     <input 
@@ -178,12 +178,12 @@ export function Login() {
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#EE6C1F]/30 focus:border-[#EE6C1F]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
                       required
                     />
                     
                     <button 
-                      className="w-full bg-[#7CFC00] hover:bg-[#6be400] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full bg-[#EE6C1F] hover:bg-[#d95814] text-white font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#EE6C1F]/10 flex items-center justify-center gap-1.5 cursor-pointer"
                       disabled={status === 'loading'}
                     >
                       {status === 'loading' ? 'Authenticating...' : 'Sign In'}
@@ -197,12 +197,12 @@ export function Login() {
                       placeholder="Email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7CFC00]/30 focus:border-[#7CFC00]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
+                      className="w-full p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#EE6C1F]/30 focus:border-[#EE6C1F]/30 bg-black/40 text-white placeholder-gray-500 shadow-inner transition-all text-sm font-normal text-left"
                       required
                     />
                     
                     <button 
-                      className="w-full bg-[#7CFC00] hover:bg-[#6be400] text-black font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#7CFC00]/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full bg-[#EE6C1F] hover:bg-[#d95814] text-white font-semibold p-4 rounded-2xl transition-all shadow-lg shadow-[#EE6C1F]/10 flex items-center justify-center gap-1.5 cursor-pointer"
                       disabled={status === 'loading'}
                     >
                       {status === 'loading' ? 'Requesting Portal...' : 'Send Magic Link ✨'}
@@ -224,7 +224,7 @@ export function Login() {
                     setStatus('idle')
                     setErrorMessage('')
                   }}
-                  className="text-xs text-[#7CFC00] hover:underline cursor-pointer transition-all mt-2"
+                  className="text-xs text-[#EE6C1F] hover:underline cursor-pointer transition-all mt-2"
                 >
                   {isSignInMode ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
                 </button>
@@ -242,10 +242,10 @@ export function Login() {
               behavior: 'smooth'
             })
           }}
-          className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#7CFC00] transition-colors cursor-pointer z-20"
+          className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#EE6C1F] transition-colors cursor-pointer z-20"
         >
-          <span className="text-[10px] font-black tracking-widest uppercase text-[#7CFC00] drop-shadow-[0_0_8px_rgba(124,252,0,0.2)]">Scroll to Unfold Map</span>
-          <ChevronDown className="w-5 h-5 text-[#7CFC00]" />
+          <span className="text-[10px] font-black tracking-widest uppercase text-[#EE6C1F] drop-shadow-[0_0_8px_rgba(238,108,31,0.2)]">Scroll to Unfold Map</span>
+          <ChevronDown className="w-5 h-5 text-[#EE6C1F]" />
         </button>
       </div>
     </div>

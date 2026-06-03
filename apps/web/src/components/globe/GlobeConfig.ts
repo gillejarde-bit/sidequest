@@ -12,13 +12,13 @@ export const GLOBE_CONFIG = {
   ARC_HEIGHT: 1.5, // Height of the curl-noise curve at progress = 0.5
   STAGGER_AMOUNT: 0.25, // Stagger offset spreading out shard animation
 
-  // Vibrant landmass colors
-  COLOR_LIME: '#7CFC00',      // Lime Green for Africa/South America
-  COLOR_CYAN: '#29ABE2',      // Cyan Blue for Eurasia/North America
-  COLOR_ORANGE: '#FF7A1A',    // Orange for Australia/Antarctica
-  COLOR_OCEAN_DIM: '#23253b', // Ocean desaturated filler color for State A
+  // Vibrant landmass colors mapped to Ember theme palette
+  COLOR_LIME: '#EE6C1F',      // Phoenix Ember Orange
+  COLOR_CYAN: '#F4862E',      // Ember Bright Orange
+  COLOR_ORANGE: '#F0B45C',    // Foil Gold
+  COLOR_OCEAN_DIM: '#29201A', // Hearth Brown
 
   // Space style
-  BG_COSMOS: '#070710',
+  BG_COSMOS: '#1B1410',
   BLOOM_INTENSITY: 1.2
 } as const;

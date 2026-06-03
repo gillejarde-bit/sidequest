@@ -52,7 +52,7 @@ export function SceneContainer({ progressRef }: SceneContainerProps) {
       >
         <ambientLight intensity={0.4} />
         <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-        <directionalLight position={[-10, -10, -10]} intensity={0.6} color="#0EA5E9" />
+        <directionalLight position={[-10, -10, -10]} intensity={0.6} color="#EE6C1F" />
         
         {/* Immersive 3D Parallax Starfield Constellations */}
         <Stars 
