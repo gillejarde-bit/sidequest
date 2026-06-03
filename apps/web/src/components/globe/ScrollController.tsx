@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import Lenis from 'lenis'
+
 // Register GSAP ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger)
 
@@ -10,15 +12,42 @@ interface ScrollControllerProps {
 
 export function ScrollController({ progressRef }: ScrollControllerProps) {
   useEffect(() => {
+    // 1. Initialize Lenis Smooth Scroll
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // standard smooth ease
+      infinite: false
+    })
+
+    // Expose lenis globally for interactive controls (like the scroll arrow)
+    ;(window as any).lenis = lenis
+
+    // Connect Lenis scroll events to GSAP's ScrollTrigger ticker
+    lenis.on('scroll', ScrollTrigger.update)
+    
+    const updateRaf = (time: number) => {
+      lenis.raf(time * 1000)
+    }
+    gsap.ticker.add(updateRaf)
+    gsap.ticker.lagSmoothing(0)
+
+    // 2. Build scroll-driven morphing timeline
     const scrollObj = { progress: 0 }
 
     const tl = gsap.timeline({
       scrollTrigger: {
-        trigger: '#hero-fold-section',
-        scroller: '#foreground-scroll-container',
+        trigger: '#globe-hero-container',
         start: 'top top',
-        end: 'bottom top', // Scrubs over the 100vh height of the first section
+        end: '+=80%', // Pinned scroll distance (80vh)
         scrub: 1.0, // Smooth scrubbing
+        pin: true,
+        anticipatePin: 1,
+        snap: {
+          snapTo: [0, 1], // Snap to either start (hero fold) or end (auth card)
+          duration: { min: 0.25, max: 0.5 },
+          delay: 0.05, // Snaps quickly when scroll stops
+          ease: 'power2.out'
+        }
       }
     })
 
@@ -31,7 +60,7 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
       }
     }, 0)
 
-    // Hero Header fade-out
+    // Hero Header fade-out (0.0 -> 0.35)
     tl.to('#hero-text-container', {
       opacity: 0,
       y: -60,
@@ -39,22 +68,25 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
       ease: 'power1.out'
     }, 0)
 
-    // Scroll instruction fade-out
+    // Scroll instruction fade-out (0.0 -> 0.2)
     tl.to('#scroll-instruction', {
       opacity: 0,
       y: 20,
       ease: 'power1.out'
     }, 0)
 
-    // Onboarding Auth Form card fade-in (cross-fades with hero content)
+    // Onboarding Auth Form card fade-in (0.65 -> 1.0)
     tl.fromTo('#auth-card-wrapper', 
-      { opacity: 0, y: 80, scale: 0.96 },
-      { opacity: 1, y: 0, scale: 1, ease: 'power2.out' },
-      0.3 // Starts fading in at 30% of scroll to create smooth overlap
+      { opacity: 0, y: 80, scale: 0.96, display: 'none' },
+      { opacity: 1, y: 0, scale: 1, display: 'flex', ease: 'power2.out' },
+      0.65
     )
 
     // Clean up
     return () => {
+      ;(window as any).lenis = null
+      lenis.destroy()
+      gsap.ticker.remove(updateRaf)
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill())
     }
   }, [progressRef])
