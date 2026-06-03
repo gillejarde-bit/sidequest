@@ -4,6 +4,7 @@ import { Calendar, MapPin, Flame } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
+import { useSettingsStore } from '../stores/settingsStore'
 import { 
   FeedEvent, 
   BannerRibbon, 
@@ -116,6 +117,24 @@ export function CampfirePage() {
       setAiDigestText(chosen)
     }
   }, [user])
+
+  // Temporarily disable ember theme so campfire page uses standard light/dark modes
+  useEffect(() => {
+    const root = document.documentElement
+    const currentTheme = useSettingsStore.getState().theme
+    
+    if (currentTheme === 'ember') {
+      root.removeAttribute('data-theme')
+    }
+    
+    return () => {
+      const exitTheme = useSettingsStore.getState().theme
+      if (exitTheme === 'ember') {
+        root.setAttribute('data-theme', 'ember')
+      }
+    }
+  }, [])
+
 
   useEffect(() => {
     fetchFeedData()

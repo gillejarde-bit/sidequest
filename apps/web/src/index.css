@@ -96,6 +96,7 @@
 [data-theme="ember"] .dark\:bg-gray-800,
 [data-theme="ember"] .dark\:bg-gray-900,
 [data-theme="ember"] .dark\:bg-\[\#1A1A2E\],
+[data-theme="ember"] .bg-\[\#1A1A2E\],
 [data-theme="ember"] .dark\:bg-\[\#111122\] {
   background-color: var(--hearth-brown) !important;
 }
@@ -106,34 +107,75 @@
   background-color: var(--forge-black) !important;
 }
 
+/* Opacity and card blur backgrounds in Ember theme */
 [data-theme="ember"] .bg-gray-100\/80,
 [data-theme="ember"] .dark\:bg-gray-800\/80,
-[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/80 {
-  background-color: rgba(41, 32, 26, 0.8) !important;
+[data-theme="ember"] .bg-white\/80,
+[data-theme="ember"] .bg-white\/90,
+[data-theme="ember"] .bg-white\/95,
+[data-theme="ember"] .bg-white\/70,
+[data-theme="ember"] .dark\:bg-white\/80,
+[data-theme="ember"] .dark\:bg-white\/90,
+[data-theme="ember"] .dark\:bg-white\/95,
+[data-theme="ember"] .dark\:bg-white\/70,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/80,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/85,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/90,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/95,
+[data-theme="ember"] .bg-\[\#1A1A2E\]\/80,
+[data-theme="ember"] .bg-gray-50\/80,
+[data-theme="ember"] .dark\:bg-gray-900\/80 {
+  background-color: rgba(41, 32, 26, 0.85) !important;
+}
+
+[data-theme="ember"] .bg-gray-50\/50,
+[data-theme="ember"] .dark\:bg-gray-900\/50,
+[data-theme="ember"] .dark\:bg-gray-850\/30,
+[data-theme="ember"] .bg-gray-955\/20,
+[data-theme="ember"] .bg-gray-950\/20,
+[data-theme="ember"] .dark\:bg-gray-955\/20,
+[data-theme="ember"] .dark\:bg-gray-950\/20,
+[data-theme="ember"] .bg-gray-150\/40,
+[data-theme="ember"] .bg-white\/\[0\.03\],
+[data-theme="ember"] .dark\:bg-gray-800\/10,
+[data-theme="ember"] .dark\:bg-gray-800\/20,
+[data-theme="ember"] .bg-gray-50\/20,
+[data-theme="ember"] .dark\:bg-gray-800\/70 {
+  background-color: rgba(41, 32, 26, 0.4) !important;
 }
 
 [data-theme="ember"] .border,
 [data-theme="ember"] .border-gray-100,
+[data-theme="ember"] .border-gray-150,
 [data-theme="ember"] .border-gray-200,
 [data-theme="ember"] .dark\:border-gray-800,
 [data-theme="ember"] .dark\:border-gray-700,
-[data-theme="ember"] .dark\:border-gray-700\/80 {
+[data-theme="ember"] .dark\:border-gray-700\/80,
+[data-theme="ember"] .border-white\/5,
+[data-theme="ember"] .border-white\/10 {
   border-color: var(--seam-brown) !important;
 }
 
 [data-theme="ember"] .text-gray-900,
 [data-theme="ember"] .text-gray-800,
 [data-theme="ember"] .text-gray-700,
+[data-theme="ember"] .text-gray-350,
+[data-theme="ember"] .text-gray-300,
 [data-theme="ember"] .dark\:text-white,
 [data-theme="ember"] .dark\:text-gray-100,
-[data-theme="ember"] .dark\:text-gray-200 {
+[data-theme="ember"] .dark\:text-gray-200,
+[data-theme="ember"] .dark\:text-gray-300 {
   color: var(--parchment) !important;
 }
 
+[data-theme="ember"] .text-gray-650,
+[data-theme="ember"] .text-gray-600,
+[data-theme="ember"] .text-gray-550,
 [data-theme="ember"] .text-gray-500,
 [data-theme="ember"] .text-gray-400,
 [data-theme="ember"] .dark\:text-gray-400,
-[data-theme="ember"] .dark\:text-gray-500 {
+[data-theme="ember"] .dark\:text-gray-500,
+[data-theme="ember"] .dark\:text-gray-600 {
   color: var(--faded-ink) !important;
 }
 
@@ -175,6 +217,8 @@
 [data-theme="ember"] .bg-\[\#0a0d18\],
 [data-theme="ember"] .dark\:bg-gray-850,
 [data-theme="ember"] .dark\:bg-gray-950,
+[data-theme="ember"] .bg-gray-955,
+[data-theme="ember"] .bg-gray-955\/20,
 [data-theme="ember"] .bg-gray-950 {
   background-color: var(--forge-black) !important;
 }
