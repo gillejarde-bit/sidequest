@@ -148,7 +148,7 @@ export function MapPage() {
   const [selectedGem, setSelectedGem] = useState<any | null>(null)
   const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d')
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [showEmptyState, setShowEmptyState] = useState(true)
 
   const hasCenteredOnUserRef = useRef(false)
@@ -205,7 +205,7 @@ export function MapPage() {
     if (userLoc.lat !== null && userLoc.lng !== null) {
       mapRef.current?.flyTo({
         center: [userLoc.lng, userLoc.lat],
-        zoom: 15.5,
+        zoom: 16,
         duration: 1500
       })
     }
@@ -515,7 +515,7 @@ export function MapPage() {
           longitude: -115.1398,
           latitude: 36.1699,
           zoom: 12,
-          pitch: 60, // Added pitch for 3D buildings
+          pitch: 0, // Top-down flat view by default
         }}
         mapStyle={theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
