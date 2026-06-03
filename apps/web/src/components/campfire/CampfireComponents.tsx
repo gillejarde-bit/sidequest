@@ -394,7 +394,7 @@ export function EmptyCampfire({
             No recent quest activity. Start one now!
           </p>
         ) : (
-          <div className="space-y-4 relative pl-4 before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-150 dark:before:bg-gray-700/60">
+          <div className="max-h-[300px] overflow-y-auto pr-1.5 scrollbar-premium space-y-4 relative pl-4 before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-150 dark:before:bg-gray-700/60">
             {historyItems.map((item) => {
               const timeAgo = formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })
               const isCreated = item.type === 'created'

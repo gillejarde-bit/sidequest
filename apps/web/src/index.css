@@ -270,6 +270,26 @@
   background-color: #000000 !important;
 }
 
+/* Custom premium scrollbar for lists */
+.scrollbar-premium {
+  scrollbar-width: thin;
+  scrollbar-color: var(--seam-brown, #4A382B) transparent;
+}
+.scrollbar-premium::-webkit-scrollbar {
+  width: 5px;
+}
+.scrollbar-premium::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-premium::-webkit-scrollbar-thumb {
+  background-color: var(--seam-brown, #4A382B);
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+}
+.scrollbar-premium::-webkit-scrollbar-thumb:hover {
+  background-color: var(--randall-rust, #C2410C);
+}
+
 
 
 
