@@ -205,7 +205,7 @@ export function MapPage() {
     if (userLoc.lat !== null && userLoc.lng !== null) {
       mapRef.current?.flyTo({
         center: [userLoc.lng, userLoc.lat],
-        zoom: 15,
+        zoom: 15.5,
         duration: 1500
       })
     }
