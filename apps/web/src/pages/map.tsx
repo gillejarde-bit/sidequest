@@ -767,8 +767,7 @@ export function MapPage() {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ 
           scale: 1, 
-          opacity: 1,
-          y: sheetMode ? -340 : 0
+          opacity: 1
         }}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
@@ -791,8 +790,7 @@ export function MapPage() {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ 
           scale: 1, 
-          opacity: 1,
-          y: sheetMode ? -340 : 0
+          opacity: 1
         }}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
