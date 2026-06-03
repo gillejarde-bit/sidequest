@@ -342,16 +342,16 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       {/* Icosahedron faceted crystal geometry for round fire embers instead of stacked triangles */}
-      <icosahedronGeometry args={[0.032, 0]} />
+      <icosahedronGeometry args={[0.032, 0]}>
+        <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />
+      </icosahedronGeometry>
       
       {/* Self-luminous basic material for intense fire glow without light shading/reflections */}
       <meshBasicMaterial 
         ref={materialRef}
         vertexColors
         toneMapped={false}
-      >
-        <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />
-      </meshBasicMaterial>
+      />
     </instancedMesh>
   )
 }
