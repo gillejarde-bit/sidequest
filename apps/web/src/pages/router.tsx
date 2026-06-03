@@ -325,8 +325,6 @@ function RootLayout() {
     }
   }, [user?.id])
 
-  const location = useLocation()
-
   useEffect(() => {
     if (theme === 'dark' || theme === 'ember') {
       document.documentElement.classList.add('dark')
@@ -334,15 +332,12 @@ function RootLayout() {
       document.documentElement.classList.remove('dark')
     }
 
-    const currentPath = location.pathname || window.location.pathname
-    const isCampfire = currentPath === '/' || currentPath === '' || currentPath === '/index.html'
-
-    if (theme === 'ember' && !isCampfire) {
+    if (theme === 'ember') {
       document.documentElement.setAttribute('data-theme', 'ember')
     } else {
       document.documentElement.removeAttribute('data-theme')
     }
-  }, [theme, location.pathname])
+  }, [theme])
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">
