@@ -29,7 +29,7 @@ export function Effects({ progressRef }: EffectsProps) {
       <Bloom 
         luminanceThreshold={0.4} 
         luminanceSmoothing={0.9} 
-        intensity={1.2} 
+        intensity={1.75} 
         mipmapBlur 
       />
       {/* Scroll-driven warp aberration */}

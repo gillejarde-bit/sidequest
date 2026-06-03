@@ -94,17 +94,12 @@ function getMathLandMask(x: number, y: number, z: number): { isLand: boolean; co
 }
 
 // Assigns land colors by continent
-function getContinentColor(lngDeg: number, latDeg: number): string {
-  // Eurasia / North America -> Cyan
-  if (lngDeg < -20 || lngDeg > 150) {
-    return latDeg > 0 ? GLOBE_CONFIG.COLOR_CYAN : GLOBE_CONFIG.COLOR_LIME // North America vs South America
-  }
-  if (lngDeg >= -20 && lngDeg <= 150) {
-    if (latDeg <= -60) return GLOBE_CONFIG.COLOR_ORANGE // Antarctica
-    if (latDeg >= -42 && latDeg <= -10 && lngDeg >= 110) return GLOBE_CONFIG.COLOR_ORANGE // Australia
-    return latDeg > 12 ? GLOBE_CONFIG.COLOR_CYAN : GLOBE_CONFIG.COLOR_LIME // Eurasia vs Africa
-  }
-  return GLOBE_CONFIG.COLOR_LIME
+function getContinentColor(_lngDeg?: number, _latDeg?: number): string {
+  const rand = Math.random()
+  if (rand < 0.25) return '#FFF275' // White-hot pale yellow
+  if (rand < 0.60) return '#FFD700' // Golden yellow
+  if (rand < 0.85) return '#FF9F1C' // Bright flame orange
+  return '#FF4500' // Vivid orange-red
 }
 
 interface GlobeFieldProps {
@@ -144,13 +139,14 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
   }, [])
 
   // Precompute positions, targets, colors, and arc parameters
-  const { positionsA, positionsB, colors, arcOffsets, scalesA, scalesB } = useMemo(() => {
+  const { positionsA, positionsB, colors, arcOffsets, scalesA, scalesB, randomScales } = useMemo(() => {
     const posA = new Float32Array(count * 3)
     const posB = new Float32Array(count * 3)
     const colArray = new Float32Array(count * 3)
     const arcOff = new Float32Array(count * 3)
     const scA = new Float32Array(count)
     const scB = new Float32Array(count)
+    const randScales = new Float32Array(count)
 
     const tempColor = new THREE.Color()
 
@@ -208,14 +204,14 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
       if (!isLand) {
         const rand = Math.random()
-        if (rand < 0.80) {
-          color = '#030202' // Deep Matte Black (Ash/Soot)
-        } else if (rand < 0.90) {
-          color = '#EE6C1F' // Phoenix Orange
-        } else if (rand < 0.97) {
-          color = '#F0B45C' // Gold
+        if (rand < 0.65) {
+          color = '#5A0000' // Dark burning crimson (lava background)
+        } else if (rand < 0.85) {
+          color = '#800000' // Crimson red
+        } else if (rand < 0.95) {
+          color = '#D00000' // Bright lava orange-red
         } else {
-          color = '#F4862E' // Ember Bright
+          color = '#E85D04' // Bright lava gold-orange spark
         }
       }
 
@@ -226,6 +222,9 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
       // Starting scales (oceans slightly smaller, lands prominent)
       scA[idx] = isLand ? 1.0 : 0.6
+
+      // Precompute a random scale multiplier per particle for size variety
+      randScales[idx] = 0.5 + Math.random() * 0.7
 
       // 2. Generate Targets B (Dense Detailed Globe)
       const rB = GLOBE_CONFIG.RADIUS_B
@@ -264,7 +263,8 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
       colors: colArray,
       arcOffsets: arcOff,
       scalesA: scA,
-      scalesB: scB
+      scalesB: scB,
+      randomScales: randScales
     }
   }, [count, maskData])
 
@@ -290,12 +290,7 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
     const meshRotationY = elapsed * speedMult
     meshRef.current.rotation.y = meshRotationY
 
-    // Adjust glossiness slightly without transmission so colors stay solid & extremely vibrant
-    if (materialRef.current) {
-      materialRef.current.roughness = 0.95 // Matte, stone-like texture to prevent gray specular wash
-      materialRef.current.metalness = 0.05 // Non-metallic ash/lava rock
-      materialRef.current.clearcoat = 0.0  // No clearcoat shine
-    }
+    // MeshBasicMaterial is unlit, so no roughness/metalness parameters to update
 
     for (let i = 0; i < count; i++) {
       // 1. Calculate staggered local progress per shard
@@ -324,7 +319,8 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
       // 6. Interpolate scale factor (shrinks ocean shards to 0 in State B)
       const currentScale = (1 - localProgress) * scalesA[i] + localProgress * scalesB[i]
-      scaleVec.set(currentScale, currentScale, currentScale * 1.5) // Extrude slightly
+      const finalScale = currentScale * randomScales[i]
+      scaleVec.set(finalScale, finalScale, finalScale)
 
       // 7. Compose transformation matrix
       tempMatrix.identity()
@@ -345,20 +341,17 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      {/* Sleek Crystalline Shard geometry (cone/prism looks highly directional) */}
-      <coneGeometry args={[0.025, 0.085, 4]} />
+      {/* Icosahedron faceted crystal geometry for round fire embers instead of stacked triangles */}
+      <icosahedronGeometry args={[0.032, 0]} />
       
-      {/* Glossy physical material which preserves solid color attributes */}
-      <meshPhysicalMaterial 
+      {/* Self-luminous basic material for intense fire glow without light shading/reflections */}
+      <meshBasicMaterial 
         ref={materialRef}
-        roughness={0.25} 
-        metalness={0.7} 
-        clearcoat={0.2}
-        clearcoatRoughness={0.1}
+        vertexColors
         toneMapped={false}
       >
         <instancedBufferAttribute attach="attributes-color" args={[colors, 3]} />
-      </meshPhysicalMaterial>
+      </meshBasicMaterial>
     </instancedMesh>
   )
 }
