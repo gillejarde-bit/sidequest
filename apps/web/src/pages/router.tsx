@@ -334,7 +334,10 @@ function RootLayout() {
       document.documentElement.classList.remove('dark')
     }
 
-    if (theme === 'ember' && location.pathname !== '/') {
+    const currentPath = location.pathname || window.location.pathname
+    const isCampfire = currentPath === '/' || currentPath === '' || currentPath === '/index.html'
+
+    if (theme === 'ember' && !isCampfire) {
       document.documentElement.setAttribute('data-theme', 'ember')
     } else {
       document.documentElement.removeAttribute('data-theme')
