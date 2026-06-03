@@ -145,6 +145,7 @@ CREATE POLICY "Quests are viewable by everyone" ON public.quests
     );
 
 -- 8. Rebuild the get_my_streaks RPC to include group_code
+DROP FUNCTION IF EXISTS public.get_my_streaks();
 CREATE OR REPLACE FUNCTION public.get_my_streaks()
 RETURNS TABLE (
   group_id uuid,
