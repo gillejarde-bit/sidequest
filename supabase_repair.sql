@@ -5,8 +5,11 @@
 -- This script will:
 -- 1. Create quest_groups & group_members tables if they do not exist
 -- 2. Alter the quests table to support group quests (adds group_id & is_group_quest)
--- 3. Enable RLS and re-create strict privacy SELECT policies on quests and groups
--- 4. FORCE reload the PostgREST schema cache to fix all cache staleness immediately
+-- 3. Add group_type, xp, and level to quest_groups if they don't exist
+-- 4. Enable RLS and re-create SELECT/INSERT policies securely for groups and members
+-- 5. Fix orphaned groups (insert creator into group_members if missing)
+-- 6. Secure quests table select policy (hides quests from non-friends & non-invitees)
+-- 7. FORCE reload the PostgREST schema cache to fix all cache staleness immediately
 -- ==============================================================================
 
 -- 1. Create quest_groups & group_members tables if they do not exist
@@ -37,15 +40,21 @@ CREATE TABLE IF NOT EXISTS public.group_members (
 ALTER TABLE public.quests ADD COLUMN IF NOT EXISTS group_id uuid REFERENCES public.quest_groups(id) ON DELETE SET NULL;
 ALTER TABLE public.quests ADD COLUMN IF NOT EXISTS is_group_quest bool DEFAULT false;
 
--- 3. Enable RLS
+-- 3. Add group_type, xp, and level to quest_groups if they don't exist
+ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS group_type text DEFAULT 'Social';
+ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS xp integer DEFAULT 0;
+ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS level integer DEFAULT 1;
+
+-- 4. Enable RLS
 ALTER TABLE public.quest_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 
--- 4. Re-create SELECT/INSERT policies securely for groups and members
+-- 5. Re-create SELECT/INSERT policies securely for groups and members
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.quest_groups;
 CREATE POLICY "Users can view groups they belong to" ON public.quest_groups
   FOR SELECT USING (
-    id IN (SELECT group_id FROM public.group_members WHERE user_id = auth.uid())
+    public.is_group_member(id, auth.uid())
+    OR created_by = auth.uid()
   );
 
 DROP POLICY IF EXISTS "Anyone can create a group" ON public.quest_groups;
@@ -61,14 +70,21 @@ CREATE POLICY "Group creators can update their groups" ON public.quest_groups
 DROP POLICY IF EXISTS "Users can view members of their groups" ON public.group_members;
 CREATE POLICY "Users can view members of their groups" ON public.group_members
   FOR SELECT USING (
-    group_id IN (SELECT group_id FROM public.group_members WHERE user_id = auth.uid())
+    public.is_group_member(group_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS "Anyone can join a group" ON public.group_members;
 CREATE POLICY "Anyone can join a group" ON public.group_members
   FOR INSERT WITH CHECK (true);
 
--- 5. Secure quests table select policy (hides quests from non-friends & non-invitees)
+-- 6. Fix legacy orphaned groups: insert creator into group_members if not present
+INSERT INTO public.group_members (group_id, user_id, role)
+SELECT id, created_by, 'creator'
+FROM public.quest_groups
+WHERE created_by IS NOT NULL
+ON CONFLICT (group_id, user_id) DO NOTHING;
+
+-- 7. Secure quests table select policy (hides quests from non-friends & non-invitees)
 DROP POLICY IF EXISTS "Quests are viewable by everyone" ON public.quests;
 CREATE POLICY "Quests are viewable by everyone" ON public.quests
     FOR SELECT USING (
@@ -92,5 +108,5 @@ CREATE POLICY "Quests are viewable by everyone" ON public.quests
         )
     );
 
--- 6. FORCE reload PostgREST schema cache to solve cache mismatches instantly
+-- 8. FORCE reload PostgREST schema cache to solve cache mismatches instantly
 NOTIFY pgrst, 'reload schema';
