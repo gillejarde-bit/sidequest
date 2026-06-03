@@ -325,6 +325,8 @@ function RootLayout() {
     }
   }, [user?.id])
 
+  const location = useLocation()
+
   useEffect(() => {
     if (theme === 'dark' || theme === 'ember') {
       document.documentElement.classList.add('dark')
@@ -332,12 +334,12 @@ function RootLayout() {
       document.documentElement.classList.remove('dark')
     }
 
-    if (theme === 'ember') {
+    if (theme === 'ember' && location.pathname !== '/') {
       document.documentElement.setAttribute('data-theme', 'ember')
     } else {
       document.documentElement.removeAttribute('data-theme')
     }
-  }, [theme])
+  }, [theme, location.pathname])
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">
