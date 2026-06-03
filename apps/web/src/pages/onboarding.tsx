@@ -710,7 +710,7 @@ export function Onboarding() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 z-50 flex flex-col justify-between bg-[#0a0d18] text-white select-none animate-fade-in"
+            className="fixed inset-0 z-[150] flex flex-col justify-between bg-[#0a0d18] text-white select-none animate-fade-in"
           >
             {/* Top Bar Header */}
             <div className="w-full flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gray-950/20 backdrop-blur-md">

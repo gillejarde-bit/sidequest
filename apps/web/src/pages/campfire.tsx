@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from '@tanstack/react-router'
-import { Calendar, MapPin, Tent, MoreHorizontal } from 'lucide-react'
-import { AnimatePresence } from 'framer-motion'
+import { Calendar, MapPin, Tent, MoreHorizontal, ChevronLeft, Users } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { useFriends } from '../hooks/useFriends'
@@ -15,6 +16,15 @@ import {
   EmptyCampfire
 } from '../components/campfire/CampfireComponents'
 import { format } from 'date-fns'
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  if (!mounted) return null
+  return createPortal(children, document.body)
+}
 
 function formatOfflineTime(updatedAt: string | null | undefined): string {
   if (!updatedAt) return 'offline'
@@ -49,6 +59,8 @@ export function CampfirePage() {
   const [groups, setGroups] = useState<any[]>([])
   const [groupMembers, setGroupMembers] = useState<Record<string, any[]>>({})
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  const [selectedCampfireGroup, setSelectedCampfireGroup] = useState<any | null>(null)
+  const [selectedCampfireGroupDetails, setSelectedCampfireGroupDetails] = useState<any | null>(null)
 
   // Keep a ticking count to force updates to the offline seconds formatting
   const [timeTick, setTimeTick] = useState(0)
@@ -210,6 +222,28 @@ export function CampfirePage() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedCampfireGroup) {
+      setSelectedCampfireGroupDetails(null)
+      return
+    }
+
+    const fetchDetails = async () => {
+      try {
+        const { data: details } = await supabase
+          .from('quest_groups')
+          .select('group_type, xp, level, description, created_by')
+          .eq('id', selectedCampfireGroup.group_id)
+          .single()
+        
+        setSelectedCampfireGroupDetails(details)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    fetchDetails()
+  }, [selectedCampfireGroup])
+
   // Generate a friendly AI Mascot Digest summary (persisted/cached in localStorage for 24h)
   useEffect(() => {
     if (!user) return
@@ -309,57 +343,133 @@ export function CampfirePage() {
               </div>
             ) : (
               <div className="space-y-5">
-                {/* Mobile Friends Around the Fire Circle */}
-                {friendsList.length > 0 && (
+                {/* Mobile Friends/Groups Around the Fire Circle */}
+                {(friendsList.length > 0 || groups.length > 0) && (
                   <div className="lg:hidden w-full bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-4 shadow-md overflow-hidden text-left mb-2">
-                    <h4 className="text-[10px] font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-2.5">
-                      <Tent className="w-3.5 h-3.5" />
-                      Around the Fire
-                    </h4>
-                    <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
-                      {/* Current user avatar first */}
-                      <div className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
-                        <div className="relative">
-                          {profile?.avatar_url ? (
-                            <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover border-2 border-[#58CC02]" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border-2 border-[#58CC02]">
-                              {profile?.username?.[0]?.toUpperCase() || 'U'}
-                            </div>
-                          )}
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#58CC02] rounded-full border border-white dark:border-gray-800" />
-                        </div>
-                        <span className="text-[9px] font-bold text-gray-500 truncate w-full text-center">You</span>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-[10px] font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5">
+                        <Tent className="w-3.5 h-3.5" />
+                        Around the Fire
+                      </h4>
+                      
+                      {/* Mobile Groups/Friends Toggle */}
+                      <div className="flex gap-1.5 bg-gray-50 dark:bg-gray-900/50 p-0.5 rounded-lg text-[9px] font-black uppercase">
+                        <button
+                          type="button"
+                          onClick={() => setSidebarTab('groups')}
+                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-bold ${
+                            sidebarTab === 'groups' 
+                              ? 'bg-primary text-white shadow-sm' 
+                              : 'text-gray-450 dark:text-gray-400'
+                          }`}
+                        >
+                          Groups
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSidebarTab('friends')}
+                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-bold ${
+                            sidebarTab === 'friends' 
+                              ? 'bg-primary text-white shadow-sm' 
+                              : 'text-gray-450 dark:text-gray-400'
+                          }`}
+                        >
+                          Friends
+                        </button>
                       </div>
-
-                      {/* Active friends */}
-                      {friendsList.map((friend) => {
-                        const isOnline = friendsMap.has(friend.id)
-                        
-                        return (
-                          <div key={friend.id} className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
+                    </div>
+                    
+                    <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
+                      {sidebarTab === 'groups' ? (
+                        groups.length === 0 ? (
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold py-2 w-full text-center">No groups joined yet.</p>
+                        ) : (
+                          groups.map((group) => {
+                            const isOnline = (groupMembers[group.group_id] || []).some(m => friendsMap.has(m.id))
+                            
+                            return (
+                              <div 
+                                key={group.group_id} 
+                                onClick={() => setSelectedCampfireGroup(group)}
+                                className="flex flex-col items-center gap-1 shrink-0 snap-start w-14 cursor-pointer"
+                              >
+                                <div className="relative">
+                                  {group.group_avatar ? (
+                                    <img 
+                                      src={group.group_avatar} 
+                                      className={`w-10 h-10 rounded-xl object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
+                                    />
+                                  ) : (
+                                    <div 
+                                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border-2 text-white`}
+                                      style={{ backgroundColor: group.group_color || '#6C63FF' }}
+                                    >
+                                      {group.group_name[0].toUpperCase()}
+                                    </div>
+                                  )}
+                                  {group.current_streak > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full text-[8px] font-black w-4 h-4 flex items-center justify-center shadow">
+                                      {group.current_streak}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none mt-0.5">
+                                  {group.group_name}
+                                </span>
+                                <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
+                                  {group.member_count} mems
+                                </span>
+                              </div>
+                            )
+                          })
+                        )
+                      ) : (
+                        <>
+                          {/* Current user avatar first */}
+                          <div className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
                             <div className="relative">
-                              {friend.avatar_url ? (
-                                <img 
-                                  src={friend.avatar_url} 
-                                  className={`w-10 h-10 rounded-full object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
-                                />
+                              {profile?.avatar_url ? (
+                                <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover border-2 border-[#58CC02]" />
                               ) : (
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 bg-primary/5 ${isOnline ? 'border-[#58CC02] text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
-                                  {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
+                                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border-2 border-[#58CC02]">
+                                  {profile?.username?.[0]?.toUpperCase() || 'U'}
                                 </div>
                               )}
-                              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-800 ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#58CC02] rounded-full border border-white dark:border-gray-800" />
                             </div>
-                            <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none">
-                              {friend.display_name || friend.username}
-                            </span>
-                            <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
-                              {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at).replace(' offline', '')}
-                            </span>
+                            <span className="text-[9px] font-bold text-gray-500 truncate w-full text-center">You</span>
                           </div>
-                        )
-                      })}
+
+                          {/* Active friends */}
+                          {friendsList.map((friend) => {
+                            const isOnline = friendsMap.has(friend.id)
+                            
+                            return (
+                              <div key={friend.id} className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
+                                <div className="relative">
+                                  {friend.avatar_url ? (
+                                    <img 
+                                      src={friend.avatar_url} 
+                                      className={`w-10 h-10 rounded-full object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
+                                    />
+                                  ) : (
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 bg-primary/5 ${isOnline ? 'border-[#58CC02] text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
+                                      {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
+                                    </div>
+                                  )}
+                                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-800 ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                </div>
+                                <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none">
+                                  {friend.display_name || friend.username}
+                                </span>
+                                <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
+                                  {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at).replace(' offline', '')}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -494,11 +604,11 @@ export function CampfirePage() {
                       
                       return (
                         <div key={group.group_id} className="border-b border-gray-105 dark:border-gray-700/50 pb-2 last:border-0 last:pb-0">
-                          <button
-                            onClick={() => setExpandedGroups(prev => ({ ...prev, [group.group_id]: !prev[group.group_id] }))}
-                            className="w-full flex items-center justify-between text-left focus:outline-none py-1 group/btn cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
+                          <div className="w-full flex items-center justify-between py-1">
+                            <button
+                              onClick={() => setSelectedCampfireGroup(group)}
+                              className="flex items-center gap-2 text-left hover:text-primary transition-colors focus:outline-none group/btn cursor-pointer min-w-0 flex-1"
+                            >
                               <div 
                                 className="w-5 h-5 rounded-md flex items-center justify-center text-white font-extrabold text-[10px] shrink-0"
                                 style={{ backgroundColor: group.group_color || '#6C63FF' }}
@@ -508,11 +618,14 @@ export function CampfirePage() {
                               <span className="font-extrabold text-xs text-gray-900 dark:text-white group-hover/btn:text-primary transition-colors line-clamp-1">
                                 {group.group_name}
                               </span>
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-450 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded border">
+                            </button>
+                            <button
+                              onClick={() => setExpandedGroups(prev => ({ ...prev, [group.group_id]: !prev[group.group_id] }))}
+                              className="text-[10px] font-bold text-gray-450 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded border cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-850"
+                            >
                               {isExpanded ? 'Hide' : 'Show'}
-                            </span>
-                          </button>
+                            </button>
+                          </div>
 
                           {isExpanded && (
                             <div className="mt-2 pl-3 space-y-2 border-l border-gray-150 dark:border-gray-750">
@@ -602,6 +715,139 @@ export function CampfirePage() {
       </div>
       {/* Read timeTick to satisfy TypeScript noUnusedLocals and force re-render ticks */}
       <span className="hidden">{timeTick}</span>
+
+      {/* Group Profile detailed view (Full-Screen Overlay z-[100]) */}
+      <Portal>
+        <AnimatePresence>
+          {selectedCampfireGroup && (
+            <motion.div
+              initial={{ opacity: 0, y: '10%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '10%' }}
+              className="fixed inset-0 z-[100] bg-gray-50 dark:bg-gray-900 overflow-y-auto pb-10 flex flex-col text-gray-900 dark:text-white"
+            >
+              {/* Header banner */}
+              <div 
+                className="relative pt-12 pb-6 px-6 shadow-sm shrink-0"
+                style={{ background: `linear-gradient(to bottom, ${selectedCampfireGroup.group_color || '#6C63FF'}55, transparent)` }}
+              >
+                <button 
+                  onClick={() => setSelectedCampfireGroup(null)}
+                  className="absolute top-4 left-4 p-2.5 rounded-full bg-white/60 hover:bg-white/90 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm text-gray-800 dark:text-white transition-colors active:scale-95 cursor-pointer"
+                >
+                  <ChevronLeft size={22} strokeWidth={2.5} />
+                </button>
+                
+                <div className="flex flex-col items-center text-center mt-6">
+                  {selectedCampfireGroup.group_avatar ? (
+                    <img src={selectedCampfireGroup.group_avatar} className="w-20 h-20 rounded-2xl object-cover shadow-lg border-2 border-white dark:border-gray-800" />
+                  ) : (
+                    <div 
+                      className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-black text-4xl shadow-lg"
+                      style={{ backgroundColor: selectedCampfireGroup.group_color || '#6C63FF' }}
+                    >
+                      {selectedCampfireGroup.group_name[0].toUpperCase()}
+                    </div>
+                  )}
+                  
+                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">{selectedCampfireGroup.group_name}</h1>
+                  
+                  {/* Type Badge */}
+                  {selectedCampfireGroupDetails?.group_type && (
+                    <span className="mt-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black tracking-wider uppercase rounded-full">
+                      {selectedCampfireGroupDetails.group_type} Group
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Content card body */}
+              <div className="flex-1 max-w-md mx-auto w-full px-4 space-y-5">
+                
+                {/* Group Description */}
+                {selectedCampfireGroupDetails?.description && (
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 text-left">
+                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5">About the Group</h4>
+                    <p className="text-sm font-semibold text-gray-750 dark:text-gray-300 leading-relaxed">{selectedCampfireGroupDetails.description}</p>
+                  </div>
+                )}
+
+                {/* Group Experience / Level Progression */}
+                {selectedCampfireGroupDetails && (
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 text-left">
+                    <div className="flex justify-between items-end mb-3">
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Group Progression</h4>
+                        <p className="text-xs text-gray-500 font-bold mt-1">Level {selectedCampfireGroupDetails.level || 1}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-black text-primary">
+                          {(selectedCampfireGroupDetails.xp || 0) % 100} / 100 XP
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2.5 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${(selectedCampfireGroupDetails.xp || 0) % 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-bold text-gray-400 mt-2 block text-center">Gains XP from Quest completions together! ⚔️</span>
+                  </div>
+                )}
+
+                {/* Group Members List */}
+                <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 space-y-3 text-left">
+                  <div className="pb-2 border-b border-gray-100 dark:border-gray-700/50">
+                    <h3 className="font-extrabold text-sm text-gray-800 dark:text-white flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-primary" /> Members ({(groupMembers[selectedCampfireGroup.group_id] || []).length})
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(groupMembers[selectedCampfireGroup.group_id] || []).map((member) => {
+                      const isOnline = friendsMap.has(member.id) || member.id === user?.id
+                      
+                      return (
+                        <div key={member.id} className="flex items-center justify-between gap-2 border-b border-gray-50 dark:border-gray-700/30 pb-2 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {member.avatar_url ? (
+                              <img src={member.avatar_url} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
+                                {member.display_name?.[0]?.toUpperCase() || member.username[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-extrabold text-gray-900 dark:text-white truncate leading-tight">
+                                {member.display_name || member.username}
+                              </p>
+                              <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold truncate">@{member.username}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[9px] font-black uppercase text-gray-400 px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 border">
+                              {member.role}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                              <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                                {isOnline ? 'Online' : formatOfflineTime(member.last_seen_at).replace(' offline', '')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Portal>
     </div>
   )
 }

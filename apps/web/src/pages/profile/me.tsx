@@ -13,7 +13,7 @@ import { AvatarBorder } from '../../components/profile/borders';
 import { ExperienceBreakdown } from '../../components/profile/ExperienceBreakdown';
 import { ProfileDevPanel } from '../../components/profile/ProfileDevPanel';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon } from 'lucide-react';
+import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon, ChevronRight } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
 import { getAvatarUrl } from '../../lib/avatar';
@@ -106,6 +106,19 @@ export function MeProfile() {
   const [editColor, setEditColor] = useState('');
 
 
+
+  const { data: userGroups = [] } = useQuery<any[]>({
+    queryKey: ['user-groups-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await (supabase
+        .from('quest_groups')
+        .select('id, name, description, group_color, avatar_url, streak, member_count, level, xp, group_type') as any);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+    enabled: !!user?.id
+  });
 
   const { data: allTitles = [] } = useQuery({
     queryKey: ['titles'],
@@ -341,6 +354,60 @@ export function MeProfile() {
           <StatBox icon={Flame} label="Curr Streak" value={xpStats.current_streak} color="#EF4444" />
           <StatBox icon={Trophy} label="Best Streak" value={xpStats.longest_streak} color="#F97316" />
         </div>
+        {/* FEATURED GROUP SECTION */}
+        {userGroups.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-bold px-2">Featured Group</h2>
+            <div className="px-2">
+              <Link 
+                to="/friends"
+                className="block bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {userGroups[0].avatar_url ? (
+                      <img src={userGroups[0].avatar_url} className="w-12 h-12 rounded-2xl object-cover shrink-0 animate-fade-in" alt="Group Icon" />
+                    ) : (
+                      <div 
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shrink-0"
+                        style={{ backgroundColor: userGroups[0].group_color || '#6C63FF' }}
+                      >
+                        {userGroups[0].name[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 text-left">
+                      <h3 className="font-extrabold text-sm text-gray-900 dark:text-white truncate leading-tight">
+                        {userGroups[0].name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black tracking-wider uppercase rounded-full">
+                          {userGroups[0].group_type || 'Social'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+                          <Users className="w-3 h-3 text-primary" />
+                          {userGroups[0].member_count} members
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold">
+                          Lvl {userGroups[0].level || 1}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {userGroups[0].streak > 0 && (
+                      <div className="flex items-center gap-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-500 font-bold px-2 py-1 rounded-xl text-xs">
+                        <Flame className="w-3.5 h-3.5 animate-pulse" fill="currentColor" />
+                        <span>{userGroups[0].streak}</span>
+                      </div>
+                    )}
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* TITLES SECTION */}
         <div className="space-y-3">
