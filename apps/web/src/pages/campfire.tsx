@@ -53,6 +53,8 @@ export function CampfirePage() {
   const [nextQuest, setNextQuest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [aiDigestText, setAiDigestText] = useState<string>('')
+  const [historyItems, setHistoryItems] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   // Presence and groups sidebar / mobile strip states
   const [sidebarTab, setSidebarTab] = useState<'groups' | 'friends'>('groups')
@@ -221,6 +223,106 @@ export function CampfirePage() {
       setLoading(false)
     }
   }
+
+  const fetchQuestHistory = async () => {
+    if (!user) return
+    setLoadingHistory(true)
+    try {
+      const friendIds = friendsList.map(f => f.id)
+      const allUserIds = [user.id, ...friendIds]
+
+      // 1. Fetch recent quests created by user or friends
+      const { data: createdQuests, error: createdErr } = await supabase
+        .from('quests')
+        .select(`
+          id,
+          name,
+          created_at,
+          creator_id,
+          profiles:creator_id (
+            id,
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .in('creator_id', allUserIds)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (createdErr) throw createdErr
+
+      // 2. Fetch recent quest completions (attendance) by user or friends
+      const { data: completedQuests, error: completedErr } = await supabase
+        .from('quest_attendance')
+        .select(`
+          arrived_at,
+          quest_id,
+          user_id,
+          quests:quest_id (
+            name
+          ),
+          profiles:user_id (
+            id,
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .in('user_id', allUserIds)
+        .order('arrived_at', { ascending: false })
+        .limit(10)
+
+      if (completedErr) throw completedErr
+
+      // 3. Map to unified HistoryItem and sort chronologically
+      const items: any[] = []
+
+      if (createdQuests) {
+        createdQuests.forEach((q: any) => {
+          if (q.profiles) {
+            items.push({
+              id: `create-${q.id}`,
+              type: 'created',
+              questId: q.id,
+              questName: q.name,
+              timestamp: q.created_at,
+              user: q.profiles
+            })
+          }
+        })
+      }
+
+      if (completedQuests) {
+        completedQuests.forEach((c: any) => {
+          if (c.profiles && c.quests) {
+            items.push({
+              id: `complete-${c.quest_id}-${c.user_id}-${c.arrived_at}`,
+              type: 'completed',
+              questId: c.quest_id,
+              questName: c.quests.name,
+              timestamp: c.arrived_at,
+              user: c.profiles
+            })
+          }
+        })
+      }
+
+      // Sort DESC by timestamp
+      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      setHistoryItems(items)
+    } catch (err) {
+      console.error('Error fetching quest history:', err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user && !loading) {
+      fetchQuestHistory()
+    }
+  }, [user, friendsList, loading])
 
   useEffect(() => {
     if (!selectedCampfireGroup) {
@@ -484,7 +586,11 @@ export function CampfirePage() {
                       <FeedCard key={event.id} event={event} />
                     ))
                   ) : (
-                    <EmptyCampfire onActionClick={fetchFeedData} />
+                    <EmptyCampfire 
+                      onActionClick={fetchFeedData} 
+                      historyItems={historyItems}
+                      loadingHistory={loadingHistory}
+                    />
                   )}
                 </AnimatePresence>
               </div>

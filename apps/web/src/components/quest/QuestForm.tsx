@@ -321,7 +321,7 @@ export function QuestForm() {
                 onClick={() => setCategory(cat)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
                   category === cat 
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md' 
+                    ? 'bg-primary text-white shadow-md' 
                     : 'bg-white/60 dark:bg-gray-900/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
                 }`}
               >
@@ -365,7 +365,7 @@ export function QuestForm() {
                   type="button"
                   onClick={() => setCostTier(tier.value)}
                   className={`flex-1 py-2 text-sm font-bold rounded-xl transition-colors ${
-                    costTier === tier.value ? 'bg-white dark:bg-gray-800 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    costTier === tier.value ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {tier.label}
@@ -398,7 +398,7 @@ export function QuestForm() {
                   type="button"
                   onClick={() => setPrivacy(opt.value)}
                   className={`flex-1 flex flex-col items-center gap-1 py-3 text-sm font-medium rounded-xl transition-all ${
-                    privacy === opt.value ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    privacy === opt.value ? 'bg-white dark:bg-gray-800 text-secondary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -430,7 +430,7 @@ export function QuestForm() {
                     onClick={() => toggleGroup(group.group_id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
                       isSelected 
-                        ? 'border-indigo-500 bg-indigo-55 dark:bg-indigo-500/20' 
+                        ? 'border-secondary bg-secondary/10 dark:bg-secondary/20' 
                         : 'border-transparent bg-white/60 dark:bg-gray-900/60 hover:bg-white dark:hover:bg-gray-800'
                     }`}
                   >
@@ -440,7 +440,7 @@ export function QuestForm() {
                     >
                       {group.group_name[0].toUpperCase()}
                     </div>
-                    <span className={`text-sm font-medium ${isSelected ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-secondary' : 'text-gray-700 dark:text-gray-300'}`}>
                       {group.group_name}
                     </span>
                   </button>
@@ -471,18 +471,18 @@ export function QuestForm() {
                     onClick={() => toggleFriend(friend.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${
                       isSelected 
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/20' 
+                        ? 'border-primary bg-primary/10 dark:bg-primary/20' 
                         : 'border-transparent bg-white/60 dark:bg-gray-900/60 hover:bg-white dark:hover:bg-gray-800'
                     }`}
                   >
                     {friend.avatar_url ? (
                       <img src={friend.avatar_url} alt={friend.username} className="w-6 h-6 rounded-full object-cover" />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400">
+                      <div className="w-6 h-6 rounded-full bg-gray-250 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-400">
                         {(friend.display_name?.[0] || friend.username[0]).toUpperCase()}
                       </div>
                     )}
-                    <span className={`text-sm font-medium ${isSelected ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
                       {friend.display_name || friend.username}
                     </span>
                   </button>
@@ -514,7 +514,7 @@ export function QuestForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 font-bold text-lg py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+        className="w-full bg-primary hover:brightness-105 text-white font-bold text-lg py-5 rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
       >
         {loading ? (
           <div className="w-6 h-6 border-2 border-white/30 dark:border-gray-900/30 border-t-white dark:border-t-gray-900 rounded-full animate-spin" />

@@ -23,6 +23,14 @@ type Tab = 'friends' | 'groups' | 'requests' | 'find'
 export function FriendsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('friends')
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab') as Tab
+    if (tabParam && ['friends', 'groups', 'requests', 'find'].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [])
+
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-24">
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 pt-safe transition-colors duration-300">
@@ -234,6 +242,8 @@ function GroupsTab() {
   const [crewAvatarUrl, setCrewAvatarUrl] = useState('')
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
+  const [inviteSearchQuery, setInviteSearchQuery] = useState('')
+  const [inviteOverlaySearchQuery, setInviteOverlaySearchQuery] = useState('')
 
   // Cropper states
   const [cropImage, setCropImage] = useState<string | null>(null)
@@ -461,11 +471,13 @@ function GroupsTab() {
 
     try {
       setCreating(true)
+      const groupId = crypto.randomUUID()
       
       // 1. Insert the quest group
-      const { data: newGroup, error: groupErr } = await supabase
+      const { error: groupErr } = await supabase
         .from('quest_groups')
         .insert({
+          id: groupId,
           name: groupName.trim(),
           description: groupDesc.trim() || null,
           group_color: groupColor,
@@ -478,8 +490,6 @@ function GroupsTab() {
           longest_streak: 0,
           member_count: 1 + selectedFriends.length
         } as any)
-        .select()
-        .single()
 
       if (groupErr) throw groupErr
 
@@ -487,7 +497,7 @@ function GroupsTab() {
       const { error: memberErr } = await supabase
         .from('group_members')
         .insert({
-          group_id: newGroup.id,
+          group_id: groupId,
           user_id: user?.id || '',
           role: 'creator'
         })
@@ -497,7 +507,7 @@ function GroupsTab() {
       // 3. Insert other selected friends
       if (selectedFriends.length > 0) {
         const inserts = selectedFriends.map(friendId => ({
-          group_id: newGroup.id,
+          group_id: groupId,
           user_id: friendId,
           role: 'member'
         }))
@@ -511,6 +521,7 @@ function GroupsTab() {
       setGroupDesc('')
       setCrewAvatarUrl('')
       setSelectedFriends([])
+      setInviteSearchQuery('')
       setIsCreateModalOpen(false)
       fetchGroups()
     } catch (err: any) {
@@ -785,24 +796,83 @@ function GroupsTab() {
                     {friendsList.length === 0 ? (
                       <p className="text-xs text-gray-400 italic">No friends available to invite yet.</p>
                     ) : (
-                      <div className="max-h-[120px] overflow-y-auto border border-gray-100 dark:border-gray-800 rounded-2xl p-3 space-y-2 bg-gray-50 dark:bg-gray-900">
-                        {friendsList.map((friend) => (
-                          <label key={friend.id} className="flex items-center gap-2 text-xs font-bold cursor-pointer text-gray-700 dark:text-gray-300">
-                            <input 
-                              type="checkbox"
-                              checked={selectedFriends.includes(friend.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedFriends(prev => [...prev, friend.id])
-                                } else {
-                                  setSelectedFriends(prev => prev.filter(id => id !== friend.id))
-                                }
-                              }}
-                              className="rounded border-gray-300 text-primary focus:ring-primary w-4 h-4"
-                            />
-                            <span>{friend.display_name || friend.username} (@{friend.username})</span>
-                          </label>
-                        ))}
+                      <div className="space-y-3">
+                        {/* Search friends input */}
+                        <div className="relative">
+                          <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+                          <input 
+                            type="text"
+                            placeholder="Search friends by username..."
+                            value={inviteSearchQuery}
+                            onChange={(e) => setInviteSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-xs"
+                          />
+                        </div>
+
+                        {/* Avatars Grid Selector */}
+                        <div className="max-h-[160px] overflow-y-auto border border-gray-100 dark:border-gray-800 rounded-2xl p-3 bg-gray-55 dark:bg-gray-900">
+                          {friendsList.filter(f => {
+                            const query = inviteSearchQuery.toLowerCase()
+                            return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
+                          }).length === 0 ? (
+                            <p className="text-xs text-gray-400 italic text-center py-4">No friends found matching "{inviteSearchQuery}"</p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-2">
+                              {friendsList.filter(f => {
+                                const query = inviteSearchQuery.toLowerCase()
+                                return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
+                              }).map((friend) => {
+                                const isSelected = selectedFriends.includes(friend.id)
+                                return (
+                                  <button
+                                    key={friend.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setSelectedFriends(prev => prev.filter(id => id !== friend.id))
+                                      } else {
+                                        setSelectedFriends(prev => [...prev, friend.id])
+                                      }
+                                    }}
+                                    className="flex flex-col items-center gap-1.5 p-1 rounded-xl relative transition-all active:scale-95 cursor-pointer group"
+                                  >
+                                    <div className="relative">
+                                      {friend.avatar_url ? (
+                                        <img 
+                                          src={friend.avatar_url} 
+                                          alt={friend.username} 
+                                          className={`w-11 h-11 rounded-full object-cover border-2 transition-all ${
+                                            isSelected 
+                                              ? 'ring-4 ring-primary border-transparent scale-105 shadow-md' 
+                                              : 'border-gray-250 dark:border-gray-700/80 opacity-80'
+                                          }`} 
+                                        />
+                                      ) : (
+                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${
+                                          isSelected 
+                                            ? 'ring-4 ring-primary border-transparent scale-105 shadow-md bg-primary/20 text-primary' 
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-250 opacity-80'
+                                        }`}>
+                                          {(friend.display_name?.[0] || friend.username[0]).toUpperCase()}
+                                        </div>
+                                      )}
+                                      
+                                      {/* Highlight Selected Badge */}
+                                      {isSelected && (
+                                        <span className="absolute -top-1 -right-1 bg-primary text-white rounded-full flex items-center justify-center w-4 h-4 shadow-sm border border-white dark:border-gray-800">
+                                          <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-700 dark:text-gray-300 text-center truncate w-12 leading-tight">
+                                      {friend.display_name || friend.username}
+                                    </span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1074,7 +1144,10 @@ function GroupsTab() {
             <>
               <div 
                 className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm pointer-events-auto"
-                onClick={() => setShowInviteOverlay(false)}
+                onClick={() => {
+                  setShowInviteOverlay(false)
+                  setInviteOverlaySearchQuery('')
+                }}
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -1084,18 +1157,50 @@ function GroupsTab() {
               >
                 <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700/50">
                   <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Invite Friends to Group</h3>
-                  <button onClick={() => setShowInviteOverlay(false)} className="text-xs text-gray-400 font-bold">Close</button>
+                  <button 
+                    onClick={() => {
+                      setShowInviteOverlay(false)
+                      setInviteOverlaySearchQuery('')
+                    }} 
+                    className="text-xs text-gray-400 font-bold"
+                  >
+                    Close
+                  </button>
                 </div>
+
+                {nonGroupFriends.length > 0 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                    <input 
+                      type="text"
+                      placeholder="Search friends by username..."
+                      value={inviteOverlaySearchQuery}
+                      onChange={(e) => setInviteOverlaySearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-xs"
+                    />
+                  </div>
+                )}
 
                 <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
                   {nonGroupFriends.length === 0 ? (
                     <p className="text-xs text-gray-400 italic text-center py-6">All your friends are already in this group!</p>
+                  ) : nonGroupFriends.filter(f => {
+                    const query = inviteOverlaySearchQuery.toLowerCase()
+                    return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
+                  }).length === 0 ? (
+                    <p className="text-xs text-gray-400 italic text-center py-6">No friends found matching "{inviteOverlaySearchQuery}"</p>
                   ) : (
-                    nonGroupFriends.map((friend) => (
+                    nonGroupFriends.filter(f => {
+                      const query = inviteOverlaySearchQuery.toLowerCase()
+                      return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
+                    }).map((friend) => (
                       <div 
                         key={friend.id}
-                        className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer"
-                        onClick={() => handleInviteFriendToGroup(friend.id)}
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors"
+                        onClick={() => {
+                          handleInviteFriendToGroup(friend.id)
+                          setInviteOverlaySearchQuery('')
+                        }}
                       >
                         <div className="flex items-center gap-2">
                           {friend.avatar_url ? (

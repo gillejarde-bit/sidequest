@@ -4,7 +4,7 @@ import { QuestForm } from '../../components/quest/QuestForm'
 
 export function CreateQuestPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-24">
+    <div data-theme="ember" className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-24">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">

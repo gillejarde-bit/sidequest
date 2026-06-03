@@ -330,8 +330,16 @@ export function AICampfireDigest({ text }: { text: string }) {
   )
 }
 
-// 5. EmptyCampfire: Cold-start helper with Mascot sleeping next to a dead campfire + friendly CTAs
-export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) {
+// 5. EmptyCampfire: Cold-start helper with Mascot sleeping next to a dead campfire + friendly CTAs + Quest History timeline
+export function EmptyCampfire({ 
+  onActionClick,
+  historyItems = [],
+  loadingHistory = false
+}: { 
+  onActionClick: () => void;
+  historyItems?: any[];
+  loadingHistory?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl shadow-xl space-y-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
@@ -362,12 +370,81 @@ export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) 
         </Link>
         
         <Link
-          to="/streaks"
+          to="/friends"
+          search={{ tab: 'groups' } as any}
           className="flex items-center gap-1.5 px-4 py-2 bg-secondary hover:bg-secondary/80 text-white text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-transparent"
         >
           <Users className="w-4 h-4" />
           Assemble Group
         </Link>
+      </div>
+
+      {/* Recent Activity Timeline */}
+      <div className="w-full pt-6 border-t border-gray-150 dark:border-gray-750 relative z-10 text-left">
+        <h4 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display mb-4">
+          Recent Quest Activity 📜
+        </h4>
+        
+        {loadingHistory ? (
+          <div className="py-4 flex justify-center">
+            <div className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+          </div>
+        ) : historyItems.length === 0 ? (
+          <p className="text-xs text-gray-550 dark:text-gray-400 italic text-center py-2">
+            No recent quest activity. Start one now!
+          </p>
+        ) : (
+          <div className="space-y-4 relative pl-4 before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-150 dark:before:bg-gray-700/60">
+            {historyItems.map((item) => {
+              const timeAgo = formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })
+              const isCreated = item.type === 'created'
+              
+              return (
+                <div key={item.id} className="flex gap-3 items-start relative">
+                  {/* Avatar / Timeline node */}
+                  <Link 
+                    to="/profile/$id" 
+                    params={{ id: item.user.id }}
+                    className="relative z-10 shrink-0 w-7 h-7 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-750 flex items-center justify-center shadow-sm"
+                  >
+                    {item.user.avatar_url ? (
+                      <img src={item.user.avatar_url} alt={item.user.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[9px] font-bold text-gray-500">
+                        {item.user.username[0].toUpperCase()}
+                      </span>
+                    )}
+                  </Link>
+                  
+                  {/* Text details */}
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 leading-snug">
+                      <Link to="/profile/$id" params={{ id: item.user.id }} className="font-black text-gray-950 dark:text-white hover:text-primary transition-colors mr-1">
+                        @{item.user.username}
+                      </Link>
+                      {isCreated ? 'created quest ' : 'completed quest '}
+                      <Link to="/quest/$id" params={{ id: item.questId }} className="font-bold underline text-primary hover:opacity-85 transition-opacity">
+                        {item.questName}
+                      </Link>
+                    </p>
+                    <span className="text-[9px] font-bold text-gray-450 dark:text-gray-400 mt-1 block">
+                      {timeAgo}
+                    </span>
+                  </div>
+                  
+                  {/* Badge Icon */}
+                  <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black border shadow-sm ${
+                    isCreated 
+                      ? 'bg-primary/10 text-primary border-primary/20' 
+                      : 'bg-[#239B8E]/10 text-[#239B8E] border-[#239B8E]/20'
+                  }`}>
+                    {isCreated ? '+' : '✓'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
