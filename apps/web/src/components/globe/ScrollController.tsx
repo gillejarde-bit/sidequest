@@ -38,7 +38,13 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
         end: '+=180%', // Pinned scroll distance (180vh)
         scrub: 1.0, // Smooth scrubbing
         pin: true,
-        anticipatePin: 1
+        anticipatePin: 1,
+        snap: {
+          snapTo: [0, 1], // Snap to either start (hero fold) or end (auth card)
+          duration: { min: 0.25, max: 0.6 },
+          delay: 0.08,
+          ease: 'power2.out'
+        }
       }
     })
 
