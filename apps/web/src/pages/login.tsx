@@ -79,7 +79,7 @@ export function Login() {
   }
 
   return (
-    <div className="login-page-wrapper relative min-h-[250vh] bg-[#000000] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
+    <div className="login-page-wrapper relative min-h-screen bg-[#000000] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
       
       {/* 3D Morphing Globe Scroll Timeline Controller */}
       <ScrollController progressRef={progressRef} />
@@ -239,10 +239,18 @@ export function Login() {
         <button
           id="scroll-instruction"
           onClick={() => {
-            window.scrollTo({
-              top: window.innerHeight * 1.5,
-              behavior: 'smooth'
-            })
+            const lenis = (window as any).lenis
+            if (lenis) {
+              lenis.scrollTo(lenis.limit, {
+                duration: 1.2,
+                easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
+              })
+            } else {
+              window.scrollTo({
+                top: window.innerHeight,
+                behavior: 'smooth'
+              })
+            }
           }}
           className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#EE6C1F] transition-colors cursor-pointer z-20"
         >

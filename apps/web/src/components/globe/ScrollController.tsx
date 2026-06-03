@@ -15,12 +15,50 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
     // 1. Initialize Lenis Smooth Scroll
     const lenis = new Lenis({
       duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // standard smooth ease
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // standard smooth ease
       infinite: false
     })
 
-    // Connect Lenis scroll events to GSAP's ScrollTrigger ticker
-    lenis.on('scroll', ScrollTrigger.update)
+    // Expose lenis globally for interactive controls (like the scroll arrow)
+    ;(window as any).lenis = lenis
+
+    let isSnapping = false
+
+    // Connect Lenis scroll events to GSAP's ScrollTrigger ticker and handle instant snapping
+    lenis.on('scroll', (e: any) => {
+      ScrollTrigger.update()
+
+      if (isSnapping) return
+
+      const scrollY = e.scroll
+      const maxScroll = lenis.limit
+
+      if (maxScroll <= 0) return
+
+      // Snapping threshold: if user scrolls even 5px away from the endpoints,
+      // snap immediately to the target fold based on scroll direction.
+      if (scrollY > 5 && scrollY < maxScroll - 5) {
+        if (e.direction === 1) {
+          isSnapping = true
+          lenis.scrollTo(maxScroll, {
+            duration: 0.85,
+            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            onComplete: () => {
+              isSnapping = false
+            }
+          })
+        } else if (e.direction === -1) {
+          isSnapping = true
+          lenis.scrollTo(0, {
+            duration: 0.85,
+            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            onComplete: () => {
+              isSnapping = false
+            }
+          })
+        }
+      }
+    })
     
     const updateRaf = (time: number) => {
       lenis.raf(time * 1000)
@@ -35,16 +73,10 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
       scrollTrigger: {
         trigger: '#globe-hero-container',
         start: 'top top',
-        end: '+=180%', // Pinned scroll distance (180vh)
+        end: '+=80%', // Comfortably paced scroll distance (80vh)
         scrub: 1.0, // Smooth scrubbing
         pin: true,
-        anticipatePin: 1,
-        snap: {
-          snapTo: [0, 1], // Snap to either start (hero fold) or end (auth card)
-          duration: { min: 0.25, max: 0.6 },
-          delay: 0.08,
-          ease: 'power2.out'
-        }
+        anticipatePin: 1
       }
     })
 
@@ -81,6 +113,7 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
 
     // Clean up
     return () => {
+      ;(window as any).lenis = null
       lenis.destroy()
       gsap.ticker.remove(updateRaf)
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill())
