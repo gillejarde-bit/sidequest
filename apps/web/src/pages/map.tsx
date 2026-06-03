@@ -517,7 +517,7 @@ export function MapPage() {
           zoom: 12,
           pitch: 0, // Top-down flat view by default
         }}
-        mapStyle={theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
+        mapStyle={theme === 'dark' || theme === 'ember' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={true}
         style={{ width: '100%', height: '100%' }}
@@ -565,7 +565,7 @@ export function MapPage() {
           type="fill-extrusion"
           minzoom={15}
           paint={{
-            'fill-extrusion-color': theme === 'dark' ? '#1f2937' : '#f3f4f6',
+            'fill-extrusion-color': theme === 'ember' ? '#29201A' : (theme === 'dark' ? '#1f2937' : '#f3f4f6'),
             'fill-extrusion-height': ['get', 'height'],
             'fill-extrusion-base': ['get', 'min_height'],
             'fill-extrusion-opacity': 0.8

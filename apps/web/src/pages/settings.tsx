@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Shield,
   Volume2,
-  Calendar
+  Calendar,
+  Flame
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useAuthStore } from '../stores/auth'
@@ -24,6 +25,7 @@ export function SettingsPage() {
   const { 
     theme, 
     toggleTheme, 
+    setTheme,
     shareLocation, 
     setShareLocation, 
     locationSharingScope, 
@@ -191,12 +193,43 @@ export function SettingsPage() {
             
             <button 
               onClick={toggleTheme}
-              className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${theme === 'dark' ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${theme === 'dark' || theme === 'ember' ? 'bg-indigo-600' : 'bg-gray-300'}`}
             >
               <motion.div 
                 layout
                 className="w-6 h-6 bg-white rounded-full shadow-md"
-                animate={{ x: theme === 'dark' ? 20 : 0 }}
+                animate={{ x: theme === 'dark' || theme === 'ember' ? 20 : 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+
+          {/* Ember Theme Toggle */}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700/50">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'ember' ? 'bg-[#EE6C1F]/20 text-[#EE6C1F]' : 'bg-gray-100 dark:bg-gray-800/40 text-gray-400'}`}>
+                <Flame className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Ember Theme</h3>
+                <p className="text-xs text-gray-400 font-bold">Ignite the warm hearth style</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                if (theme === 'ember') {
+                  setTheme('dark')
+                } else {
+                  setTheme('ember')
+                }
+              }}
+              className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${theme === 'ember' ? 'bg-[#EE6C1F]' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              <motion.div 
+                layout
+                className="w-6 h-6 bg-white rounded-full shadow-md"
+                animate={{ x: theme === 'ember' ? 20 : 0 }}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
               />
             </button>

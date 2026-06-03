@@ -2,8 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 interface SettingsState {
-  theme: 'dark' | 'light'
-  setTheme: (theme: 'dark' | 'light') => void
+  theme: 'dark' | 'light' | 'ember'
+  setTheme: (theme: 'dark' | 'light' | 'ember') => void
   toggleTheme: () => void
   shareLocation: boolean
   setShareLocation: (val: boolean) => void
@@ -17,7 +17,12 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       theme: 'dark', // Default to sleek night mode
       setTheme: (theme) => set({ theme }),
-      toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+      toggleTheme: () => set((state) => {
+        if (state.theme === 'ember') {
+          return { theme: 'light' }
+        }
+        return { theme: state.theme === 'dark' ? 'light' : 'dark' }
+      }),
       shareLocation: false, // Default to false (Ghost Mode) for safety on signup
       setShareLocation: (shareLocation) => set({ shareLocation }),
       toggleShareLocation: () => set((state) => ({ shareLocation: !state.shareLocation })),

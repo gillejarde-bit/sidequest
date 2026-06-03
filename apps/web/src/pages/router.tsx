@@ -326,10 +326,16 @@ function RootLayout() {
   }, [user?.id])
 
   useEffect(() => {
-    if (theme === 'dark') {
+    if (theme === 'dark' || theme === 'ember') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
+    }
+
+    if (theme === 'ember') {
+      document.documentElement.setAttribute('data-theme', 'ember')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
     }
   }, [theme])
 

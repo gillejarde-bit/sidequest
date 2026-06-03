@@ -76,6 +76,8 @@
   --color-muted: var(--faded-ink);
   
   font-family: "Mulish", sans-serif;
+  background-color: var(--forge-black) !important;
+  color: var(--parchment) !important;
 }
 
 [data-theme="ember"] h1,
@@ -83,7 +85,64 @@
 [data-theme="ember"] h3,
 [data-theme="ember"] h4,
 [data-theme="ember"] .font-display {
-  font-family: "Baloo 2", sans-serif;
+  font-family: "Baloo 2", sans-serif !important;
+}
+
+/* Global class overrides when Ember theme is active on root */
+[data-theme="ember"] .bg-white,
+[data-theme="ember"] .bg-gray-50,
+[data-theme="ember"] .bg-gray-100,
+[data-theme="ember"] .bg-gray-200,
+[data-theme="ember"] .dark\:bg-gray-800,
+[data-theme="ember"] .dark\:bg-gray-900,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\],
+[data-theme="ember"] .dark\:bg-\[\#111122\] {
+  background-color: var(--hearth-brown) !important;
+}
+
+[data-theme="ember"] .bg-background,
+[data-theme="ember"] .dark\:bg-background,
+[data-theme="ember"] .bg-\[\#FAFAF8\] {
+  background-color: var(--forge-black) !important;
+}
+
+[data-theme="ember"] .bg-gray-100\/80,
+[data-theme="ember"] .dark\:bg-gray-800\/80,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]\/80 {
+  background-color: rgba(41, 32, 26, 0.8) !important;
+}
+
+[data-theme="ember"] .border,
+[data-theme="ember"] .border-gray-100,
+[data-theme="ember"] .border-gray-200,
+[data-theme="ember"] .dark\:border-gray-800,
+[data-theme="ember"] .dark\:border-gray-700,
+[data-theme="ember"] .dark\:border-gray-700\/80 {
+  border-color: var(--seam-brown) !important;
+}
+
+[data-theme="ember"] .text-gray-900,
+[data-theme="ember"] .text-gray-800,
+[data-theme="ember"] .text-gray-700,
+[data-theme="ember"] .dark\:text-white,
+[data-theme="ember"] .dark\:text-gray-100,
+[data-theme="ember"] .dark\:text-gray-200 {
+  color: var(--parchment) !important;
+}
+
+[data-theme="ember"] .text-gray-500,
+[data-theme="ember"] .text-gray-400,
+[data-theme="ember"] .dark\:text-gray-400,
+[data-theme="ember"] .dark\:text-gray-500 {
+  color: var(--faded-ink) !important;
+}
+
+[data-theme="ember"] .hover\:bg-gray-150:hover,
+[data-theme="ember"] .hover\:bg-gray-100:hover,
+[data-theme="ember"] .hover\:bg-gray-55:hover,
+[data-theme="ember"] .dark\:hover\:bg-gray-800:hover,
+[data-theme="ember"] .dark\:hover\:bg-gray-700:hover {
+  background-color: var(--hearth-raised) !important;
 }
 
 /* Add custom animations for Campfire elements */
@@ -96,4 +155,6 @@
 [data-theme="ember"] .ember-sweep-effect {
   animation: emberSweep 1.2s cubic-bezier(0.19, 1, 0.22, 1) forwards;
   transform-origin: left;
-}
+}
+
+

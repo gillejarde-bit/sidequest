@@ -255,7 +255,7 @@ export function QuestDetail() {
                   latitude: location.lat,
                   zoom: 15
                 }}
-                mapStyle={theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
+                mapStyle={theme === 'dark' || theme === 'ember' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
                 interactive={false}
                 onLoad={(e) => {
