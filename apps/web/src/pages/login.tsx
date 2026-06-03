@@ -21,7 +21,7 @@ class WebGLErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#1B1410] via-[#29201A] to-[#1B1410] opacity-80 z-0" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#000000] via-[#15100C] to-[#000000] opacity-80 z-0" />
       )
     }
     return this.props.children
@@ -79,7 +79,7 @@ export function Login() {
   }
 
   return (
-    <div className="relative min-h-[250vh] bg-[#1B1410] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
+    <div className="login-page-wrapper relative min-h-[250vh] bg-[#000000] text-white font-sans overflow-x-hidden selection:bg-primary/20 no-scrollbar">
       
       {/* 3D Morphing Globe Scroll Timeline Controller */}
       <ScrollController progressRef={progressRef} />
@@ -89,8 +89,8 @@ export function Login() {
         id="globe-hero-container"
         className="w-full h-screen relative overflow-hidden flex flex-col justify-between items-center py-12 px-6 text-center"
       >
-        {/* Soft coordinate space gridlines background */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff04_1.5px,transparent_1.5px)] [background-size:24px_24px] pointer-events-none z-10" />
+        {/* Soft coordinate space gridlines background - Ember Orange instead of white */}
+        <div className="absolute inset-0 bg-[radial-gradient(#EE6C1F08_1.5px,transparent_1.5px)] [background-size:24px_24px] pointer-events-none z-10" />
 
         {/* 3D R3F Canvas Container (Stays in the background) wrapped in WebGL safety boundary */}
         <WebGLErrorBoundary>
@@ -159,7 +159,7 @@ export function Login() {
 
                 <div className="relative py-1 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
-                  <span className="relative px-3 bg-[#1B1410] rounded-full border border-white/5 text-[9px] font-semibold uppercase tracking-widest text-gray-500">or</span>
+                  <span className="relative px-3 bg-[#000000] rounded-full border border-white/5 text-[9px] font-semibold uppercase tracking-widest text-gray-500">or</span>
                 </div>
 
                 {isSignInMode ? (

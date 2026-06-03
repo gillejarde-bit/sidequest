@@ -19,6 +19,6 @@ export const GLOBE_CONFIG = {
   COLOR_OCEAN_DIM: '#29201A', // Hearth Brown
 
   // Space style
-  BG_COSMOS: '#1B1410',
+  BG_COSMOS: '#000000',
   BLOOM_INTENSITY: 1.2
 } as const;

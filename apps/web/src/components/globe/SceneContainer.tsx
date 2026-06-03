@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Line, Stars } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { GlobeField } from './GlobeField'
 import { Effects } from './Effects'
@@ -8,6 +8,73 @@ import { GLOBE_CONFIG } from './GlobeConfig'
 
 interface SceneContainerProps {
   progressRef: React.RefObject<number>
+}
+
+// Renders a field of glowing orange/gold stars matching the Ember theme
+function OrangeStars() {
+  const count = 3000
+  const [orangePositions, goldPositions] = useMemo(() => {
+    const orangePos: number[] = []
+    const goldPos: number[] = []
+    
+    for (let i = 0; i < count; i++) {
+      const r = 80 + Math.random() * 120
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      
+      const x = r * Math.sin(phi) * Math.cos(theta)
+      const y = r * Math.sin(phi) * Math.sin(theta)
+      const z = r * Math.cos(phi)
+      
+      if (Math.random() < 0.7) {
+        orangePos.push(x, y, z)
+      } else {
+        goldPos.push(x, y, z)
+      }
+    }
+    
+    return [
+      new Float32Array(orangePos),
+      new Float32Array(goldPos)
+    ]
+  }, [])
+
+  return (
+    <>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[orangePositions, 3]}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.65}
+          sizeAttenuation
+          color="#EE6C1F"
+          transparent
+          opacity={0.75}
+          depthWrite={false}
+        />
+      </points>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[goldPositions, 3]}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.65}
+          sizeAttenuation
+          color="#F0B45C"
+          transparent
+          opacity={0.75}
+          depthWrite={false}
+        />
+      </points>
+    </>
+  )
 }
 
 // Renders the faint orbital dashed background ring
@@ -50,20 +117,12 @@ export function SceneContainer({ progressRef }: SceneContainerProps) {
         dpr={[1, 2]} // Clamp dpr to 1-2 for performance
         style={{ background: 'transparent' }}
       >
-        <ambientLight intensity={0.4} />
-        <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-        <directionalLight position={[-10, -10, -10]} intensity={0.6} color="#EE6C1F" />
+        <ambientLight intensity={0.08} color="#EE6C1F" />
+        <pointLight position={[10, 10, 10]} intensity={0.45} color="#F0B45C" />
+        <directionalLight position={[-10, -10, -10]} intensity={0.25} color="#EE6C1F" />
         
-        {/* Immersive 3D Parallax Starfield Constellations */}
-        <Stars 
-          radius={120} 
-          depth={60} 
-          count={5000} 
-          factor={7} 
-          saturation={1.0} 
-          fade 
-          speed={1.5} 
-        />
+        {/* Custom Glowing Orange/Gold Stars */}
+        <OrangeStars />
 
         {/* Orbital dashed ring */}
         <OrbitalRing />

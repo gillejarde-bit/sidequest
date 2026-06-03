@@ -209,7 +209,7 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
       if (!isLand) {
         const rand = Math.random()
         if (rand < 0.80) {
-          color = '#110C08' // Ash Black
+          color = '#030202' // Deep Matte Black (Ash/Soot)
         } else if (rand < 0.90) {
           color = '#EE6C1F' // Phoenix Orange
         } else if (rand < 0.97) {
@@ -292,9 +292,9 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
 
     // Adjust glossiness slightly without transmission so colors stay solid & extremely vibrant
     if (materialRef.current) {
-      materialRef.current.roughness = THREE.MathUtils.lerp(0.25, 0.15, rawProgress)
-      materialRef.current.metalness = THREE.MathUtils.lerp(0.7, 0.85, rawProgress)
-      materialRef.current.clearcoat = THREE.MathUtils.lerp(0.2, 1.0, rawProgress)
+      materialRef.current.roughness = 0.95 // Matte, stone-like texture to prevent gray specular wash
+      materialRef.current.metalness = 0.05 // Non-metallic ash/lava rock
+      materialRef.current.clearcoat = 0.0  // No clearcoat shine
     }
 
     for (let i = 0; i < count; i++) {

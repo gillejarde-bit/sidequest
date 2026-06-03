@@ -266,5 +266,11 @@
   border-color: var(--seam-brown) !important;
 }
 
+/* Prevent ember theme brown background on the login/landing screen */
+[data-theme="ember"] .login-page-wrapper {
+  background-color: #000000 !important;
+}
+
+
 
 
