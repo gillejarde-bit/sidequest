@@ -39,7 +39,8 @@ function BottomNav() {
   if (!user) return null
   if (['/login', '/onboarding'].includes(pathname) || pathname.startsWith('/quest/')) return null
 
-  const activeTab = pathname === '/' || pathname === '/map' ? 'map' 
+  const activeTab = pathname === '/' ? 'campfire'
+                  : pathname === '/map' ? 'map' 
                   : pathname.startsWith('/quests') ? 'quests'
                   : pathname === '/streaks' ? 'streaks' 
                   : pathname === '/calendar' ? 'calendar'
@@ -49,9 +50,17 @@ function BottomNav() {
                   : pathname.startsWith('/profile') ? 'profile' 
                   : pathname === '/settings' ? 'settings' : null
 
-  const isMoreActive = activeTab === 'friends' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings'
+  const isMoreActive = activeTab === 'friends' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings' || activeTab === 'gems'
 
   const menuItems = [
+    {
+      label: 'Hidden Gems',
+      to: '/gems' as const,
+      params: undefined,
+      icon: <Diamond className="w-4 h-4 text-cyan-500" />,
+      active: activeTab === 'gems',
+      badge: false
+    },
     {
       label: 'Friends',
       to: '/friends' as const,
@@ -151,8 +160,16 @@ function BottomNav() {
       {/* Main Bottom Nav Bar */}
       <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-x-auto no-scrollbar relative z-50">
         
-        {/* [ 🗺 Map ] */}
+        {/* [ 🔥 Campfire ] */}
         <Link to="/" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+          {activeTab === 'campfire' && (
+            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+          )}
+          <Flame className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'campfire' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+        </Link>
+
+        {/* [ 🗺 Map ] */}
+        <Link to="/map" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
           {activeTab === 'map' && (
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
@@ -172,6 +189,13 @@ function BottomNav() {
           )}
         </Link>
 
+        {/* [ + Create ] Playful Floating Create Button */}
+        <div className="w-12 h-12 sm:w-14 sm:h-14 -mt-6 mx-1 relative z-50 shrink-0">
+          <Link to="/quest/create" className="absolute inset-0 bg-primary rounded-full flex items-center justify-center shadow-lg text-white hover:bg-[#46A302] active:scale-90 transition-all border-4 border-gray-50 dark:border-[#1A1A2E]">
+            <Plus className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={3} />
+          </Link>
+        </div>
+
         {/* [ 🔥 Streaks ] */}
         <Link to="/streaks" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
           {activeTab === 'streaks' && (
@@ -180,27 +204,12 @@ function BottomNav() {
           <Flame className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'streaks' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
-        {/* [ + Create ] Playful Floating Create Button */}
-        <div className="w-12 h-12 sm:w-14 sm:h-14 -mt-6 mx-1 relative z-50 shrink-0">
-          <Link to="/quest/create" className="absolute inset-0 bg-primary rounded-full flex items-center justify-center shadow-lg text-white hover:bg-[#46A302] active:scale-90 transition-all border-4 border-gray-50 dark:border-[#1A1A2E]">
-            <Plus className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={3} />
-          </Link>
-        </div>
-
         {/* [ 📅 Calendar ] */}
         <Link to="/calendar" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
           {activeTab === 'calendar' && (
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
           <Calendar className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'calendar' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
-        </Link>
-
-        {/* [ 💎 Hidden Gems ] */}
-        <Link to="/gems" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
-          {activeTab === 'gems' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
-          )}
-          <Diamond className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'gems' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ ⋯ More ] */}
@@ -406,12 +415,13 @@ const requireAuth = async () => {
 
 import { MapPage } from './map'
 import { CreateQuestPage } from './quest/create'
+import { CampfirePage } from './campfire'
 
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: requireAuth,
-  component: MapPage,
+  component: CampfirePage,
 })
 
 export const mapRoute = createRoute({

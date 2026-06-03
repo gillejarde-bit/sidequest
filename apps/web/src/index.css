@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Mulish:wght@400;600;800;900&display=swap');
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
@@ -14,6 +15,9 @@
   --color-foreground: var(--foreground);
 
   --font-sans: "DM Sans", sans-serif;
+  
+  --font-display: "Baloo 2", "DM Sans", sans-serif;
+  --font-body: "Mulish", "DM Sans", sans-serif;
 }
 
 @layer base {
@@ -42,3 +46,54 @@
 .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
   display: none !important;
 }
+
+/* Scoped Ember Theme Scope */
+[data-theme="ember"] {
+  --forge-black: #1B1410;
+  --hearth-brown: #29201A;
+  --hearth-raised: #342A22;
+  --phoenix-ember: #EE6C1F;
+  --ember-bright: #F4862E;
+  --foil-gold: #F0B45C;
+  --randall-rust: #C2410C;
+  --gem-teal: #239B8E;
+  --gem-teal-bright: #3FC9B8;
+  --parchment: #F0E2C8;
+  --faded-ink: #B9A488;
+  --seam-brown: #4A382B;
+
+  /* Overriding standard theme variables inside this scope */
+  --background: var(--forge-black);
+  --foreground: var(--parchment);
+  --border: var(--seam-brown);
+  
+  /* Overriding Tailwind custom theme values */
+  --color-primary: var(--phoenix-ember);
+  --color-secondary: var(--gem-teal);
+  --color-accent: var(--randall-rust);
+  --color-surface: var(--hearth-brown);
+  --color-dark: var(--forge-black);
+  --color-muted: var(--faded-ink);
+  
+  font-family: "Mulish", sans-serif;
+}
+
+[data-theme="ember"] h1,
+[data-theme="ember"] h2,
+[data-theme="ember"] h3,
+[data-theme="ember"] h4,
+[data-theme="ember"] .font-display {
+  font-family: "Baloo 2", sans-serif;
+}
+
+/* Add custom animations for Campfire elements */
+@keyframes emberSweep {
+  0% { transform: scaleX(0); opacity: 0.1; }
+  50% { transform: scaleX(1.1); opacity: 0.8; }
+  100% { transform: scaleX(1); opacity: 0.4; }
+}
+
+[data-theme="ember"] .ember-sweep-effect {
+  animation: emberSweep 1.2s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  transform-origin: left;
+}
