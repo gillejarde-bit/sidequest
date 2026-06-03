@@ -41,13 +41,9 @@ export const springs = {
 // 1. BannerRibbon: Styled medieval/RPG header ribbon
 export function BannerRibbon({ title }: { title: string }) {
   return (
-    <div className="relative mx-auto my-6 px-8 py-3.5 bg-gradient-to-r from-[#EE6C1F] to-[#F4862E] text-[#F0E2C8] rounded-xl shadow-xl border border-[#4A382B] text-center overflow-hidden">
+    <div className="relative mx-auto my-6 px-8 py-3.5 bg-primary text-white rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 text-center overflow-hidden">
       {/* Paper Grain Overlay */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.06] pointer-events-none" />
-      
-      {/* Decorative Ribbon Ends */}
-      <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-[#C2410C]" />
-      <div className="absolute right-0 top-0 bottom-0 w-2.5 bg-[#C2410C]" />
       
       <h2 className="text-2xl font-extrabold uppercase tracking-widest font-display text-shadow drop-shadow-md">
         {title}
@@ -103,22 +99,22 @@ export function ReactionBar({ eventId, initialReactions }: { eventId: string; in
   }
 
   return (
-    <div className="flex gap-2 pt-3 border-t border-[#4A382B] mt-4">
+    <div className="flex gap-2 pt-3 border-t border-gray-150 dark:border-gray-700/80 mt-4">
       {(['flame', 'gem', 'paw'] as const).map(kind => {
         const count = getReactionCount(kind)
         const isActive = activeReaction === kind
         
         let icon = <Flame className="w-4 h-4" />
-        let btnStyle = "hover:bg-[#EE6C1F]/10 text-[#B9A488] hover:text-[#EE6C1F]"
-        let activeStyle = "bg-[#EE6C1F]/20 text-[#EE6C1F] border-[#EE6C1F]/40"
+        let btnStyle = "hover:bg-primary/10 text-gray-500 dark:text-gray-400 hover:text-primary"
+        let activeStyle = "bg-primary/20 text-primary border-primary/40"
         
         if (kind === 'gem') {
           icon = <Diamond className="w-4 h-4" />
-          btnStyle = "hover:bg-[#239B8E]/10 text-[#B9A488] hover:text-[#239B8E]"
+          btnStyle = "hover:bg-[#239B8E]/10 text-gray-550 dark:text-gray-400 hover:text-[#239B8E]"
           activeStyle = "bg-[#239B8E]/20 text-[#239B8E] border-[#239B8E]/40"
         } else if (kind === 'paw') {
           icon = <PawPrint className="w-4 h-4" />
-          btnStyle = "hover:bg-[#F0B45C]/10 text-[#B9A488] hover:text-[#F0B45C]"
+          btnStyle = "hover:bg-[#F0B45C]/10 text-gray-550 dark:text-gray-400 hover:text-[#F0B45C]"
           activeStyle = "bg-[#F0B45C]/20 text-[#F0B45C] border-[#F0B45C]/40"
         }
 
@@ -155,12 +151,12 @@ export function FeedCard({ event }: { event: FeedEvent }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={springs.stamp}
-      className={`relative w-full bg-[#29201A] border rounded-xl p-5 shadow-lg flex flex-col gap-3 group transition-all hover:bg-[#342A22] ${
+      className={`relative w-full bg-white dark:bg-gray-800 border rounded-xl p-5 shadow-lg flex flex-col gap-3 group transition-all hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
         isFoil 
           ? 'border-[#F0B45C] shadow-[0_0_15px_rgba(240,180,92,0.15)]' 
           : isGem 
           ? 'border-[#239B8E]' 
-          : 'border-[#4A382B]'
+          : 'border-gray-150 dark:border-gray-700/80'
       }`}
     >
       {/* Paper Grain Overlay */}
@@ -172,19 +168,19 @@ export function FeedCard({ event }: { event: FeedEvent }) {
           {/* Rounded square avatar */}
           <Link to="/profile/$id" params={{ id: event.actor_id }} className="relative shrink-0 active:scale-95 transition-transform block">
             {actor_avatar_url ? (
-              <img src={actor_avatar_url} className="w-11 h-11 rounded-xl object-cover border-2 border-[#4A382B]" />
+              <img src={actor_avatar_url} className="w-11 h-11 rounded-xl object-cover border-2 border-gray-150 dark:border-gray-750" />
             ) : (
-              <div className="w-11 h-11 rounded-xl bg-[#EE6C1F]/10 border-2 border-[#EE6C1F]/30 flex items-center justify-center font-black font-display text-[#EE6C1F] text-lg uppercase">
+              <div className="w-11 h-11 rounded-xl bg-primary/10 border-2 border-primary/30 flex items-center justify-center font-black font-display text-primary text-lg uppercase">
                 {actor_username[0]}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 bg-[#EE6C1F] text-[#F0E2C8] rounded-md text-[8px] px-1 font-extrabold border border-[#4A382B] leading-none py-0.5 font-display shadow-md">
+            <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-md text-[8px] px-1 font-extrabold border border-gray-150 dark:border-gray-750 leading-none py-0.5 font-display shadow-md">
               L{actor_level}
             </div>
           </Link>
 
           <div>
-            <h4 className="font-extrabold text-sm text-[#F0E2C8] flex items-center gap-1.5 font-display leading-tight">
+            <h4 className="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 font-display leading-tight">
               @{actor_username}
               {crew_name && (
                 <span 
@@ -195,7 +191,7 @@ export function FeedCard({ event }: { event: FeedEvent }) {
                 </span>
               )}
             </h4>
-            <p className="text-[10px] text-[#B9A488] font-bold mt-0.5">{timeAgo}</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-0.5">{timeAgo}</p>
           </div>
         </div>
 
@@ -215,34 +211,34 @@ export function FeedCard({ event }: { event: FeedEvent }) {
       </div>
 
       {/* Main Event Body Narrative Content */}
-      <div className="text-sm text-[#F0E2C8]/90 font-medium leading-relaxed relative z-10">
+      <div className="text-sm text-gray-800 dark:text-gray-200 font-medium leading-relaxed relative z-10">
         {type === 'quest_complete' && (
           <p>
-            Checked in at <span className="text-[#EE6C1F] font-extrabold font-display">{payload.location_name || 'Secret Spot'}</span> for the quest <span className="underline decoration-[#EE6C1F]/30 font-black">{payload.quest_name}</span>. Mapped to <span className="text-[#F0B45C] font-extrabold uppercase text-xs">{payload.category}</span>.
+            Checked in at <span className="text-primary font-extrabold font-display">{payload.location_name || 'Secret Spot'}</span> for the quest <span className="underline decoration-primary/30 font-black">{payload.quest_name}</span>. Mapped to <span className="text-[#F0B45C] font-extrabold uppercase text-xs">{payload.category}</span>.
           </p>
         )}
         {type === 'pioneer_mint' && (
           <p>
-            👑 Minted a <span className="text-[#239B8E] font-black">Pioneer badge</span>! The very first explorer to establish a presence at <span className="text-[#EE6C1F] font-extrabold font-display">{payload.location_name}</span>.
+            👑 Minted a <span className="text-[#239B8E] font-black">Pioneer badge</span>! The very first explorer to establish a presence at <span className="text-primary font-extrabold font-display">{payload.location_name}</span>.
           </p>
         )}
         {type === 'foil_crown' && (
           <p>
-            ✨ Evolved a <span className="text-[#F0B45C] font-black">Foil Crown</span> in <span className="uppercase text-xs font-bold text-[#F0B45C]">{payload.category}</span> during their meetup at <span className="text-[#EE6C1F] font-extrabold font-display">{payload.location_name}</span>!
+            ✨ Evolved a <span className="text-[#F0B45C] font-black">Foil Crown</span> in <span className="uppercase text-xs font-bold text-[#F0B45C]">{payload.category}</span> during their meetup at <span className="text-primary font-extrabold font-display">{payload.location_name}</span>!
           </p>
         )}
         {type === 'archetype_unlock' && (
           <p>
-            🎉 Character stats evolved! Advanced to <span className="text-[#EE6C1F] font-black font-display text-base">Level {payload.level}</span>.
+            🎉 Character stats evolved! Advanced to <span className="text-primary font-black font-display text-base">Level {payload.level}</span>.
           </p>
         )}
         {type === 'gem_nominated' && (
           <div className="space-y-2">
             <p>
-              🔍 Nominated a new <span className="text-[#239B8E] font-black">Hidden Gem</span>: <span className="text-[#EE6C1F] font-extrabold font-display">{payload.gem_name}</span>.
+              🔍 Nominated a new <span className="text-[#239B8E] font-black">Hidden Gem</span>: <span className="text-primary font-extrabold font-display">{payload.gem_name}</span>.
             </p>
             {payload.description && (
-              <p className="text-xs text-[#B9A488] italic bg-[#1B1410]/50 border border-[#4A382B]/30 rounded-lg p-2.5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800/30 rounded-lg p-2.5">
                 "{payload.description}"
               </p>
             )}
@@ -250,7 +246,7 @@ export function FeedCard({ event }: { event: FeedEvent }) {
         )}
         {type === 'streak_milestone' && (
           <p>
-            🔥 The crew <span className="text-[#EE6C1F] font-black">@{payload.group_name}</span> reached a roaring <span className="text-[#EE6C1F] font-extrabold font-display text-base">{payload.streak}-day streak</span>!
+            🔥 The crew <span className="text-primary font-black">@{payload.group_name}</span> reached a roaring <span className="text-primary font-extrabold font-display text-base">{payload.streak}-day streak</span>!
           </p>
         )}
         {type === 'streak_revived' && (
@@ -295,7 +291,7 @@ export function FeedCard({ event }: { event: FeedEvent }) {
                 console.error(e)
               }
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black bg-[#239B8E] hover:bg-[#239B8E]/80 text-[#F0E2C8] rounded-lg active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-[#4A382B]"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black bg-[#239B8E] hover:bg-[#239B8E]/80 text-white rounded-lg active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-transparent"
           >
             <Calendar className="w-3.5 h-3.5" />
             Follow their Trail
@@ -315,18 +311,18 @@ export function AICampfireDigest({ text }: { text: string }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-[#29201A] border-l-4 border-[#EE6C1F] border-t border-r border-b border-[#4A382B] rounded-xl p-5 shadow-xl flex gap-4 relative overflow-hidden"
+      className="bg-white dark:bg-gray-800 border-l-4 border-primary border-t border-r border-b border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl flex gap-4 relative overflow-hidden"
     >
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
       
       {/* Randall Mascot image / avatar */}
-      <div className="w-12 h-12 rounded-xl bg-[#EE6C1F]/15 flex items-center justify-center shrink-0 border border-[#EE6C1F]/30 shadow-md">
-        <Sparkles className="w-6 h-6 text-[#EE6C1F]" />
+      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/30 shadow-md">
+        <Sparkles className="w-6 h-6 text-primary" />
       </div>
 
       <div className="flex-1 space-y-1 relative z-10 text-left">
-        <h4 className="text-[10px] font-black uppercase text-[#EE6C1F] tracking-widest font-display leading-none">Campfire Briefing 🔥</h4>
-        <p className="text-xs text-[#F0E2C8]/90 font-medium leading-relaxed mt-1">
+        <h4 className="text-[10px] font-black uppercase text-primary tracking-widest font-display leading-none">Campfire Briefing 🔥</h4>
+        <p className="text-xs text-gray-800 dark:text-gray-200 font-medium leading-relaxed mt-1">
           {text}
         </p>
       </div>
@@ -337,21 +333,21 @@ export function AICampfireDigest({ text }: { text: string }) {
 // 5. EmptyCampfire: Cold-start helper with Mascot sleeping next to a dead campfire + friendly CTAs
 export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8 bg-[#29201A] border border-[#4A382B] rounded-xl shadow-xl space-y-6 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl shadow-xl space-y-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
 
       {/* Randall Asleep Graphic */}
       <div 
         onClick={onActionClick}
         title="Tap to refresh the fire"
-        className="w-24 h-24 rounded-full bg-[#1B1410] border-2 border-[#4A382B] flex items-center justify-center text-5xl relative shadow-inner animate-pulse cursor-pointer hover:scale-105 transition-transform"
+        className="w-24 h-24 rounded-full bg-gray-50 dark:bg-gray-900 border-2 border-gray-150 dark:border-gray-700/80 flex items-center justify-center text-5xl relative shadow-inner animate-pulse cursor-pointer hover:scale-105 transition-transform"
       >
         💤
       </div>
 
       <div className="space-y-2 relative z-10 max-w-sm">
-        <h3 className="text-lg font-black font-display text-[#F0E2C8] tracking-wide">Quiet around the fire...</h3>
-        <p className="text-xs text-[#B9A488] font-bold leading-relaxed">
+        <h3 className="text-lg font-black font-display text-gray-900 dark:text-white tracking-wide">Quiet around the fire...</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
           Invite friends to SideQuest or assemble your Crew to see details of their adventures recorded here.
         </p>
       </div>
@@ -359,7 +355,7 @@ export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) 
       <div className="flex flex-wrap gap-3 items-center justify-center relative z-10">
         <Link
           to="/friends"
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#EE6C1F] hover:bg-[#F4862E] text-[#F0E2C8] text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-[#4A382B]"
+          className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-transparent"
         >
           <UserPlus className="w-4 h-4" />
           Add Friends
@@ -367,7 +363,7 @@ export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) 
         
         <Link
           to="/streaks"
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#239B8E] hover:bg-[#239B8E]/80 text-[#F0E2C8] text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-[#4A382B]"
+          className="flex items-center gap-1.5 px-4 py-2 bg-secondary hover:bg-secondary/80 text-white text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-transparent"
         >
           <Users className="w-4 h-4" />
           Assemble Crew

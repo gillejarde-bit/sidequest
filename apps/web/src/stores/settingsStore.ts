@@ -15,7 +15,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      theme: 'dark', // Default to sleek night mode
+      theme: 'ember', // Default to warm Ember theme
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((state) => {
         if (state.theme === 'ember') {

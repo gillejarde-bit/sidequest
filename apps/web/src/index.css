@@ -157,4 +157,65 @@
   transform-origin: left;
 }
 
+/* Quest Book physical cover and page overrides */
+[data-theme="ember"] .bg-\[\#E6DCC3\],
+[data-theme="ember"] .dark\:bg-\[\#121319\] {
+  background-color: var(--forge-black) !important;
+  border-color: var(--seam-brown) !important;
+}
+[data-theme="ember"] .bg-\[\#FDFBF7\],
+[data-theme="ember"] .dark\:bg-\[\#1C1D24\] {
+  background-color: var(--hearth-raised) !important;
+}
+[data-theme="ember"] .border-\[\#3A2D1F\] {
+  border-color: var(--seam-brown) !important;
+}
+
+/* Streaks & Calendar Page background cleanups */
+[data-theme="ember"] .bg-\[\#0a0d18\],
+[data-theme="ember"] .dark\:bg-gray-850,
+[data-theme="ember"] .dark\:bg-gray-950,
+[data-theme="ember"] .bg-gray-950 {
+  background-color: var(--forge-black) !important;
+}
+[data-theme="ember"] .bg-gray-955\/20,
+[data-theme="ember"] .bg-white\/\[0\.03\] {
+  background-color: rgba(41, 32, 26, 0.4) !important;
+}
+[data-theme="ember"] .border-white\/5,
+[data-theme="ember"] .border-white\/10 {
+  border-color: var(--seam-brown) !important;
+}
+
+/* Streaks Green buttons and borders -> Ember Orange / Rust */
+[data-theme="ember"] .bg-\[\#58CC02\],
+[data-theme="ember"] .hover\:bg-\[\#46A302\]:hover {
+  background-color: var(--phoenix-ember) !important;
+}
+[data-theme="ember"] .border-\[\#46A302\] {
+  border-color: var(--randall-rust) !important;
+}
+
+/* Indigo & Purple -> Ember Teal / Gold */
+[data-theme="ember"] .bg-indigo-500,
+[data-theme="ember"] .hover\:bg-indigo-600:hover {
+  background-color: var(--gem-teal) !important;
+}
+[data-theme="ember"] .border-indigo-150,
+[data-theme="ember"] .dark\:border-indigo-900\/50 {
+  border-color: var(--seam-brown) !important;
+}
+[data-theme="ember"] .bg-purple-50,
+[data-theme="ember"] .dark\:bg-purple-950\/20 {
+  background-color: rgba(35, 155, 142, 0.15) !important;
+}
+[data-theme="ember"] .text-purple-600,
+[data-theme="ember"] .dark\:text-purple-400 {
+  color: var(--gem-teal-bright) !important;
+}
+[data-theme="ember"] .border-purple-100 {
+  border-color: var(--seam-brown) !important;
+}
+
+
 

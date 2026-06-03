@@ -24,7 +24,6 @@ import { useEffect } from 'react'
 export function SettingsPage() {
   const { 
     theme, 
-    toggleTheme, 
     setTheme,
     shareLocation, 
     setShareLocation, 
@@ -179,60 +178,47 @@ export function SettingsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80 space-y-5">
           <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">Appearance & Map</h4>
           
-          {/* Dark theme Toggle */}
-          <div className="flex items-center justify-between">
+          {/* Theme Selection */}
+          <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-orange-100 text-orange-600'}`}>
-                {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                theme === 'ember' 
+                  ? 'bg-[#EE6C1F]/20 text-[#EE6C1F]' 
+                  : theme === 'dark'
+                  ? 'bg-indigo-500/20 text-indigo-400' 
+                  : 'bg-orange-100 text-orange-655'
+              }`}>
+                {theme === 'ember' ? <Flame className="w-5 h-5" /> : theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Light / Dark Theme</h3>
-                <p className="text-xs text-gray-400 font-bold">Flip the world style</p>
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Theme Selection</h3>
+                <p className="text-xs text-gray-400 font-bold">Pick your chronicle layout style</p>
               </div>
             </div>
-            
-            <button 
-              onClick={toggleTheme}
-              className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${theme === 'dark' || theme === 'ember' ? 'bg-indigo-600' : 'bg-gray-300'}`}
-            >
-              <motion.div 
-                layout
-                className="w-6 h-6 bg-white rounded-full shadow-md"
-                animate={{ x: theme === 'dark' || theme === 'ember' ? 20 : 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-
-          {/* Ember Theme Toggle */}
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700/50">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'ember' ? 'bg-[#EE6C1F]/20 text-[#EE6C1F]' : 'bg-gray-100 dark:bg-gray-800/40 text-gray-400'}`}>
-                <Flame className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Ember Theme</h3>
-                <p className="text-xs text-gray-400 font-bold">Ignite the warm hearth style</p>
-              </div>
+            <div className="grid grid-cols-3 gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+              {[
+                { label: 'Light', value: 'light' },
+                { label: 'Dark', value: 'dark' },
+                { label: 'Ember', value: 'ember' }
+              ].map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setTheme(t.value as any)}
+                  className={`py-2 px-3 text-xs font-black rounded-xl capitalize transition-all cursor-pointer ${
+                    theme === t.value
+                      ? t.value === 'ember'
+                        ? 'bg-[#EE6C1F] text-white shadow-md'
+                        : t.value === 'dark'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-orange-500 text-white shadow-md'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/45'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-            
-            <button 
-              onClick={() => {
-                if (theme === 'ember') {
-                  setTheme('dark')
-                } else {
-                  setTheme('ember')
-                }
-              }}
-              className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${theme === 'ember' ? 'bg-[#EE6C1F]' : 'bg-gray-300 dark:bg-gray-600'}`}
-            >
-              <motion.div 
-                layout
-                className="w-6 h-6 bg-white rounded-full shadow-md"
-                animate={{ x: theme === 'ember' ? 20 : 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            </button>
           </div>
 
           {/* Share location Toggle */}

@@ -176,8 +176,7 @@ export function CampfirePage() {
 
   return (
     <div 
-      data-theme="ember" 
-      className="min-h-screen bg-[var(--forge-black)] text-[var(--parchment)] transition-colors duration-300 pb-[100px] w-full"
+      className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-[100px] w-full"
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 relative">
         {/* Banner header */}
@@ -217,7 +216,7 @@ export function CampfirePage() {
           <div className="hidden lg:flex flex-col gap-6 w-[300px] shrink-0 sticky top-6">
             
             {/* 1. Next Quest card */}
-            <div className="bg-[#29201A] border border-[#4A382B] rounded-xl p-5 shadow-xl relative overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
               
               <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-3">
@@ -228,20 +227,20 @@ export function CampfirePage() {
               {nextQuest ? (
                 <div className="space-y-3 relative z-10 text-left">
                   <div>
-                    <h4 className="font-extrabold text-sm text-[#F0E2C8] line-clamp-1">{nextQuest.name}</h4>
-                    <p className="text-[10px] text-[#B9A488] font-bold mt-0.5">
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white line-clamp-1">{nextQuest.name}</h4>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-0.5">
                       {format(new Date(nextQuest.starts_at), "EEEE, MMM d @ h:mm a")}
                     </p>
                   </div>
                   
                   {nextQuest.location && (
-                    <div className="flex items-start gap-2 bg-[#1B1410]/50 p-2.5 rounded-lg border border-[#4A382B]/30">
-                      <MapPin className="w-4 h-4 text-[#EE6C1F] shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2 bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800/30">
+                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-bold text-[#F0E2C8] leading-tight line-clamp-1">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight line-clamp-1">
                           {nextQuest.location.name}
                         </p>
-                        <p className="text-[9px] text-[#B9A488] truncate mt-0.5">
+                        <p className="text-[9px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
                           {nextQuest.location.address}
                         </p>
                       </div>
@@ -251,17 +250,17 @@ export function CampfirePage() {
                   <Link
                     to="/quest/$id"
                     params={{ id: nextQuest.id }}
-                    className="w-full py-2 bg-[#EE6C1F] hover:bg-[#F4862E] text-[#F0E2C8] text-[11px] font-black rounded-lg active:scale-95 transition-all shadow-md block text-center uppercase tracking-wider font-display border border-[#4A382B]"
+                    className="w-full py-2 bg-primary hover:bg-primary-hover text-white text-[11px] font-black rounded-lg active:scale-95 transition-all shadow-md block text-center uppercase tracking-wider font-display border border-transparent"
                   >
                     View Quest Details
                   </Link>
                 </div>
               ) : (
                 <div className="text-center py-4 relative z-10">
-                  <p className="text-xs text-[#B9A488] font-bold">No upcoming quests scheduled.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">No upcoming quests scheduled.</p>
                   <Link
                     to="/quest/create"
-                    className="inline-block mt-3 text-xs font-black text-[#EE6C1F] hover:underline"
+                    className="inline-block mt-3 text-xs font-black text-primary hover:underline"
                   >
                     + Create a Quest
                   </Link>
@@ -270,7 +269,7 @@ export function CampfirePage() {
             </div>
 
             {/* 2. Crew Vibe placeholder slot */}
-            <div className="bg-[#29201A] border border-[#4A382B] rounded-xl p-5 shadow-xl relative overflow-hidden text-left">
+            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl relative overflow-hidden text-left">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
               
               <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-2">
@@ -278,7 +277,7 @@ export function CampfirePage() {
                 Crew Vibe
               </h3>
               
-              <p className="text-xs text-[#B9A488] leading-relaxed font-bold">
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-bold">
                 Quiet flames surround the hearth. Join or form a quest crew to shift the atmosphere and unlock collective group perks!
               </p>
             </div>
