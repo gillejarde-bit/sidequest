@@ -206,6 +206,19 @@ export function GlobeField({ progressRef }: GlobeFieldProps) {
         color = mathRes.color
       }
 
+      if (!isLand) {
+        const rand = Math.random()
+        if (rand < 0.80) {
+          color = '#110C08' // Ash Black
+        } else if (rand < 0.90) {
+          color = '#EE6C1F' // Phoenix Orange
+        } else if (rand < 0.97) {
+          color = '#F0B45C' // Gold
+        } else {
+          color = '#F4862E' // Ember Bright
+        }
+      }
+
       tempColor.set(color)
       colArray[idx * 3] = tempColor.r
       colArray[idx * 3 + 1] = tempColor.g
