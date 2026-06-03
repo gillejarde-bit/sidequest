@@ -5,7 +5,7 @@ import { Onboarding } from './onboarding'
 import { FriendsPage } from './friends'
 import { QuestsPage } from './quests'
 import { supabase } from '../lib/supabase'
-import { Map as MapIcon, Users, User, Plus, Settings as SettingsIcon, MoreHorizontal, Flame, Calendar, ChevronRight, Swords, Diamond, Trophy } from 'lucide-react'
+import { Map as MapIcon, Users, User, Plus, Settings as SettingsIcon, MoreHorizontal, Flame, Calendar, ChevronRight, Swords, Diamond, Trophy, Tent } from 'lucide-react'
 import { usePendingRequests } from '../hooks/useFriends'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -50,7 +50,7 @@ function BottomNav() {
                   : pathname.startsWith('/profile') ? 'profile' 
                   : pathname === '/settings' ? 'settings' : null
 
-  const isMoreActive = activeTab === 'friends' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings' || activeTab === 'gems'
+  const isMoreActive = activeTab === 'streaks' || activeTab === 'leaderboard' || activeTab === 'profile' || activeTab === 'settings' || activeTab === 'gems'
 
   const menuItems = [
     {
@@ -62,12 +62,12 @@ function BottomNav() {
       badge: false
     },
     {
-      label: 'Friends',
-      to: '/friends' as const,
+      label: 'Group Streaks',
+      to: '/streaks' as const,
       params: undefined,
-      icon: <Users className="w-4 h-4 text-emerald-500" />,
-      active: activeTab === 'friends',
-      badge: true
+      icon: <Flame className="w-4 h-4 text-orange-500" />,
+      active: activeTab === 'streaks',
+      badge: false
     },
     {
       label: 'Leaderboard',
@@ -160,12 +160,12 @@ function BottomNav() {
       {/* Main Bottom Nav Bar */}
       <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 relative z-50">
         
-        {/* [ 🔥 Campfire ] */}
+        {/* [ ⛺ Campfire ] */}
         <Link to="/" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
           {activeTab === 'campfire' && (
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
-          <Flame className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'campfire' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+          <Tent className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'campfire' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ 🗺 Map ] */}
@@ -196,12 +196,17 @@ function BottomNav() {
           </Link>
         </div>
 
-        {/* [ 🔥 Streaks ] */}
-        <Link to="/streaks" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
-          {activeTab === 'streaks' && (
+        {/* [ 👥 Friends ] */}
+        <Link to="/friends" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+          {activeTab === 'friends' && (
             <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
           )}
-          <Flame className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'streaks' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+          <Users className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'friends' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
+          {count > 0 && (
+            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-20 shadow-md border-2 border-white dark:border-gray-900 animate-pulse">
+              {count}
+            </span>
+          )}
         </Link>
 
         {/* [ 📅 Calendar ] */}

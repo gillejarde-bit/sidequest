@@ -489,7 +489,7 @@ export function StreaksPage() {
         <div className="flex items-center justify-between pt-2">
           <h2 className="text-lg font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
-            Crew Streaks
+            Group Streaks
           </h2>
           <span className="text-xs text-gray-400 font-bold bg-gray-200/50 dark:bg-gray-800 px-2 py-1 rounded-lg">
             {streaks.length} Joined
@@ -500,7 +500,7 @@ export function StreaksPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-gray-400 font-semibold">Loading your crew streaks...</p>
+            <p className="text-sm text-gray-400 font-semibold">Loading your group streaks...</p>
           </div>
         ) : streaks.length === 0 ? (
           <motion.div 
@@ -508,12 +508,12 @@ export function StreaksPage() {
             animate={{ opacity: 1 }}
             className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-4 shadow-sm"
           >
-            <p className="text-gray-400 font-bold">You aren't in any quest groups yet! Start a Crew to build streaks together.</p>
+            <p className="text-gray-400 font-bold">You aren't in any quest groups yet! Start a Group to build streaks together.</p>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-6 py-3 bg-primary hover:bg-[#46A302] text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
             >
-              Create New Crew
+              Create New Group
             </button>
           </motion.div>
         ) : (
@@ -630,7 +630,7 @@ export function StreaksPage() {
 
       </main>
 
-      {/* Create Crew Modal Dialog */}
+      {/* Create Group Modal Dialog */}
       <AnimatePresence>
         {isCreateModalOpen && (
           <>
@@ -652,7 +652,7 @@ export function StreaksPage() {
             >
               <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
                 <Users className="w-6 h-6 text-primary" />
-                Assemble a New Crew
+                Assemble a New Group
               </h2>
               <p className="text-xs font-semibold text-gray-400 mb-5">
                 Rally your friends to tackle quests together, maintain a unified streak flame, and earn exclusive team rewards!
@@ -660,14 +660,14 @@ export function StreaksPage() {
 
               <form onSubmit={handleCreateGroup} className="space-y-4">
                 <div className="flex flex-col items-center gap-2.5 mb-6">
-                  {/* Crew Icon Circular Selector Container */}
+                  {/* Group Icon Circular Selector Container */}
                   <div 
                     onClick={() => fileInputRef.current?.click()}
                     className="relative w-24 h-24 rounded-full border-4 border-dashed border-gray-200 dark:border-gray-700/85 bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center text-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-colors shadow-inner"
                     style={crewAvatarUrl ? { borderStyle: 'solid', borderColor: groupColor } : {}}
                   >
                     {crewAvatarUrl ? (
-                      <img src={crewAvatarUrl} alt="Crew Icon Preview" className="w-full h-full object-cover" />
+                      <img src={crewAvatarUrl} alt="Group Icon Preview" className="w-full h-full object-cover" />
                     ) : (
                       <>
                         <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1 group-hover:text-primary transition-colors" />
@@ -685,7 +685,7 @@ export function StreaksPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className="text-xs font-black text-primary hover:text-[#46A302] active:scale-95 transition-all"
                   >
-                    {crewAvatarUrl ? 'Change Photo' : 'Choose Crew Icon'}
+                    {crewAvatarUrl ? 'Change Photo' : 'Choose Group Icon'}
                   </button>
                   <input 
                     type="file" 
@@ -698,7 +698,7 @@ export function StreaksPage() {
 
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Crew Name
+                    Group Name
                   </label>
                   <input
                     type="text"
@@ -717,7 +717,7 @@ export function StreaksPage() {
                   <textarea
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
-                    placeholder="Describe your crew's focus..."
+                    placeholder="Describe your group's focus..."
                     rows={2}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
                   />
@@ -725,7 +725,7 @@ export function StreaksPage() {
 
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Crew Banner Color
+                    Group Banner Color
                   </label>
                   <div className="flex items-center gap-2.5">
                     {presetColors.map((color) => (
@@ -824,7 +824,7 @@ export function StreaksPage() {
                 ← Back
               </button>
               <h3 className="text-lg font-black tracking-tight text-center text-white flex items-center gap-2">
-                <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Crew Icon
+                <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Group Icon
               </h3>
               <div className="w-12" /> {/* spacer for center alignment */}
             </div>

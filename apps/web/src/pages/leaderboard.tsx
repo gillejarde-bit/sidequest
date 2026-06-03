@@ -44,7 +44,7 @@ interface LeaderboardData {
 export function LeaderboardPage() {
   const { user, profile } = useAuthStore()
   
-  const [activeTab, setActiveTab] = useState<'personal' | 'crews'>('personal')
+  const [activeTab, setActiveTab] = useState<'personal' | 'groups'>('personal')
   const [data, setData] = useState<LeaderboardData>({
     personal_streaks: [],
     group_streaks: [],
@@ -142,10 +142,10 @@ export function LeaderboardPage() {
               Personal 🔥
             </button>
             <button
-              onClick={() => setActiveTab('crews')}
-              className={`flex-1 py-2 text-xs font-black capitalize tracking-wider rounded-xl relative z-10 transition-colors cursor-pointer ${activeTab === 'crews' ? 'text-primary' : 'text-gray-400 dark:text-gray-500'}`}
+              onClick={() => setActiveTab('groups')}
+              className={`flex-1 py-2 text-xs font-black capitalize tracking-wider rounded-xl relative z-10 transition-colors cursor-pointer ${activeTab === 'groups' ? 'text-primary' : 'text-gray-400 dark:text-gray-500'}`}
             >
-              Crews 🔥
+              Groups 🔥
             </button>
           </div>
 
@@ -353,10 +353,10 @@ export function LeaderboardPage() {
               </motion.div>
             )}
 
-            {/* CREWS TAB */}
-            {activeTab === 'crews' && (
+            {/* GROUPS TAB */}
+            {activeTab === 'groups' && (
               <motion.div
-                key="crews"
+                key="groups"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

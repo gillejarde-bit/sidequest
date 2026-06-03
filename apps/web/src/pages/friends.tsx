@@ -74,7 +74,7 @@ function FriendsTab({ onGoFind }: { onGoFind: () => void }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 text-center mt-12">
         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No friends yet</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Adventure is better together. Find your crew and start questing!</p>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Adventure is better together. Find your friends and start questing!</p>
         <button onClick={onGoFind} className="bg-primary text-white font-bold py-3 px-8 rounded-full hover:bg-primary-hover active:scale-95 transition-all">
           Find Friends →
         </button>
@@ -209,23 +209,23 @@ function FindTab() {
 
 function GroupsTab() {
   const { hiddenGroupIds, toggleGroupVisibility } = useMapGroupsStore()
-  const [crews, setCrews] = useState<any[]>([])
+  const [groups, setGroups] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchCrews = async () => {
+    const fetchGroups = async () => {
       try {
         setLoading(true)
         const { data, error } = await supabase.rpc('get_my_streaks')
         if (error) throw error
-        setCrews(data || [])
+        setGroups(data || [])
       } catch (err) {
         console.error(err)
       } finally {
         setLoading(false)
       }
     }
-    fetchCrews()
+    fetchGroups()
   }, [])
 
   if (loading) {
@@ -236,24 +236,24 @@ function GroupsTab() {
     )
   }
 
-  if (crews.length === 0) {
+  if (groups.length === 0) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 text-center mt-12">
         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Crews yet</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Create a Crew in the Streaks Hub to start questing and tracking streaks together!</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Groups yet</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">Create a Group in the Streaks Hub to start questing and tracking streaks together!</p>
       </motion.div>
     )
   }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white dark:bg-gray-900 transition-colors duration-305 px-4 pt-4 space-y-4">
-      {crews.map((crew, i) => {
-        const isVisible = !hiddenGroupIds.includes(crew.group_id)
+      {groups.map((group, i) => {
+        const isVisible = !hiddenGroupIds.includes(group.group_id)
         
         return (
           <motion.div 
-            key={crew.group_id} 
+            key={group.group_id} 
             initial={{ opacity: 0, y: 10 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: i * 0.04 }}
@@ -262,26 +262,26 @@ function GroupsTab() {
             <div className="flex items-center gap-3">
               <div 
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg"
-                style={{ backgroundColor: crew.group_color || '#6C63FF' }}
+                style={{ backgroundColor: group.group_color || '#6C63FF' }}
               >
-                {crew.group_name[0].toUpperCase()}
+                {group.group_name[0].toUpperCase()}
               </div>
 
               <div>
-                <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">{crew.group_name}</h3>
+                <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">{group.group_name}</h3>
                 <p className="text-xs text-gray-400 font-semibold flex items-center gap-1 mt-0.5">
                   <Users className="w-3.5 h-3.5" />
-                  {crew.member_count} members
+                  {group.member_count} members
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               {/* Flame Badge */}
-              {crew.current_streak > 0 && (
+              {group.current_streak > 0 && (
                 <div className="flex items-center gap-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-500 font-bold px-2 py-0.5 rounded-lg text-xs">
                   <Flame className="w-3.5 h-3.5" fill="currentColor" />
-                  <span>{crew.current_streak}</span>
+                  <span>{group.current_streak}</span>
                 </div>
               )}
 
@@ -289,7 +289,7 @@ function GroupsTab() {
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase">Map</span>
                 <button
-                  onClick={() => toggleGroupVisibility(crew.group_id)}
+                  onClick={() => toggleGroupVisibility(group.group_id)}
                   className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${isVisible ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
                 >
                   <motion.div

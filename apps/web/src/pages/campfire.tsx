@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Calendar, MapPin, Flame } from 'lucide-react'
+import { Calendar, MapPin, Tent, MoreHorizontal } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
+import { useFriends } from '../hooks/useFriends'
+import { useFriendPresence } from '../hooks/useFriendPresence'
+import { useGeolocation } from '../hooks/useGeolocation'
 import { 
   FeedEvent, 
   BannerRibbon, 
@@ -13,12 +16,116 @@ import {
 } from '../components/campfire/CampfireComponents'
 import { format } from 'date-fns'
 
+function formatOfflineTime(updatedAt: string | null | undefined): string {
+  if (!updatedAt) return 'offline'
+  const diffMs = Date.now() - new Date(updatedAt).getTime()
+  if (diffMs < 0) return 'offline'
+  const diffSecs = Math.floor(diffMs / 1000)
+  const diffMins = Math.floor(diffSecs / 60)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffDays > 0) {
+    return `${diffDays}d ${diffHours % 24}h offline`
+  }
+  if (diffHours > 0) {
+    return `${diffHours}h ${diffMins % 60}m ${diffSecs % 60}s offline`
+  }
+  if (diffMins > 0) {
+    return `${diffMins}m ${diffSecs % 60}s offline`
+  }
+  return `${diffSecs}s offline`
+}
+
 export function CampfirePage() {
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
   const [feed, setFeed] = useState<FeedEvent[]>([])
   const [nextQuest, setNextQuest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [aiDigestText, setAiDigestText] = useState<string>('')
+
+  // Presence and groups sidebar / mobile strip states
+  const [sidebarTab, setSidebarTab] = useState<'groups' | 'friends'>('groups')
+  const [groups, setGroups] = useState<any[]>([])
+  const [groupMembers, setGroupMembers] = useState<Record<string, any[]>>({})
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+
+  // Keep a ticking count to force updates to the offline seconds formatting
+  const [timeTick, setTimeTick] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeTick(t => t + 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Geolocation and Realtime presence hooks
+  const userLoc = useGeolocation()
+  const friendsMap = useFriendPresence({
+    lat: userLoc.lat,
+    lng: userLoc.lng,
+    heading: userLoc.heading,
+  })
+
+  const { data: friendsList = [] } = useFriends()
+
+  const fetchGroupsAndMembers = async () => {
+    if (!user) return
+    try {
+      const { data: groupData, error: groupError } = await supabase.rpc('get_my_streaks')
+      if (groupError) throw groupError
+      
+      if (groupData && groupData.length > 0) {
+        setGroups(groupData)
+        const groupIds = groupData.map((g: any) => g.group_id)
+        
+        // Fetch group members along with their profiles
+        const { data: memberData, error: memberError } = await supabase
+          .from('group_members')
+          .select(`
+            group_id,
+            user_id,
+            role,
+            profiles:user_id (
+              id,
+              username,
+              display_name,
+              avatar_url,
+              level
+            )
+          `)
+          .in('group_id', groupIds)
+          
+        if (!memberError && memberData) {
+          // Fetch last seen timestamps from user_locations for members
+          const memberUserIds = memberData.map((m: any) => m.user_id)
+          const { data: memberLocs } = await supabase
+            .from('user_locations')
+            .select('user_id, updated_at')
+            .in('user_id', memberUserIds)
+            
+          const locMap = new Map(memberLocs?.map(l => [l.user_id, l.updated_at]) || [])
+          
+          const mapped: Record<string, any[]> = {}
+          memberData.forEach((m: any) => {
+            if (!mapped[m.group_id]) mapped[m.group_id] = []
+            if (m.profiles) {
+              mapped[m.group_id].push({
+                ...m.profiles,
+                role: m.role,
+                last_seen_at: locMap.get(m.user_id) || null
+              })
+            }
+          })
+          setGroupMembers(mapped)
+        }
+      } else {
+        setGroups([])
+      }
+    } catch (e) {
+      console.error('Error fetching groups and members:', e)
+    }
+  }
 
   const fetchFeedData = async () => {
     if (!user) return
@@ -63,32 +170,38 @@ export function CampfirePage() {
         }
       }
 
-      // 2. Fetch the next accepted upcoming quest using typecasting to any
-      const { data: invites } = await (supabase.from as any)('quest_invites')
+      // 2. Fetch the next accepted upcoming quest happening soonest
+      const { data: upcomingQuests } = await supabase
+        .from('quests')
         .select(`
-          status,
-          quest:quest_id (
-            id,
+          id,
+          name,
+          starts_at,
+          category,
+          location:location_id (
             name,
-            starts_at,
-            category,
-            location:location_id (
-              name,
-              address
-            )
+            address
+          ),
+          quest_invites!inner (
+            status,
+            user_id
           )
         `)
-        .eq('user_id', user.id)
-        .eq('status', 'accepted')
-        .order('created_at', { ascending: true })
+        .eq('quest_invites.user_id', user.id)
+        .eq('quest_invites.status', 'accepted')
+        .gte('starts_at', new Date().toISOString())
+        .order('starts_at', { ascending: true })
         .limit(1)
 
-      const upcoming = (invites as any[])?.map(i => i.quest).filter(Boolean)[0]
+      const upcoming = upcomingQuests?.[0]
       if (upcoming) {
         setNextQuest(upcoming)
       } else {
         setNextQuest(null)
       }
+
+      // 3. Load groups and members
+      await fetchGroupsAndMembers()
 
     } catch (e) {
       console.error('Error loading campfire feed:', e)
@@ -106,7 +219,7 @@ export function CampfirePage() {
       setAiDigestText(cached)
     } else {
       const messages = [
-        "Quiet around the fire tonight! Let's get out there—invite a friend to quest in Summerlin, or assemble a Crew to keep the streaks alive.",
+        "Quiet around the fire tonight! Let's get out there—invite a friend to quest in Summerlin, or assemble a Group to keep the streaks alive.",
         "Your adventure log is looking warm! You have done multiple check-ins recently. Start a new Quest today to claim another stamp for your history book.",
         "Welcome back to the fire! The Henderson area has multiple active locations waiting to be explored. Let's nominate a Hidden Gem to earn Discovery XP!",
         "The hearth is glowing. Add some friends from the side drawer to watch their level progress and follow their trails on your calendar."
@@ -120,7 +233,7 @@ export function CampfirePage() {
   useEffect(() => {
     fetchFeedData()
 
-    // 3. Real-time subscription to feed_events table
+    // 4. Real-time subscription to feed_events table
     const channel = supabase
       .channel('campfire-realtime')
       .on(
@@ -130,20 +243,20 @@ export function CampfirePage() {
           const newEvent = payload.new as any
           
           // Fetch creator profile details to render card cleanly
-          const { data: profile } = await supabase
+          const { data: profileData } = await supabase
             .from('profiles')
             .select('username, display_name, avatar_url, level')
             .eq('id', newEvent.actor_id)
             .single()
 
-          if (profile) {
+          if (profileData) {
             const formatted: FeedEvent = {
               id: newEvent.id,
               actor_id: newEvent.actor_id,
-              actor_username: profile.username,
-              actor_display_name: profile.display_name || profile.username,
-              actor_avatar_url: profile.avatar_url || undefined,
-              actor_level: profile.level || 1,
+              actor_username: profileData.username,
+              actor_display_name: profileData.display_name || profileData.username,
+              actor_avatar_url: profileData.avatar_url || undefined,
+              actor_level: profileData.level || 1,
               type: newEvent.type,
               payload: newEvent.payload,
               created_at: newEvent.created_at,
@@ -176,6 +289,7 @@ export function CampfirePage() {
 
   return (
     <div 
+      data-theme="ember"
       className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-[100px] w-full"
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 relative">
@@ -195,6 +309,61 @@ export function CampfirePage() {
               </div>
             ) : (
               <div className="space-y-5">
+                {/* Mobile Friends Around the Fire Circle */}
+                {friendsList.length > 0 && (
+                  <div className="lg:hidden w-full bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-4 shadow-md overflow-hidden text-left mb-2">
+                    <h4 className="text-[10px] font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-2.5">
+                      <Tent className="w-3.5 h-3.5" />
+                      Around the Fire
+                    </h4>
+                    <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
+                      {/* Current user avatar first */}
+                      <div className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
+                        <div className="relative">
+                          {profile?.avatar_url ? (
+                            <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover border-2 border-[#58CC02]" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border-2 border-[#58CC02]">
+                              {profile?.username?.[0]?.toUpperCase() || 'U'}
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#58CC02] rounded-full border border-white dark:border-gray-800" />
+                        </div>
+                        <span className="text-[9px] font-bold text-gray-500 truncate w-full text-center">You</span>
+                      </div>
+
+                      {/* Active friends */}
+                      {friendsList.map((friend) => {
+                        const isOnline = friendsMap.has(friend.id)
+                        
+                        return (
+                          <div key={friend.id} className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
+                            <div className="relative">
+                              {friend.avatar_url ? (
+                                <img 
+                                  src={friend.avatar_url} 
+                                  className={`w-10 h-10 rounded-full object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
+                                />
+                              ) : (
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 bg-primary/5 ${isOnline ? 'border-[#58CC02] text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
+                                  {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
+                                </div>
+                              )}
+                              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-800 ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                            </div>
+                            <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none">
+                              {friend.display_name || friend.username}
+                            </span>
+                            <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
+                              {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at).replace(' offline', '')}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* AI Campfire Digest */}
                 {aiDigestText && <AICampfireDigest text={aiDigestText} />}
 
@@ -254,32 +423,176 @@ export function CampfirePage() {
                   >
                     View Quest Details
                   </Link>
+
+                  <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700/50">
+                    <Link
+                      to="/quests"
+                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                      title="Go to Quest Book"
+                    >
+                      <MoreHorizontal className="w-5 h-5 text-gray-400 hover:text-gray-650 dark:hover:text-gray-250" />
+                    </Link>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-4 relative z-10">
+                <div className="text-center py-4 relative z-10 space-y-3">
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">No upcoming quests scheduled.</p>
                   <Link
                     to="/quest/create"
-                    className="inline-block mt-3 text-xs font-black text-primary hover:underline"
+                    className="inline-block text-xs font-black text-primary hover:underline"
                   >
                     + Create a Quest
                   </Link>
+
+                  <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700/50">
+                    <Link
+                      to="/quests"
+                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                      title="Go to Quest Book"
+                    >
+                      <MoreHorizontal className="w-5 h-5 text-gray-400 hover:text-gray-655 dark:hover:text-gray-250" />
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* 2. Crew Vibe placeholder slot */}
+            {/* 2. Around the Fire Card */}
             <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl relative overflow-hidden text-left">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
               
-              <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-2">
-                <Flame className="w-4 h-4" />
-                Crew Vibe
+              <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-3">
+                <Tent className="w-4 h-4" />
+                Around the Fire
               </h3>
-              
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-bold">
-                Quiet flames surround the hearth. Join or form a quest crew to shift the atmosphere and unlock collective group perks!
-              </p>
+
+              {/* Sidebar toggle between Groups and Friends */}
+              <div className="flex gap-2 mb-3 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-lg text-[10px] font-black uppercase">
+                <button
+                  onClick={() => setSidebarTab('groups')}
+                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'groups' ? 'bg-primary text-white shadow-sm' : 'text-gray-450 dark:text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                >
+                  Groups
+                </button>
+                <button
+                  onClick={() => setSidebarTab('friends')}
+                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'friends' ? 'bg-primary text-white shadow-sm' : 'text-gray-450 dark:text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                >
+                  Friends
+                </button>
+              </div>
+
+              {/* Content rendering */}
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {sidebarTab === 'groups' ? (
+                  groups.length === 0 ? (
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-bold text-center py-4">No groups joined yet.</p>
+                  ) : (
+                    groups.map((group) => {
+                      const members = groupMembers[group.group_id] || []
+                      const isExpanded = !!expandedGroups[group.group_id]
+                      
+                      return (
+                        <div key={group.group_id} className="border-b border-gray-105 dark:border-gray-700/50 pb-2 last:border-0 last:pb-0">
+                          <button
+                            onClick={() => setExpandedGroups(prev => ({ ...prev, [group.group_id]: !prev[group.group_id] }))}
+                            className="w-full flex items-center justify-between text-left focus:outline-none py-1 group/btn cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-5 h-5 rounded-md flex items-center justify-center text-white font-extrabold text-[10px] shrink-0"
+                                style={{ backgroundColor: group.group_color || '#6C63FF' }}
+                              >
+                                {group.group_name[0].toUpperCase()}
+                              </div>
+                              <span className="font-extrabold text-xs text-gray-900 dark:text-white group-hover/btn:text-primary transition-colors line-clamp-1">
+                                {group.group_name}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-gray-450 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded border">
+                              {isExpanded ? 'Hide' : 'Show'}
+                            </span>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 pl-3 space-y-2 border-l border-gray-150 dark:border-gray-750">
+                              {members.length === 0 ? (
+                                <p className="text-[10px] text-gray-450 font-bold">No members found.</p>
+                              ) : (
+                                members.map((member) => {
+                                  const isOnline = friendsMap.has(member.id) || member.id === user?.id
+                                  
+                                  return (
+                                    <div key={member.id} className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        {member.avatar_url ? (
+                                          <img src={member.avatar_url} alt={member.username} className="w-6 h-6 rounded-full object-cover shrink-0 animate-fade-in" />
+                                        ) : (
+                                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-primary/20">
+                                            {member.display_name?.[0]?.toUpperCase() || member.username[0].toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                                            {member.display_name || member.username}
+                                          </p>
+                                          <p className="text-[8px] text-gray-450 font-bold truncate">@{member.username}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                        <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                                          {isOnline ? 'Online' : formatOfflineTime(member.last_seen_at)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )
+                ) : (
+                  friendsList.length === 0 ? (
+                    <p className="text-[11px] text-gray-450 dark:text-gray-500 font-bold text-center py-4">No friends added yet.</p>
+                  ) : (
+                    friendsList.map((friend) => {
+                      const isOnline = friendsMap.has(friend.id)
+                      
+                      return (
+                        <div key={friend.id} className="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700/50 pb-2 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {friend.avatar_url ? (
+                              <img src={friend.avatar_url} alt={friend.username} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
+                                {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-gray-900 dark:text-white truncate leading-tight">
+                                {friend.display_name || friend.username}
+                              </p>
+                              <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold truncate">@{friend.username}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                            <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                              {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at)}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )
+                )}
+              </div>
             </div>
 
           </div>
@@ -287,6 +600,8 @@ export function CampfirePage() {
         </div>
 
       </div>
+      {/* Read timeTick to satisfy TypeScript noUnusedLocals and force re-render ticks */}
+      <span className="hidden">{timeTick}</span>
     </div>
   )
 }

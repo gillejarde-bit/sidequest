@@ -5,8 +5,8 @@ import { useSettingsStore } from '../stores/settingsStore'
 
 export interface FriendPresence {
   user_id: string
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
   heading: number | null
   updated_at: string
   username: string
@@ -22,13 +22,53 @@ interface UseFriendPresenceArgs {
   heading: number | null
 }
 
+const DEFAULT_LAT = 36.1699
+const DEFAULT_LNG = -115.1398
+
 export function useFriendPresence({ lat, lng, heading }: UseFriendPresenceArgs) {
   const { user, profile } = useAuthStore()
   const { shareLocation, locationSharingScope } = useSettingsStore()
   const [friends, setFriends] = useState<Map<string, FriendPresence>>(new Map())
   const lastBroadcastRef = useRef<number>(0)
-  const lastPosRef = useRef<{ lat: number; lng: number } | null>(null)
+  const lastPosRef = useRef<{ lat: number | null; lng: number | null } | null>(null)
   const channelRef = useRef<any>(null)
+
+  const broadcastAndPersist = async (force = false) => {
+    if (!channelRef.current || !user?.id) return
+    const now = Date.now()
+    if (!force && now - lastBroadcastRef.current < 10000) return
+
+    const shouldShareLoc = shareLocation && lat !== null && lng !== null
+    const payload = {
+      user_id: user.id,
+      lat: shouldShareLoc ? lat : null,
+      lng: shouldShareLoc ? lng : null,
+      heading: shouldShareLoc ? (heading ?? null) : null,
+      updated_at: new Date().toISOString(),
+      username: profile?.username ?? 'explorer',
+      avatar_url: profile?.avatar_url ?? '',
+      level: profile?.level ?? 1,
+      share_location: shouldShareLoc,
+      location_sharing_scope: locationSharingScope,
+    }
+
+    try {
+      await channelRef.current.track(payload)
+      lastBroadcastRef.current = now
+      lastPosRef.current = { lat, lng }
+
+      // Also persist last seen in database so it functions offline
+      await supabase.from('user_locations').upsert({
+        user_id: user.id,
+        lat: shouldShareLoc ? lat : DEFAULT_LAT,
+        lng: shouldShareLoc ? lng : DEFAULT_LNG,
+        heading: shouldShareLoc ? (heading ?? null) : null,
+        updated_at: new Date().toISOString(),
+      })
+    } catch (err) {
+      console.error('Error broadcasting presence or locations:', err)
+    }
+  }
 
   useEffect(() => {
     if (!user?.id) return
@@ -61,81 +101,23 @@ export function useFriendPresence({ lat, lng, heading }: UseFriendPresenceArgs) 
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Broadcast initial position immediately on subscribe only if coordinates are loaded
-          const storeState = useSettingsStore.getState()
-          if (storeState.shareLocation && lat !== null && lng !== null) {
-            await channel.track({
-              user_id: userId,
-              lat,
-              lng,
-              heading: heading ?? null,
-              updated_at: new Date().toISOString(),
-              username: profile?.username ?? 'explorer',
-              avatar_url: profile?.avatar_url ?? '',
-              level: profile?.level ?? 1,
-              share_location: true,
-              location_sharing_scope: storeState.locationSharingScope,
-            })
-          }
+          await broadcastAndPersist(true)
         }
       })
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user?.id]) // Only re-create channel when user changes
+  }, [user?.id])
 
-  // Handle shareLocation / locationSharingScope changes to track/untrack dynamically
+  // Track position or settings changes and broadcast
   useEffect(() => {
     if (!channelRef.current || !user?.id) return
-    
-    if (shareLocation) {
-      if (lat !== null && lng !== null) {
-        channelRef.current.track({
-          user_id: user.id,
-          lat,
-          lng,
-          heading,
-          updated_at: new Date().toISOString(),
-          username: profile?.username ?? 'explorer',
-          avatar_url: profile?.avatar_url ?? '',
-          level: profile?.level ?? 1,
-          share_location: true,
-          location_sharing_scope: locationSharingScope,
-        })
-      }
-    } else {
-      channelRef.current.untrack()
+    const posChanged = lastPosRef.current?.lat !== lat || lastPosRef.current?.lng !== lng
+    if (posChanged) {
+      broadcastAndPersist(false)
     }
-  }, [shareLocation, locationSharingScope, user?.id, profile?.username, profile?.level])
-
-  // Throttled position broadcast (separate effect so channel isn't torn down on position change)
-  useEffect(() => {
-    if (!user?.id || !channelRef.current || lat === null || lng === null) return
-    if (!shareLocation) return
-
-    const now = Date.now()
-    const posChanged =
-      lastPosRef.current?.lat !== lat || lastPosRef.current?.lng !== lng
-
-    if (posChanged && now - lastBroadcastRef.current >= 10000) {
-      channelRef.current.track({
-        user_id: user.id,
-        lat,
-        lng,
-        heading,
-        updated_at: new Date().toISOString(),
-        username: profile?.username ?? 'explorer',
-        avatar_url: profile?.avatar_url ?? '',
-        level: profile?.level ?? 1,
-        share_location: true,
-        location_sharing_scope: locationSharingScope,
-      })
-
-      lastBroadcastRef.current = now
-      lastPosRef.current = { lat, lng }
-    }
-  }, [user?.id, lat, lng, heading, profile?.username, profile?.level, shareLocation, locationSharingScope])
+  }, [lat, lng, heading, shareLocation, locationSharingScope, user?.id, profile?.username, profile?.level])
 
   return friends
 }

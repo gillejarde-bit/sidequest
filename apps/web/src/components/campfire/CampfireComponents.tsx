@@ -246,7 +246,7 @@ export function FeedCard({ event }: { event: FeedEvent }) {
         )}
         {type === 'streak_milestone' && (
           <p>
-            🔥 The crew <span className="text-primary font-black">@{payload.group_name}</span> reached a roaring <span className="text-primary font-extrabold font-display text-base">{payload.streak}-day streak</span>!
+            🔥 The group <span className="text-primary font-black">@{payload.group_name}</span> reached a roaring <span className="text-primary font-extrabold font-display text-base">{payload.streak}-day streak</span>!
           </p>
         )}
         {type === 'streak_revived' && (
@@ -348,7 +348,7 @@ export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) 
       <div className="space-y-2 relative z-10 max-w-sm">
         <h3 className="text-lg font-black font-display text-gray-900 dark:text-white tracking-wide">Quiet around the fire...</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
-          Invite friends to SideQuest or assemble your Crew to see details of their adventures recorded here.
+          Invite friends to SideQuest or assemble your Group to see details of their adventures recorded here.
         </p>
       </div>
 
@@ -366,7 +366,7 @@ export function EmptyCampfire({ onActionClick }: { onActionClick: () => void }) 
           className="flex items-center gap-1.5 px-4 py-2 bg-secondary hover:bg-secondary/80 text-white text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider font-display border border-transparent"
         >
           <Users className="w-4 h-4" />
-          Assemble Crew
+          Assemble Group
         </Link>
       </div>
     </div>

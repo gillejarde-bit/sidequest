@@ -17,7 +17,8 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers, X } from 'lucide-react'
+import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers, X, Gamepad2, Settings } from 'lucide-react'
+import { PixelOverlay } from '../map/pixelOverlay'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,14 @@ export function MapPage() {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
   const [showEmptyState, setShowEmptyState] = useState(true)
 
+  // Retro Pixel Overlay States
+  const [pixelModeEnabled, setPixelModeEnabled] = useState(true)
+  const [pixelSize, setPixelSize] = useState<number>(5)
+  const [pixelPalette, setPixelPalette] = useState<'stardew' | 'sidequest'>('stardew')
+  const [pixelTime, setPixelTime] = useState<'dawn' | 'day' | 'dusk' | 'night'>('day')
+  const [mapInstance, setMapInstance] = useState<any>(null)
+  const [showPixelSettings, setShowPixelSettings] = useState(false)
+
   const hasCenteredOnUserRef = useRef(false)
 
   useEffect(() => {
@@ -262,6 +271,30 @@ export function MapPage() {
     fetchData()
   }, [])
 
+  // TODO: Render custom pixel-font HTML markers/labels on top of the pixel overlay instead of native Mapbox symbol layers
+  const updateLabelLayersVisibility = (map: any, hide: boolean) => {
+    if (!map) return
+    try {
+      const style = map.getStyle()
+      if (style && style.layers) {
+        for (const layer of style.layers) {
+          if (layer.type === 'symbol') {
+            map.setLayoutProperty(layer.id, 'visibility', hide ? 'none' : 'visible')
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to toggle symbol layer visibility:', e)
+    }
+  }
+
+  // Synchronize label layer visibility with the pixel overlay state
+  useEffect(() => {
+    if (mapInstance) {
+      updateLabelLayersVisibility(mapInstance, pixelModeEnabled)
+    }
+  }, [mapInstance, pixelModeEnabled])
+
   // ── ISSUE 5 FIX: Sync filter state to Mapbox layer visibility ─────────────
 
   useEffect(() => {
@@ -324,6 +357,9 @@ export function MapPage() {
 
   const friendsList = useMemo(() => {
     return Array.from(friendsMap.values()).filter(f => {
+      // 0. Must have valid coordinates to render on the map
+      if (f.lat === null || f.lng === null) return false
+
       // 1. Must explicitly share location (privacy safety check)
       if (!f.share_location) return false
 
@@ -519,7 +555,8 @@ export function MapPage() {
         }}
         mapStyle={theme === 'dark' || theme === 'ember' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-        antialias={true}
+        antialias={false}
+        preserveDrawingBuffer={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
         onMove={() => {
@@ -534,6 +571,8 @@ export function MapPage() {
           setMapLoaded(true)
           const map = mapRef.current?.getMap()
           if (map) {
+            setMapInstance(map)
+            updateLabelLayersVisibility(map, pixelModeEnabled)
             try {
               map.setLayoutProperty('poi-label', 'visibility', 'none')
               map.setLayoutProperty('transit-label', 'visibility', 'none')
@@ -544,6 +583,8 @@ export function MapPage() {
           const map = mapRef.current?.getMap()
           if (map && map.isStyleLoaded() && !styleLoaded) {
             setStyleLoaded(true)
+            setMapInstance(map)
+            updateLabelLayersVisibility(map, pixelModeEnabled)
             try {
               map.setLayoutProperty('poi-label', 'visibility', 'none')
               map.setLayoutProperty('transit-label', 'visibility', 'none')
@@ -555,6 +596,15 @@ export function MapPage() {
         interactiveLayerIds={[]}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
+
+        {pixelModeEnabled && (
+          <PixelOverlay
+            map={mapInstance}
+            pixelSize={pixelSize}
+            palette={pixelPalette}
+            time={pixelTime}
+          />
+        )}
 
         {/* 3D Buildings */}
         <Layer
@@ -697,8 +747,8 @@ export function MapPage() {
         {(activeFilters.length === 0 || activeFilters.includes('Friends')) && friendsList.map((f) => (
           <Marker 
             key={`friend-${f.user_id}`} 
-            longitude={f.lng} 
-            latitude={f.lat} 
+            longitude={f.lng!} 
+            latitude={f.lat!} 
             anchor="center"
           >
             <div className="relative flex items-center justify-center group cursor-pointer">
@@ -782,6 +832,128 @@ export function MapPage() {
           <Layers className="w-5 h-5 text-primary" />
         )}
       </motion.button>
+
+      {/* Floating Retro Settings Toggle Button */}
+      {pixelModeEnabled && (
+        <motion.button
+          type="button"
+          onClick={() => setShowPixelSettings(!showPixelSettings)}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          className={`absolute right-4 bottom-76 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all ${
+            showPixelSettings 
+              ? 'bg-primary text-white border-primary-dark shadow-primary/20' 
+              : 'bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900'
+          }`}
+          style={{ zIndex: Z_INDEX.map_ui }}
+          title="Retro settings"
+        >
+          <Settings className="w-5 h-5 text-primary" />
+        </motion.button>
+      )}
+
+      {/* Pixel mode toggle floating button */}
+      <motion.button
+        type="button"
+        onClick={() => {
+          const nextVal = !pixelModeEnabled
+          setPixelModeEnabled(nextVal)
+          if (!nextVal) setShowPixelSettings(false)
+        }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        className={`absolute right-4 bottom-60 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all ${
+          pixelModeEnabled 
+            ? 'bg-primary text-white border-primary-dark shadow-primary/20' 
+            : 'bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900'
+        }`}
+        style={{ zIndex: Z_INDEX.map_ui }}
+        title={pixelModeEnabled ? 'Disable retro pixel mode' : 'Enable retro pixel mode'}
+      >
+        <Gamepad2 className="w-5 h-5 text-primary" />
+      </motion.button>
+
+      {/* Retro Pixel Settings Card overlay */}
+      {pixelModeEnabled && showPixelSettings && (
+        <div 
+          className="absolute bottom-92 right-4 pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-xl transition-all w-full max-w-[280px] md:max-w-[320px] flex flex-col gap-3"
+          style={{ zIndex: Z_INDEX.map_ui }}
+        >
+          <div className="flex items-center justify-between border-b border-gray-150 dark:border-gray-800 pb-2">
+            <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Gamepad2 className="w-3.5 h-3.5 text-primary animate-pulse" />
+              Retro Map Settings
+            </span>
+          </div>
+
+          {/* Pixel Size Control */}
+          <div className="flex flex-col gap-1.5 text-left">
+            <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wide">Pixel Size</span>
+            <div className="grid grid-cols-3 gap-1">
+              {[3, 5, 8].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setPixelSize(size)}
+                  className={`py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    pixelSize === size 
+                      ? 'bg-primary text-white' 
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {size}px
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Palette Control */}
+          <div className="flex flex-col gap-1.5 text-left">
+            <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wide">Color Palette</span>
+            <div className="grid grid-cols-2 gap-1">
+              {(['stardew', 'sidequest'] as const).map((pal) => (
+                <button
+                  key={pal}
+                  type="button"
+                  onClick={() => setPixelPalette(pal)}
+                  className={`py-1 text-xs font-bold rounded-lg transition-all cursor-pointer capitalize ${
+                    pixelPalette === pal 
+                      ? 'bg-primary text-white' 
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {pal}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time of Day Control */}
+          <div className="flex flex-col gap-1.5 text-left">
+            <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wide">Time Filter</span>
+            <div className="grid grid-cols-4 gap-1">
+              {(['dawn', 'day', 'dusk', 'night'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setPixelTime(t)}
+                  className={`py-1 text-[10px] font-bold rounded-lg transition-all cursor-pointer capitalize ${
+                    pixelTime === t 
+                      ? 'bg-primary text-white' 
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Re-center floating button */}
       <motion.button

@@ -15,6 +15,7 @@ export interface Friend {
   level: number
   xp: number
   quest_count: number
+  last_seen_at?: string | null
 }
 
 export interface PendingRequest {
@@ -33,9 +34,26 @@ export function useFriends() {
   return useQuery({
     queryKey: ['friends', user?.id],
     queryFn: async (): Promise<Friend[]> => {
-      const { data, error } = await supabase.rpc('get_friends_with_status' as any)
+      const { data: friends, error } = await supabase.rpc('get_friends_with_status' as any)
       if (error) throw error
-      return data || []
+      
+      if (friends && friends.length > 0) {
+        const friendIds = friends.map((f: any) => f.id)
+        const { data: locations, error: locError } = await supabase
+          .from('user_locations')
+          .select('user_id, updated_at')
+          .in('user_id', friendIds)
+
+        if (!locError && locations) {
+          const locMap = new Map(locations.map(l => [l.user_id, l.updated_at]))
+          return friends.map((f: any) => ({
+            ...f,
+            last_seen_at: locMap.get(f.id) || null
+          }))
+        }
+      }
+      
+      return friends || []
     },
     staleTime: 30000,
     enabled: !!user

@@ -43,31 +43,31 @@ export function QuestForm() {
   const [privacy, setPrivacy] = useState('friends')
   const [description, setDescription] = useState('')
   
-  // Friends & Crews
+  // Friends & Groups
   const { data: friends = [] } = useFriends()
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
   
-  const [crews, setCrews] = useState<{ group_id: string; group_name: string; group_color: string | null; member_count: number }[]>([])
-  const [selectedCrews, setSelectedCrews] = useState<string[]>([])
+  const [groups, setGroups] = useState<{ group_id: string; group_name: string; group_color: string | null; member_count: number }[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
 
   useEffect(() => {
-    async function fetchCrews() {
+    async function fetchGroups() {
       if (!user) return
       try {
         const { data, error } = await supabase.rpc('get_my_streaks')
         if (!error && data) {
-          setCrews(data as any[])
+          setGroups(data as any[])
         }
       } catch (err) {
-        console.error('Error fetching crews:', err)
+        console.error('Error fetching groups:', err)
       }
     }
-    fetchCrews()
+    fetchGroups()
   }, [user])
 
-  const toggleCrew = (crewId: string) => {
-    setSelectedCrews(prev => 
-      prev.includes(crewId) ? prev.filter(id => id !== crewId) : [...prev, crewId]
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroups(prev => 
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
     )
   }
 
@@ -182,22 +182,22 @@ export function QuestForm() {
           creator_id: user!.id,
           location_id: locationId,
           status: 'planned',
-          group_id: selectedCrews.length > 0 ? selectedCrews[0] : null,
-          is_group_quest: selectedCrews.length > 0
+          group_id: selectedGroups.length > 0 ? selectedGroups[0] : null,
+          is_group_quest: selectedGroups.length > 0
         })
         .select('id')
         .single()
 
       if (questError) throw questError
 
-      // 3. Gather unique invitees from both friends and crews
+      // 3. Gather unique invitees from both friends and groups
       const inviteeIds = new Set<string>(selectedFriends)
       
-      if (selectedCrews.length > 0) {
+      if (selectedGroups.length > 0) {
         const { data: members, error: membersError } = await supabase
           .from('group_members')
           .select('user_id')
-          .in('group_id', selectedCrews)
+          .in('group_id', selectedGroups)
         
         if (!membersError && members) {
           members.forEach(m => inviteeIds.add(m.user_id))
@@ -409,25 +409,25 @@ export function QuestForm() {
           </div>
         </motion.div>
 
-        {/* Invite Crews */}
+        {/* Invite Groups */}
         <motion.div variants={item} className="space-y-3">
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-            <Shield className="w-4 h-4 text-indigo-500" /> Invite Crews
+            <Shield className="w-4 h-4 text-indigo-500" /> Invite Groups
           </label>
           
-          {!crews || crews.length === 0 ? (
-            <div className="bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
-              You haven't joined any Crews yet! Create a Crew in the Social tab to start questing together.
+          {!groups || groups.length === 0 ? (
+            <div className="bg-white/60 dark:bg-gray-800/50 p-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+              You haven't joined any Groups yet! Create a Group in the Social tab to start questing together.
             </div>
           ) : (
             <div className="flex flex-wrap gap-3">
-              {crews.map(crew => {
-                const isSelected = selectedCrews.includes(crew.group_id)
+              {groups.map(group => {
+                const isSelected = selectedGroups.includes(group.group_id)
                 return (
                   <button
-                    key={crew.group_id}
+                    key={group.group_id}
                     type="button"
-                    onClick={() => toggleCrew(crew.group_id)}
+                    onClick={() => toggleGroup(group.group_id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
                       isSelected 
                         ? 'border-indigo-500 bg-indigo-55 dark:bg-indigo-500/20' 
@@ -436,12 +436,12 @@ export function QuestForm() {
                   >
                     <div 
                       className="w-5 h-5 rounded-md flex items-center justify-center text-white font-extrabold text-[10px]"
-                      style={{ backgroundColor: crew.group_color || '#6C63FF' }}
+                      style={{ backgroundColor: group.group_color || '#6C63FF' }}
                     >
-                      {crew.group_name[0].toUpperCase()}
+                      {group.group_name[0].toUpperCase()}
                     </div>
                     <span className={`text-sm font-medium ${isSelected ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                      {crew.group_name}
+                      {group.group_name}
                     </span>
                   </button>
                 )
@@ -450,15 +450,15 @@ export function QuestForm() {
           )}
         </motion.div>
 
-        {/* Invite Friends */}
+        {/* Invite to quest */}
         <motion.div variants={item} className="space-y-3">
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-emerald-500" /> Invite Squad
+            <UserPlus className="w-4 h-4 text-emerald-500" /> Invite to quest
           </label>
           
           {!friends || friends.length === 0 ? (
             <div className="bg-white/60 dark:bg-gray-900/60 p-4 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
-              You don't have any friends yet! Head over to the Social tab to find your squad.
+              You don't have any friends yet! Head over to the Social tab to find your friends.
             </div>
           ) : (
             <div className="flex flex-wrap gap-3">
