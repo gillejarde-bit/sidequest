@@ -9,6 +9,30 @@ import { FriendCard } from '../components/social/FriendCard'
 import { UserSearchCard } from '../components/social/UserSearchCard'
 import { useAuthStore } from '../stores/auth'
 
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    try {
+      return window.crypto.randomUUID();
+    } catch (e) {
+      // Fallback below
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const generateGroupCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -245,6 +269,12 @@ function GroupsTab() {
   const [inviteSearchQuery, setInviteSearchQuery] = useState('')
   const [inviteOverlaySearchQuery, setInviteOverlaySearchQuery] = useState('')
 
+  // Join state
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
+  const [joinCode, setJoinCode] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
+
   // Cropper states
   const [cropImage, setCropImage] = useState<string | null>(null)
   const [cropZoom, setCropZoom] = useState(1.0)
@@ -471,7 +501,8 @@ function GroupsTab() {
 
     try {
       setCreating(true)
-      const groupId = crypto.randomUUID()
+      const groupId = generateUUID()
+      const groupCode = generateGroupCode()
       
       // 1. Insert the quest group
       const { error: groupErr } = await supabase
@@ -483,6 +514,7 @@ function GroupsTab() {
           group_color: groupColor,
           avatar_url: crewAvatarUrl || null,
           group_type: groupType,
+          group_code: groupCode,
           xp: 0,
           level: 1,
           created_by: user?.id,
@@ -528,6 +560,72 @@ function GroupsTab() {
       console.error(err)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleJoinGroup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const code = joinCode.trim().toUpperCase()
+    if (code.length !== 6) {
+      setJoinError('Code must be exactly 6 characters.')
+      return
+    }
+
+    try {
+      setJoining(true)
+      setJoinError(null)
+
+      // 1. Fetch group by code
+      const { data: group, error: fetchErr } = await supabase
+        .from('quest_groups')
+        .select('id, name, member_count')
+        .eq('group_code', code)
+        .maybeSingle()
+
+      if (fetchErr) throw fetchErr
+      if (!group) {
+        setJoinError('No Group found with that code.')
+        return
+      }
+
+      // 2. Check if already a member
+      const { data: existingMember } = await supabase
+        .from('group_members')
+        .select('role')
+        .eq('group_id', group.id)
+        .eq('user_id', user?.id || '')
+        .maybeSingle()
+
+      if (existingMember) {
+        setJoinError('You are already a member of this Group!')
+        return
+      }
+
+      // 3. Insert membership
+      const { error: joinErr } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: group.id,
+          user_id: user?.id || '',
+          role: 'member'
+        })
+
+      if (joinErr) throw joinErr
+
+      // 4. Update member count
+      await supabase
+        .from('quest_groups')
+        .update({ member_count: (group.member_count || 0) + 1 } as any)
+        .eq('id', group.id)
+
+      setJoinCode('')
+      setIsJoinModalOpen(false)
+      fetchGroups()
+    } catch (err: any) {
+      console.error(err)
+      setJoinError(err.message || 'Failed to join group')
+    } finally {
+      setJoining(false)
     }
   }
 
@@ -586,14 +684,23 @@ function GroupsTab() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white dark:bg-gray-900 transition-colors duration-305 px-4 pt-4 space-y-4">
       
-      {/* Create Group Button at Top */}
-      <button
-        onClick={() => setIsCreateModalOpen(true)}
-        className="w-full flex items-center justify-center gap-2 py-4 bg-primary/10 border-2 border-dashed border-primary hover:bg-primary/20 text-primary font-black rounded-2xl transition-all cursor-pointer text-sm"
-      >
-        <Plus className="w-5 h-5" strokeWidth={2.5} />
-        Assemble a New Group
-      </button>
+      {/* Create & Join Buttons side by side */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-primary/10 border-2 border-dashed border-primary hover:bg-primary/20 text-primary font-black rounded-2xl transition-all cursor-pointer text-xs"
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          Assemble Group
+        </button>
+        <button
+          onClick={() => setIsJoinModalOpen(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-secondary/10 border-2 border-dashed border-secondary hover:bg-secondary/20 text-secondary font-black rounded-2xl transition-all cursor-pointer text-xs"
+        >
+          <Users className="w-4 h-4" strokeWidth={2.5} />
+          Join with Code
+        </button>
+      </div>
 
       {groups.length === 0 ? (
         <div className="p-8 text-center mt-6">
@@ -627,7 +734,14 @@ function GroupsTab() {
                 )}
 
                 <div>
-                  <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">{group.group_name}</h3>
+                  <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">
+                    {group.group_name}
+                    {group.group_code && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 font-bold ml-1.5">
+                        #{group.group_code}
+                      </span>
+                    )}
+                  </h3>
                   <p className="text-xs text-gray-400 font-semibold flex items-center gap-1 mt-0.5">
                     <Users className="w-3.5 h-3.5" />
                     {group.member_count} members
@@ -664,7 +778,6 @@ function GroupsTab() {
           )
         })
       )}
-
       {/* Assemble a New Group Modal */}
       <Portal>
         <AnimatePresence>
@@ -740,7 +853,7 @@ function GroupsTab() {
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
                       placeholder="e.g. Taco Tuesday Alliance"
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:border-primary transition-colors text-sm"
                     />
                   </div>
 
@@ -768,7 +881,7 @@ function GroupsTab() {
                       onChange={(e) => setGroupDesc(e.target.value)}
                       placeholder="Describe your group's focus..."
                       rows={2}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
                     />
                   </div>
 
@@ -805,7 +918,7 @@ function GroupsTab() {
                             placeholder="Search friends by username..."
                             value={inviteSearchQuery}
                             onChange={(e) => setInviteSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-405 focus:outline-none focus:border-primary transition-colors text-xs"
                           />
                         </div>
 
@@ -896,7 +1009,94 @@ function GroupsTab() {
                         <>
                           <Check className="w-4 h-4" strokeWidth={2.5} />
                           Assemble
-                      </>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </Portal>
+
+      {/* Join Group Modal */}
+      <Portal>
+        <AnimatePresence>
+          {isJoinModalOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                exit={{ opacity: 0 }}
+                onClick={() => {
+                  setIsJoinModalOpen(false)
+                  setJoinCode('')
+                  setJoinError(null)
+                }}
+                className="fixed inset-0 z-[140] bg-black pointer-events-auto"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[140] max-w-sm bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
+                  <Users className="w-6 h-6 text-secondary" />
+                  Join Group
+                </h2>
+                <p className="text-xs font-semibold text-gray-400 mb-5">
+                  Enter the 6-character unique group code (e.g., ABC123) sent by your friends to join their Group instantly!
+                </p>
+
+                <form onSubmit={handleJoinGroup} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                      Group Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. ABC123"
+                      className="w-full px-4 py-3 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-black tracking-widest text-center text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-secondary transition-colors text-lg uppercase"
+                    />
+                  </div>
+
+                  {joinError && (
+                    <div className="p-3 text-xs font-semibold bg-red-50 text-red-600 rounded-xl border border-red-100">
+                      {joinError}
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsJoinModalOpen(false)
+                        setJoinCode('')
+                        setJoinError(null)
+                      }}
+                      className="w-1/2 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={joining}
+                      className="w-1/2 py-3 bg-secondary hover:bg-secondary/90 disabled:bg-secondary/50 text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-secondary/25"
+                    >
+                      {joining ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" strokeWidth={2.5} />
+                          Join Group
+                        </>
                       )}
                     </button>
                   </div>
@@ -1036,7 +1236,14 @@ function GroupsTab() {
                     </div>
                   )}
                   
-                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">{selectedGroup.group_name}</h1>
+                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {selectedGroup.group_name}
+                    {selectedGroup.group_code && (
+                      <span className="text-sm text-gray-400 dark:text-gray-505 font-extrabold ml-2">
+                        #{selectedGroup.group_code}
+                      </span>
+                    )}
+                  </h1>
                   
                   {/* Type Badge */}
                   {selectedGroupDetails?.group_type && (

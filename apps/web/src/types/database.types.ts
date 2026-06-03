@@ -164,6 +164,10 @@ export type Database = {
           member_count: number | null
           created_at: string | null
           created_by: string | null
+          group_type: string | null
+          xp: number | null
+          level: number | null
+          group_code: string | null
         }
         Insert: {
           id?: string
@@ -178,6 +182,10 @@ export type Database = {
           member_count?: number | null
           created_at?: string | null
           created_by?: string | null
+          group_type?: string | null
+          xp?: number | null
+          level?: number | null
+          group_code?: string | null
         }
         Update: {
           id?: string
@@ -192,6 +200,10 @@ export type Database = {
           member_count?: number | null
           created_at?: string | null
           created_by?: string | null
+          group_type?: string | null
+          xp?: number | null
+          level?: number | null
+          group_code?: string | null
         }
         Relationships: [
           {
@@ -1247,6 +1259,7 @@ export type Database = {
           days_until_break: number
           next_milestone: number
           is_at_risk: boolean
+          group_code: string | null
         }[]
       }
       get_my_quests: {

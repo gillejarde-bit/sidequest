@@ -723,6 +723,11 @@ export function CampfirePage() {
                               </div>
                               <span className="font-extrabold text-xs text-gray-900 dark:text-white group-hover/btn:text-primary transition-colors line-clamp-1">
                                 {group.group_name}
+                                {group.group_code && (
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold ml-1.5">
+                                    #{group.group_code}
+                                  </span>
+                                )}
                               </span>
                             </button>
                             <button
@@ -856,7 +861,14 @@ export function CampfirePage() {
                     </div>
                   )}
                   
-                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">{selectedCampfireGroup.group_name}</h1>
+                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {selectedCampfireGroup.group_name}
+                    {selectedCampfireGroup.group_code && (
+                      <span className="text-sm text-gray-400 dark:text-gray-500 font-extrabold ml-2">
+                        #{selectedCampfireGroup.group_code}
+                      </span>
+                    )}
+                  </h1>
                   
                   {/* Type Badge */}
                   {selectedCampfireGroupDetails?.group_type && (

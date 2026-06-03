@@ -6,10 +6,12 @@
 -- 1. Create quest_groups & group_members tables if they do not exist
 -- 2. Alter the quests table to support group quests (adds group_id & is_group_quest)
 -- 3. Add group_type, xp, and level to quest_groups if they don't exist
--- 4. Enable RLS and re-create SELECT/INSERT policies securely for groups and members
--- 5. Fix orphaned groups (insert creator into group_members if missing)
--- 6. Secure quests table select policy (hides quests from non-friends & non-invitees)
--- 7. FORCE reload the PostgREST schema cache to fix all cache staleness immediately
+-- 4. Add group_code to quest_groups if it doesn't exist and generate codes
+-- 5. Enable RLS and re-create SELECT/INSERT policies securely for groups and members
+-- 6. Fix orphaned groups (insert creator into group_members if missing)
+-- 7. Secure quests table select policy (hides quests from non-friends & non-invitees)
+-- 8. Rebuild the get_my_streaks RPC to include group_code
+-- 9. FORCE reload the PostgREST schema cache to fix all cache staleness immediately
 -- ==============================================================================
 
 -- 1. Create quest_groups & group_members tables if they do not exist
@@ -45,11 +47,45 @@ ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS group_type text DEFAULT
 ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS xp integer DEFAULT 0;
 ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS level integer DEFAULT 1;
 
--- 4. Enable RLS
+-- 4. Add group_code to quest_groups if it doesn't exist and generate codes
+CREATE OR REPLACE FUNCTION generate_random_group_code()
+RETURNS text AS $$
+DECLARE
+  chars text := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  result text := '';
+  i integer;
+BEGIN
+  FOR i IN 1..6 LOOP
+    result := result || substr(chars, floor(random() * 36)::integer + 1, 1);
+  END LOOP;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+ALTER TABLE public.quest_groups ADD COLUMN IF NOT EXISTS group_code text UNIQUE;
+
+UPDATE public.quest_groups
+SET group_code = generate_random_group_code()
+WHERE group_code IS NULL;
+
+-- 4.5 Create security definer function to avoid RLS recursion
+CREATE OR REPLACE FUNCTION public.is_group_member(p_group_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.group_members
+    WHERE group_id = p_group_id AND user_id = p_user_id
+  );
+$$;
+
+-- 5. Enable RLS
 ALTER TABLE public.quest_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 
--- 5. Re-create SELECT/INSERT policies securely for groups and members
+-- 6. Re-create SELECT/INSERT policies securely for groups and members
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.quest_groups;
 CREATE POLICY "Users can view groups they belong to" ON public.quest_groups
   FOR SELECT USING (
@@ -108,5 +144,53 @@ CREATE POLICY "Quests are viewable by everyone" ON public.quests
         )
     );
 
--- 8. FORCE reload PostgREST schema cache to solve cache mismatches instantly
+-- 8. Rebuild the get_my_streaks RPC to include group_code
+CREATE OR REPLACE FUNCTION public.get_my_streaks()
+RETURNS TABLE (
+  group_id uuid,
+  group_name text,
+  group_color text,
+  group_avatar text,
+  current_streak int,
+  longest_streak int,
+  last_quest_at timestamptz,
+  streak_frozen bool,
+  member_count int,
+  days_until_break int,
+  next_milestone int,
+  is_at_risk bool,
+  group_code text
+)
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT
+    g.id,
+    g.name,
+    g.group_color,
+    g.avatar_url,
+    g.streak,
+    g.longest_streak,
+    g.last_quest_at,
+    g.streak_frozen,
+    g.member_count,
+    COALESCE(GREATEST(0, 7 - EXTRACT(DAY FROM now() - g.last_quest_at)::int), 7) as days_until_break,
+    CASE
+      WHEN g.streak < 3 THEN 3
+      WHEN g.streak < 7 THEN 7
+      WHEN g.streak < 14 THEN 14
+      WHEN g.streak < 30 THEN 30
+      ELSE 50
+    END as next_milestone,
+    COALESCE((EXTRACT(DAY FROM now() - g.last_quest_at)::int >= 5), false) as is_at_risk,
+    g.group_code
+  FROM public.quest_groups g
+  JOIN public.group_members gm ON gm.group_id = g.id
+  WHERE gm.user_id = auth.uid()
+  ORDER BY g.streak DESC
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_my_streaks TO authenticated;
+
+-- 9. FORCE reload PostgREST schema cache to solve cache mismatches instantly
 NOTIFY pgrst, 'reload schema';
