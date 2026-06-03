@@ -100,17 +100,19 @@ export function Login() {
         {/* 1. HERO FOLD: Title & Description (Fades out on scroll) */}
         <div 
           id="hero-text-container"
-          className="flex-1 flex flex-col justify-center items-center relative z-20 w-full max-w-lg mx-auto pointer-events-none mt-20"
+          className="flex-1 flex flex-col justify-center items-center relative z-20 w-full max-w-lg mx-auto pointer-events-none mt-20 px-4"
         >
-          <h1 
-            className="text-4xl sm:text-5xl font-black tracking-tight"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            Ready for a <span className="text-[#EE6C1F] drop-shadow-[0_0_15px_rgba(238,108,31,0.35)]">Sidequest?</span>
-          </h1>
-          <p className="text-gray-400 text-xs sm:text-sm max-w-xs mt-3">
-            A real-world social RPG. Scroll down to claim your magic key and enter the map.
-          </p>
+          <div className="bg-[#120B06]/65 backdrop-blur-[32px] border border-white/10 p-8 sm:p-10 rounded-[28px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)] text-center flex flex-col gap-3">
+            <h1 
+              className="text-4xl sm:text-5xl font-black tracking-tight"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              Ready for a <span className="text-[#EE6C1F] drop-shadow-[0_0_15px_rgba(238,108,31,0.35)]">Sidequest?</span>
+            </h1>
+            <p className="text-gray-300 text-xs sm:text-sm max-w-xs mx-auto">
+              A real-world social RPG. Scroll down to claim your magic key and enter the map.
+            </p>
+          </div>
         </div>
 
         {/* 2. AUTH CONTROLS: Login Card (Fades in on scroll) */}
@@ -119,7 +121,7 @@ export function Login() {
           className="absolute inset-0 z-30 flex items-center justify-center px-6 pointer-events-auto"
           style={{ display: 'none' }} // Controlled by GSAP ScrollController
         >
-          <div className="max-w-md w-full bg-white/[0.06] backdrop-blur-[16px] border-[0.5px] border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.3)] p-8 sm:p-10 rounded-[20px] text-center flex flex-col gap-6">
+          <div className="max-w-md w-full bg-[#120B06]/65 backdrop-blur-[32px] border border-white/10 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)] p-8 sm:p-10 rounded-[28px] text-center flex flex-col gap-6">
             <div>
               <h2 className="text-2xl font-semibold text-white tracking-tight">
                 {isSignInMode ? 'Sign In to Guild' : 'Access Guild Portal'}
