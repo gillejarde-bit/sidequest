@@ -138,6 +138,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+#variable_conflict use_column
 DECLARE
   v_viewer_lat float8;
   v_viewer_lng float8;
@@ -148,7 +149,7 @@ DECLARE
   v_halflife numeric;
 BEGIN
   -- 10.1 Try fetching the last known location of the viewer
-  SELECT lat, lng INTO v_viewer_lat, v_viewer_lng
+  SELECT public.user_locations.lat, public.user_locations.lng INTO v_viewer_lat, v_viewer_lng
   FROM public.user_locations
   WHERE user_id = viewer_id
   ORDER BY updated_at DESC
