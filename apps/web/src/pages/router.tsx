@@ -158,7 +158,7 @@ function BottomNav() {
       </AnimatePresence>
 
       {/* Main Bottom Nav Bar */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-x-auto no-scrollbar relative z-50">
+      <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 relative z-50">
         
         {/* [ 🔥 Campfire ] */}
         <Link to="/" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
@@ -190,9 +190,9 @@ function BottomNav() {
         </Link>
 
         {/* [ + Create ] Playful Floating Create Button */}
-        <div className="w-12 h-12 sm:w-14 sm:h-14 -mt-6 mx-1 relative z-50 shrink-0">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 -mt-7 sm:-mt-8 mx-1 relative z-50 shrink-0">
           <Link to="/quest/create" className="absolute inset-0 bg-primary rounded-full flex items-center justify-center shadow-lg text-white hover:bg-[#46A302] active:scale-90 transition-all border-4 border-gray-50 dark:border-[#1A1A2E]">
-            <Plus className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={3} />
+            <Plus className="w-7 h-7 sm:w-9 sm:h-9" strokeWidth={3} />
           </Link>
         </div>
 

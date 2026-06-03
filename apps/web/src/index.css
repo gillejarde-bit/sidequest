@@ -156,6 +156,11 @@
   border-color: var(--seam-brown) !important;
 }
 
+[data-theme="ember"] .dark\:border-\[\#1A1A2E\] {
+  border-color: var(--randall-rust) !important;
+  box-shadow: 0 0 14px rgba(238, 108, 31, 0.5) !important;
+}
+
 [data-theme="ember"] .text-gray-900,
 [data-theme="ember"] .text-gray-800,
 [data-theme="ember"] .text-gray-700,
