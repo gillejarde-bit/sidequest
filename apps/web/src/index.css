@@ -97,22 +97,10 @@
 [data-theme="ember"] h2,
 [data-theme="ember"] h3,
 [data-theme="ember"] h4,
-[data-theme="ember"] h5,
-[data-theme="ember"] h6,
 [data-theme="ember"] .font-display,
-[data-theme="ember"] .text-xs,
-[data-theme="ember"] .text-sm,
-[data-theme="ember"] .text-base,
-[data-theme="ember"] .text-lg,
-[data-theme="ember"] .text-xl,
 [data-theme="ember"] .text-2xl,
 [data-theme="ember"] .text-3xl,
-[data-theme="ember"] .text-4xl,
-[data-theme="ember"] p,
-[data-theme="ember"] span,
-[data-theme="ember"] a,
-[data-theme="ember"] li,
-[data-theme="ember"] label {
+[data-theme="ember"] .text-4xl {
   filter: url(#clean-wobble-sm) !important;
   transform: translate3d(0, 0, 0);
 }
