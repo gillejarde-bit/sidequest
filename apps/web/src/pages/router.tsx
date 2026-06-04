@@ -442,35 +442,21 @@ function RootLayout() {
         <defs>
           <filter id="clean-wobble-sm">
             <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            <feGaussianBlur in="displaced" stdDeviation="0.6" result="blur" />
-            <feComponentTransfer in="blur">
-              <feFuncA type="linear" slope="6" intercept="-2.5" />
-            </feComponentTransfer>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
           </filter>
           <filter id="clean-wobble-md">
             <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            <feGaussianBlur in="displaced" stdDeviation="0.8" result="blur" />
-            <feComponentTransfer in="blur">
-              <feFuncA type="linear" slope="6" intercept="-2.5" />
-            </feComponentTransfer>
+            <feGaussianBlur in="displaced" stdDeviation="0.4" />
           </filter>
           <filter id="clean-wobble-lg">
             <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.0" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            <feGaussianBlur in="displaced" stdDeviation="1.0" result="blur" />
-            <feComponentTransfer in="blur">
-              <feFuncA type="linear" slope="6" intercept="-2.5" />
-            </feComponentTransfer>
+            <feGaussianBlur in="displaced" stdDeviation="0.6" />
           </filter>
           <filter id="clean-wobble-pill">
             <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.0" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            <feGaussianBlur in="displaced" stdDeviation="0.7" result="blur" />
-            <feComponentTransfer in="blur">
-              <feFuncA type="linear" slope="6" intercept="-2.5" />
-            </feComponentTransfer>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.0" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
