@@ -11,7 +11,7 @@ export function ChevronRightIcon(props: StickerIconProps) {
             <path 
               d="M18,12 L30,24 L18,36" 
               fill="none"
-              stroke="black"
+              stroke="currentColor"
               strokeWidth="12"
               strokeLinecap="round"
               strokeLinejoin="round"

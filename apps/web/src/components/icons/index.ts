@@ -1,5 +1,5 @@
-export { StickerIcon } from './StickerIcon'
-export type { StickerIconProps } from './StickerIcon'
+export { StickerIcon, StickerWrapper } from './StickerIcon'
+export type { StickerIconProps, StickerWrapperProps } from './StickerIcon'
 
 export { CampfireIcon } from './CampfireIcon'
 export { MapIcon } from './MapIcon'

@@ -441,20 +441,36 @@ function RootLayout() {
       <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0 }} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="clean-wobble-sm">
-            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="2" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+            <feGaussianBlur in="displaced" stdDeviation="0.45" result="blur" />
+            <feComponentTransfer in="blur">
+              <feFuncA type="linear" slope="22" intercept="-10" />
+            </feComponentTransfer>
           </filter>
           <filter id="clean-wobble-md">
-            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="1" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="2" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.8" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+            <feGaussianBlur in="displaced" stdDeviation="0.55" result="blur" />
+            <feComponentTransfer in="blur">
+              <feFuncA type="linear" slope="26" intercept="-12" />
+            </feComponentTransfer>
           </filter>
           <filter id="clean-wobble-lg">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.2" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+            <feGaussianBlur in="displaced" stdDeviation="0.65" result="blur" />
+            <feComponentTransfer in="blur">
+              <feFuncA type="linear" slope="30" intercept="-14" />
+            </feComponentTransfer>
           </filter>
           <filter id="clean-wobble-pill">
-            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="1" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+            <feGaussianBlur in="displaced" stdDeviation="0.55" result="blur" />
+            <feComponentTransfer in="blur">
+              <feFuncA type="linear" slope="26" intercept="-12" />
+            </feComponentTransfer>
           </filter>
         </defs>
       </svg>

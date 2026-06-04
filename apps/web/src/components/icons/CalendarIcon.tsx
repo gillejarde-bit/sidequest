@@ -9,7 +9,7 @@ export function CalendarIcon(props: StickerIconProps) {
       {({ keyline }) => {
         if (keyline) {
           return (
-            <rect x="9" y="11" width="30" height="28" rx="4" fill="black" stroke="black" strokeWidth="6" />
+            <rect x="9" y="11" width="30" height="28" rx="4" fill="currentColor" stroke="currentColor" strokeWidth="6" />
           )
         }
 

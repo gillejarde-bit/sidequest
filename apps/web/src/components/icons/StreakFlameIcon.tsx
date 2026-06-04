@@ -11,8 +11,8 @@ export function StreakFlameIcon(props: StickerIconProps) {
           return (
             <path 
               d="M24,7 C33,18 36,25 36,33 C36,39 30,41 24,41 C18,41 12,39 12,33 C12,25 15,18 24,7 Z" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="6"
               strokeLinejoin="round"
             />

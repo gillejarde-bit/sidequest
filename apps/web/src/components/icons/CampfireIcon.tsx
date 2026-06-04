@@ -11,11 +11,11 @@ export function CampfireIcon(props: StickerIconProps) {
           return (
             <>
               {/* Crossed Logs Silhouette */}
-              <line x1="10" y1="38" x2="38" y2="30" stroke="black" strokeWidth="8" strokeLinecap="round" />
-              <line x1="10" y1="30" x2="38" y2="38" stroke="black" strokeWidth="8" strokeLinecap="round" />
+              <line x1="10" y1="38" x2="38" y2="30" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+              <line x1="10" y1="30" x2="38" y2="38" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
               
               {/* Flame Silhouette */}
-              <path d="M24,6 C28,14 38,18 38,30 C38,38 30,40 24,40 C18,40 10,38 10,30 C10,18 20,14 24,6 Z" fill="black" />
+              <path d="M24,6 C28,14 38,18 38,30 C38,38 30,40 24,40 C18,40 10,38 10,30 C10,18 20,14 24,6 Z" fill="currentColor" />
             </>
           )
         }

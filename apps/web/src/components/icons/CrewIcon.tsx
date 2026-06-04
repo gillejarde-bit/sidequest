@@ -12,14 +12,14 @@ export function CrewIcon(props: StickerIconProps) {
           return (
             <>
               {/* Center Head */}
-              <circle cx="24" cy="16" r="6" fill="black" stroke="black" strokeWidth="6" />
-              <path d="M14,35 C14,27 34,27 34,35 Z" fill="black" stroke="black" strokeWidth="6" />
+              <circle cx="24" cy="16" r="6" fill="currentColor" stroke="currentColor" strokeWidth="6" />
+              <path d="M14,35 C14,27 34,27 34,35 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" />
               {/* Left Head */}
-              <circle cx="15" cy="24" r="5" fill="black" stroke="black" strokeWidth="6" />
-              <path d="M7,40 C7,33 23,33 23,40 Z" fill="black" stroke="black" strokeWidth="6" />
+              <circle cx="15" cy="24" r="5" fill="currentColor" stroke="currentColor" strokeWidth="6" />
+              <path d="M7,40 C7,33 23,33 23,40 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" />
               {/* Right Head */}
-              <circle cx="33" cy="24" r="5" fill="black" stroke="black" strokeWidth="6" />
-              <path d="M25,40 C25,33 41,33 41,40 Z" fill="black" stroke="black" strokeWidth="6" />
+              <circle cx="33" cy="24" r="5" fill="currentColor" stroke="currentColor" strokeWidth="6" />
+              <path d="M25,40 C25,33 41,33 41,40 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" />
             </>
           )
         }

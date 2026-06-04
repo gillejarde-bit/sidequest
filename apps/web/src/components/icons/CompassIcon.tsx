@@ -10,7 +10,7 @@ export function CompassIcon(props: StickerIconProps) {
       {({ keyline }) => {
         if (keyline) {
           return (
-            <circle cx="24" cy="24" r="17" fill="black" stroke="black" strokeWidth="6" />
+            <circle cx="24" cy="24" r="17" fill="currentColor" stroke="currentColor" strokeWidth="6" />
           )
         }
 

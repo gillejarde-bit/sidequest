@@ -9,8 +9,8 @@ export function CloseIcon(props: StickerIconProps) {
         if (keyline) {
           return (
             <>
-              <line x1="14" y1="14" x2="34" y2="34" stroke="black" strokeWidth="12" strokeLinecap="round" />
-              <line x1="34" y1="14" x2="14" y2="34" stroke="black" strokeWidth="12" strokeLinecap="round" />
+              <line x1="14" y1="14" x2="34" y2="34" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
+              <line x1="34" y1="14" x2="14" y2="34" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
             </>
           )
         }

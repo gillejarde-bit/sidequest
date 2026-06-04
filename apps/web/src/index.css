@@ -92,6 +92,31 @@
   font-family: "SideQuest Sans", system-ui, sans-serif !important;
 }
 
+/* Typography hand-lettered style wobble */
+[data-theme="ember"] h1,
+[data-theme="ember"] h2,
+[data-theme="ember"] h3,
+[data-theme="ember"] h4,
+[data-theme="ember"] h5,
+[data-theme="ember"] h6,
+[data-theme="ember"] .font-display,
+[data-theme="ember"] .text-xs,
+[data-theme="ember"] .text-sm,
+[data-theme="ember"] .text-base,
+[data-theme="ember"] .text-lg,
+[data-theme="ember"] .text-xl,
+[data-theme="ember"] .text-2xl,
+[data-theme="ember"] .text-3xl,
+[data-theme="ember"] .text-4xl,
+[data-theme="ember"] p,
+[data-theme="ember"] span,
+[data-theme="ember"] a,
+[data-theme="ember"] li,
+[data-theme="ember"] label {
+  filter: url(#clean-wobble-sm) !important;
+  transform: translate3d(0, 0, 0);
+}
+
 /* Global class overrides when Ember theme is active on root */
 [data-theme="ember"] .bg-white,
 [data-theme="ember"] .bg-gray-50,
@@ -101,14 +126,32 @@
 [data-theme="ember"] .dark\:bg-gray-900,
 [data-theme="ember"] .dark\:bg-\[\#1A1A2E\],
 [data-theme="ember"] .bg-\[\#1A1A2E\],
-[data-theme="ember"] .dark\:bg-\[\#111122\] {
+[data-theme="ember"] .dark\:bg-\[\#111122\],
+[data-theme="ember"] .bg-card,
+[data-theme="ember"] .rounded-3xl,
+[data-theme="ember"] .rounded-2xl {
   background-color: var(--hearth-brown) !important;
+  border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+  filter: url(#clean-wobble-md) !important;
+  transform: translate3d(0, 0, 0);
 }
 
 [data-theme="ember"] .bg-background,
 [data-theme="ember"] .dark\:bg-background,
 [data-theme="ember"] .bg-\[\#FAFAF8\] {
   background-color: var(--forge-black) !important;
+}
+
+/* Global button, input, select, textarea overrides for wobbly pill shape */
+[data-theme="ember"] button:not(.w-11):not(.w-8):not(.w-10):not(.w-14):not(.p-1\.5):not(.w-12):not(.w-7):not(.w-6),
+[data-theme="ember"] .btn,
+[data-theme="ember"] input,
+[data-theme="ember"] select,
+[data-theme="ember"] textarea,
+[data-theme="ember"] .rounded-xl:not(.w-24):not(.w-8) {
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
+  filter: url(#clean-wobble-pill) !important;
+  transform: translate3d(0, 0, 0);
 }
 
 /* Opacity and card blur backgrounds in Ember theme */

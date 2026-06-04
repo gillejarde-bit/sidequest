@@ -1,25 +1,27 @@
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { 
-  ChevronLeft, 
   Moon, 
   Sun, 
-  Settings as SettingsIcon, 
   MapPin, 
   LogOut, 
   Bell, 
-  ChevronRight,
-  Shield,
-  Volume2,
-  Calendar,
-  Flame
+  Shield, 
+  Volume2, 
+  Calendar, 
+  Flame 
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useAuthStore } from '../stores/auth'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-
 import { useEffect } from 'react'
+import { 
+  ChevronLeftIcon, 
+  ChevronRightIcon, 
+  SettingsIcon, 
+  StickerWrapper 
+} from '../components/icons'
 
 export function SettingsPage() {
   const { 
@@ -116,17 +118,17 @@ export function SettingsPage() {
     <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">
       
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#1A1A2E]/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+      <header className="sticky top-0 z-40 bg-[var(--sq-bg)]/80 backdrop-blur-xl border-b border-[var(--sq-hairline)]">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <Link 
             to="/map"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 active:scale-95 transition-transform"
+            className="w-10 h-10 flex items-center justify-center bg-[var(--sq-surface)] text-[var(--sq-text)] border border-[var(--sq-hairline)] sq-wobbly-md active:scale-95 transition-all shadow-[var(--sq-shadow-soft)]"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeftIcon size={20} withShadow={false} />
           </Link>
           <div className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-gray-900 dark:text-white" />
-            <h1 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">Settings</h1>
+            <SettingsIcon size={24} active={true} withShadow={false} />
+            <h1 className="text-xl font-black tracking-tight text-[var(--sq-text)]">Settings</h1>
           </div>
           <div className="w-10" />
         </div>
@@ -169,7 +171,7 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRightIcon size={20} withShadow={false} className="opacity-60" />
             </div>
           </Link>
         )}
@@ -181,14 +183,20 @@ export function SettingsPage() {
           {/* Theme Selection */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                theme === 'ember' 
-                  ? 'bg-[#EE6C1F]/20 text-[#EE6C1F]' 
-                  : theme === 'dark'
-                  ? 'bg-indigo-500/20 text-indigo-400' 
-                  : 'bg-orange-100 text-orange-655'
-              }`}>
-                {theme === 'ember' ? <Flame className="w-5 h-5" /> : theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              <div className="shrink-0 flex items-center justify-center">
+                {theme === 'ember' ? (
+                  <StickerWrapper active={true} withShadow={false}>
+                    <Flame className="w-5 h-5" />
+                  </StickerWrapper>
+                ) : theme === 'dark' ? (
+                  <StickerWrapper active={false} withShadow={false}>
+                    <Moon className="w-5 h-5" />
+                  </StickerWrapper>
+                ) : (
+                  <StickerWrapper active={false} withShadow={false}>
+                    <Sun className="w-5 h-5" />
+                  </StickerWrapper>
+                )}
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Theme Selection</h3>
@@ -224,8 +232,10 @@ export function SettingsPage() {
           {/* Share location Toggle */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400">
-                <MapPin className="w-5 h-5" />
+              <div className="shrink-0 flex items-center justify-center">
+                <StickerWrapper withShadow={false}>
+                  <MapPin className="w-5 h-5" />
+                </StickerWrapper>
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Location sharing</h3>
@@ -287,8 +297,10 @@ export function SettingsPage() {
           {/* Calendar Visibility */}
           <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-                <Calendar className="w-5 h-5" />
+              <div className="shrink-0 flex items-center justify-center">
+                <StickerWrapper withShadow={false}>
+                  <Calendar className="w-5 h-5" />
+                </StickerWrapper>
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Calendar Visibility</h3>
@@ -313,17 +325,17 @@ export function SettingsPage() {
               ))}
             </div>
           </div>
-        </div>
-
-        {/* Notifications Section */}
+        </div>        {/* Notifications Section */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80 space-y-5">
           <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">Alerts & Notifications</h4>
 
           {/* Push Notifications Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
-                <Bell className="w-5 h-5" />
+              <div className="shrink-0 flex items-center justify-center">
+                <StickerWrapper withShadow={false}>
+                  <Bell className="w-5 h-5" />
+                </StickerWrapper>
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Push Alerts</h3>
@@ -347,8 +359,10 @@ export function SettingsPage() {
           {/* Quest Invites Toggle */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400">
-                <Shield className="w-5 h-5" />
+              <div className="shrink-0 flex items-center justify-center">
+                <StickerWrapper withShadow={false}>
+                  <Shield className="w-5 h-5" />
+                </StickerWrapper>
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Auto Accept Invites</h3>
@@ -372,8 +386,10 @@ export function SettingsPage() {
           {/* Sound FX Toggle */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                <Volume2 className="w-5 h-5" />
+              <div className="shrink-0 flex items-center justify-center">
+                <StickerWrapper withShadow={false}>
+                  <Volume2 className="w-5 h-5" />
+                </StickerWrapper>
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Haptic Sound Effects</h3>
@@ -399,9 +415,11 @@ export function SettingsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80">
           <button
             onClick={handleSignOut}
-            className="w-full py-4 bg-red-500 hover:bg-red-600 active:scale-98 text-white font-extrabold rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/15"
+            className="w-full py-4 bg-red-500 hover:bg-red-650 active:scale-98 text-white font-extrabold rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/15"
           >
-            <LogOut className="w-5 h-5" />
+            <StickerWrapper withShadow={false} className="mr-1">
+              <LogOut className="w-5 h-5" />
+            </StickerWrapper>
             Sign Out of Account
           </button>
         </div>

@@ -11,8 +11,8 @@ export function SparkleIcon(props: StickerIconProps) {
           return (
             <polygon 
               points="24,8 29,19 40,24 29,29 24,40 19,29 8,24 19,19" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="6"
               strokeLinejoin="round"
             />

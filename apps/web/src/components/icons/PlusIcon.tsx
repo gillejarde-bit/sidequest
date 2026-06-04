@@ -13,8 +13,8 @@ export function PlusIcon({ color, ...props }: PlusIconProps) {
         if (keyline) {
           return (
             <>
-              <line x1="12" y1="24" x2="36" y2="24" stroke="black" strokeWidth="12" strokeLinecap="round" />
-              <line x1="24" y1="12" x2="24" y2="36" stroke="black" strokeWidth="12" strokeLinecap="round" />
+              <line x1="12" y1="24" x2="36" y2="24" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
+              <line x1="24" y1="12" x2="24" y2="36" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
             </>
           )
         }

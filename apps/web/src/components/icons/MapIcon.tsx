@@ -11,8 +11,8 @@ export function MapIcon(props: StickerIconProps) {
           return (
             <path 
               d="M9,11 L20,15 L28,11 L39,15 L39,39 L28,35 L20,39 L9,35 Z" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="6"
               strokeLinejoin="round"
             />

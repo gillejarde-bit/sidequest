@@ -405,20 +405,21 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                 // Animating state: base background pages + 3D rotating overlay leaf
                 <>
                   {/* Left Background Page (Target page if going backward, else previous page) */}
-                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  <div 
+                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                    style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
+                  >
                     {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
                     <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
                       {(direction === 'forward' ? prevPageIndex : currentPageIndex) + 1}
                     </div>
                   </div>
 
-                  {/* Center Creased gutter */}
-                  <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--sq-ink)]/15 via-[var(--sq-ink)]/35 to-[var(--sq-ink)]/15" />
-                  </div>
-
                   {/* Right Background Page (Target page if going forward, else previous page) */}
-                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  <div 
+                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                    style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
+                  >
                     {renderPageContent(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1)}
                     <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
                       {(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) + 1}
@@ -428,16 +429,16 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                   {/* Flipping Page Container */}
                   <motion.div
                     key={`flip-${prevPageIndex}-${currentPageIndex}`}
-                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
-                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
-                    transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                    initial={{ rotateY: 0 }}
+                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 180 }}
+                    transition={{ duration: 0.55, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       transformOrigin: direction === 'forward' ? 'left center' : 'right center',
                       transformStyle: 'preserve-3d',
                       position: 'absolute',
                       top: 0,
                       bottom: 0,
-                      width: '50%',
+                      width: 'calc(50% + 1px)',
                       left: direction === 'forward' ? '50%' : '0%',
                       zIndex: 30,
                       pointerEvents: 'none'
@@ -449,7 +450,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(0deg)',
+                        transform: 'rotateY(0deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? prevPageIndex + 1 : currentPageIndex + 1)}
@@ -464,7 +465,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg)',
+                        transform: 'rotateY(180deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}
@@ -477,19 +478,20 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
               ) : (
                 // Static state: show static open spreads
                 <>
-                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  <div 
+                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                    style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
+                  >
                     {renderPageContent(currentPageIndex)}
                     <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
                       {currentPageIndex + 1}
                     </div>
                   </div>
 
-                  {/* Center Creased gutter */}
-                  <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--sq-ink)]/15 via-[var(--sq-ink)]/35 to-[var(--sq-ink)]/15" />
-                  </div>
-
-                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  <div 
+                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                    style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
+                  >
                     {renderPageContent(currentPageIndex + 1)}
                     <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
                       {currentPageIndex + 2}
@@ -497,13 +499,22 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                   </div>
                 </>
               )}
+
+              {/* Absolute Center Creased gutter (sitting above everything including the flipping page) */}
+              <div 
+                className="absolute left-1/2 top-0 bottom-0 w-8 pointer-events-none z-40"
+                style={{ transform: 'translateX(-50%) translateZ(10px)', transformStyle: 'preserve-3d' }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--sq-ink)]/10 via-[var(--sq-ink)]/25 to-[var(--sq-ink)]/10" />
+                <div className="absolute inset-y-0 left-1/2 w-[1.5px] bg-[var(--sq-ink)]/30 -translate-x-1/2" />
+              </div>
             </div>
           ) : (
             // SINGLE PAGE (MOBILE VIEWPORT) WITH 3D PAGE-FLIP
             <div className="w-full h-full relative" style={{ transformStyle: "preserve-3d" }}>
               {isAnimating ? (
                 <>
-                  {/* Background target page */}
+                  {/* Background target page (shows old page if going backward, new page if going forward) */}
                   <div className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden">
                     {renderPageContent(currentPageIndex)}
                     <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
@@ -532,7 +543,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(0deg)',
+                        transform: 'rotateY(0deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
@@ -547,7 +558,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg)',
+                        transform: 'rotateY(180deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}

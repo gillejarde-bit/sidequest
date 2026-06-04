@@ -11,8 +11,8 @@ export function GemIcon(props: StickerIconProps) {
           return (
             <polygon 
               points="24,8 38,20 24,38 10,20" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="6"
               strokeLinejoin="round"
             />

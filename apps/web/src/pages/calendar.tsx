@@ -4,16 +4,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/auth'
 import { 
-  ChevronLeft, 
-  ChevronRight, 
   Clock, 
-  MapPin, 
-  Users, 
-  Crown, 
-  Plus, 
   Loader2,
-  CalendarDays
+  Crown,
+  MapPin,
+  Users,
+  CalendarDays,
+  Plus
 } from 'lucide-react'
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  CrewIcon,
+  StickerWrapper
+} from '../components/icons'
 import { useToastStore } from '../stores/toastStore'
 import { Z_INDEX } from '../lib/zIndex'
 
@@ -366,53 +371,53 @@ export function CalendarPage() {
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-[var(--sq-bg)] text-[var(--sq-text)] transition-colors duration-300">
       
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+      <header className="sticky top-0 z-40 bg-[var(--sq-bg)]/80 backdrop-blur-xl border-b border-[var(--sq-hairline)]">
         <div className="max-w-md mx-auto px-4 pt-4 pb-2">
           
           <div className="flex items-center justify-between">
             <Link 
               to="/map"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 active:scale-95 transition-transform"
+              className="w-10 h-10 flex items-center justify-center bg-[var(--sq-surface)] text-[var(--sq-text)] border border-[var(--sq-hairline)] sq-wobbly-md active:scale-95 transition-all shadow-[var(--sq-shadow-soft)]"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeftIcon size={20} withShadow={false} />
             </Link>
             
             {/* Title / Date navigation */}
-            <div className="flex items-center gap-1.5 font-black text-gray-900 dark:text-white">
-              <button onClick={handlePrevDate} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
-                <ChevronLeft className="w-4.5 h-4.5" />
+            <div className="flex items-center gap-1.5 font-medium text-[var(--sq-text)]">
+              <button onClick={handlePrevDate} className="p-1.5 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] hover:bg-[var(--sq-card-hover)] text-[var(--sq-text)] rounded-full transition-colors cursor-pointer">
+                <ChevronLeftIcon size={16} withShadow={false} />
               </button>
-              <span className="text-base tracking-tight">{monthName}</span>
-              <button onClick={handleNextDate} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
-                <ChevronRight className="w-4.5 h-4.5" />
+              <span className="text-base tracking-tight font-medium lowercase first-letter:uppercase">{monthName}</span>
+              <button onClick={handleNextDate} className="p-1.5 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] hover:bg-[var(--sq-card-hover)] text-[var(--sq-text)] rounded-full transition-colors cursor-pointer">
+                <ChevronRightIcon size={16} withShadow={false} />
               </button>
             </div>
             
             <Link 
               to="/quest/create"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 text-primary active:scale-95 transition-transform"
+              className="w-10 h-10 flex items-center justify-center bg-[var(--sq-ember-500)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] sq-wobbly-md active:scale-95 transition-all"
             >
-              <Plus className="w-5 h-5" strokeWidth={2.5} />
+              <PlusIcon size={20} active={true} withShadow={false} />
             </Link>
           </div>
 
           {/* Sliding segment selector */}
-          <div className="mt-4 flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl relative">
+          <div className="mt-4 flex bg-[var(--sq-surface)] border border-[var(--sq-hairline-strong)] p-1 rounded-full relative overflow-hidden sq-wobbly-pill shadow-[var(--sq-shadow-soft)]">
             <div 
-              className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 rounded-xl shadow-sm transition-all duration-300 ease-out z-0"
+              className="absolute top-1 bottom-1 bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-full transition-all duration-300 ease-out z-0 sq-wobbly-pill"
               style={{
-                left: `${viewMode === 'month' ? 4 : 50}%`,
-                width: '46%',
+                left: `${viewMode === 'month' ? 2 : 51}%`,
+                width: '47%',
               }}
             />
             {['month', 'agenda'].map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode as any)}
-                className={`flex-1 py-2 text-xs font-black capitalize tracking-wider rounded-xl relative z-10 transition-colors cursor-pointer ${viewMode === mode ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                className={`flex-1 py-2 text-xs font-medium capitalize tracking-wider rounded-full relative z-10 transition-colors cursor-pointer ${viewMode === mode ? 'text-[var(--sq-ember-400)] font-medium' : 'text-[var(--sq-text-muted)] hover:text-[var(--sq-text)]'}`}
               >
                 {mode === 'month' ? 'Month' : 'Agenda'}
               </button>
@@ -433,10 +438,10 @@ export function CalendarPage() {
               fetchCrews()
               setShowFriendPicker(true)
             }}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-lg shadow-indigo-500/15 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-[var(--sq-sage-500)] hover:bg-[var(--sq-sage-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] px-4 py-2 rounded-full active:scale-95 transition-all cursor-pointer text-xs font-medium uppercase tracking-wider sq-wobbly-pill"
           >
-            <Users className="w-3.5 h-3.5" />
-            Compare Schedules
+            <CrewIcon size={18} active={true} withShadow={false} />
+            Compare schedules
           </button>
           {(selectedFriends.length > 0 || selectedCrews.length > 0) && (
             <button
@@ -444,7 +449,7 @@ export function CalendarPage() {
                 setSelectedFriends([])
                 setSelectedCrews([])
               }}
-              className="text-[10px] text-red-500 font-black bg-red-50 dark:bg-red-950/20 border border-red-100 px-3 py-2 rounded-xl cursor-pointer hover:bg-red-100"
+              className="text-[10px] text-[var(--sq-heart)] font-medium bg-[var(--sq-surface)] border border-[var(--sq-hairline)] px-3.5 py-1.5 rounded-full cursor-pointer hover:bg-[var(--sq-card-hover)] transition-colors sq-wobbly-pill"
             >
               Clear comparison
             </button>
@@ -453,7 +458,9 @@ export function CalendarPage() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <StickerWrapper withShadow={false}>
+              <Loader2 className="w-8 h-8 text-[var(--sq-ember-500)] animate-spin" />
+            </StickerWrapper>
             <p className="text-sm text-gray-400 font-semibold">Aligning schedule...</p>
           </div>
         ) : (
@@ -596,7 +603,9 @@ export function CalendarPage() {
               >
                 {getAgendaItems().length === 0 ? (
                   <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 text-center space-y-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <CalendarDays className="w-12 h-12 text-gray-300 mx-auto" />
+                    <StickerWrapper withShadow={false}>
+                      <CalendarDays className="w-12 h-12 text-gray-300 mx-auto" />
+                    </StickerWrapper>
                     <p className="text-gray-400 font-bold">No upcoming quests scheduled in your planner yet!</p>
                     <Link
                       to="/quest/create"
@@ -649,17 +658,25 @@ export function CalendarPage() {
                                     >
                                       {q.name}
                                     </h4>
-                                    {isCreator && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                                    {isCreator && (
+                                      <StickerWrapper withShadow={false}>
+                                        <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                                      </StickerWrapper>
+                                    )}
                                   </div>
 
                                   <p className="text-xs text-gray-400 font-semibold flex items-center gap-1 mt-1 truncate">
-                                    <MapPin className="w-3.5 h-3.5 text-gray-300" />
+                                    <StickerWrapper withShadow={false}>
+                                      <MapPin className="w-3.5 h-3.5 text-gray-300" />
+                                    </StickerWrapper>
                                     {q.location_name}
                                   </p>
 
                                   <div className="mt-3 flex items-center gap-1.5">
                                     <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold bg-gray-50 dark:bg-gray-900 px-2 py-0.5 rounded-lg">
-                                      <Users className="w-3 h-3 text-gray-350" />
+                                      <StickerWrapper withShadow={false}>
+                                        <Users className="w-3 h-3 text-gray-350" />
+                                      </StickerWrapper>
                                       {q.attendee_count} going
                                     </div>
                                     {q.group_name && (
@@ -886,7 +903,9 @@ export function CalendarPage() {
                   to="/quest/create"
                   className="flex items-center gap-1 bg-primary text-white text-xs font-black px-3.5 py-2 rounded-2xl active:scale-95 transition-transform"
                 >
-                  <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  <StickerWrapper withShadow={false}>
+                    <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </StickerWrapper>
                   Quest
                 </Link>
               </div>
@@ -918,11 +937,17 @@ export function CalendarPage() {
                               >
                                 {q.name}
                               </h4>
-                              {isCreator && <Crown className="w-3.5 h-3.5 text-yellow-500" />}
+                              {isCreator && (
+                                <StickerWrapper withShadow={false}>
+                                  <Crown className="w-3.5 h-3.5 text-yellow-500" />
+                                </StickerWrapper>
+                              )}
                             </div>
                             
                             <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1 mt-1">
-                              <Clock className="w-3 h-3 text-gray-300" />
+                              <StickerWrapper withShadow={false}>
+                                <Clock className="w-3 h-3 text-gray-300" />
+                              </StickerWrapper>
                               {timeRange} • {q.location_name}
                             </p>
                           </div>

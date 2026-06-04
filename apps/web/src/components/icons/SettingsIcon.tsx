@@ -10,8 +10,8 @@ export function SettingsIcon(props: StickerIconProps) {
           return (
             <path 
               d="M24,14 A10,10 0 1,0 24,34 A10,10 0 1,0 24,14 M24,11 L24,14 M24,34 L24,37 M14,24 L11,24 M34,24 L37,24 M17,17 L15,15 M31,31 L33,33 M17,31 L15,33 M31,17 L33,15" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="12"
               strokeLinecap="round"
             />

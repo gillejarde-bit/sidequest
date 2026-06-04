@@ -10,8 +10,8 @@ export function HeartIcon(props: StickerIconProps) {
           return (
             <path 
               d="M24,13 C21,8 12,8 12,18 C12,27 24,36 24,36 C24,36 36,27 36,18 C36,8 27,8 24,13 Z" 
-              fill="black" 
-              stroke="black"
+              fill="currentColor" 
+              stroke="currentColor"
               strokeWidth="6"
               strokeLinejoin="round"
             />

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import React, { ReactNode } from 'react'
 
 export interface StickerIconProps {
   size?: number
@@ -46,10 +46,13 @@ export function StickerIcon({
         />
       )}
 
-      {/* 2. Keyline backing (drawn first with thick stroke) */}
+      {/* 2. Keyline backing (drawn first with thick stroke, forced to white/keyline via style) */}
       <g
-        fill="var(--sq-keyline, #FBF3E4)"
-        stroke="var(--sq-keyline, #FBF3E4)"
+        style={{
+          color: 'var(--sq-keyline, #FFFFFF)',
+          fill: 'var(--sq-keyline, #FFFFFF)',
+          stroke: 'var(--sq-keyline, #FFFFFF)',
+        }}
         strokeWidth="7"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -62,5 +65,72 @@ export function StickerIcon({
         {children({ keyline: false })}
       </g>
     </svg>
+  )
+}
+
+export interface StickerWrapperProps {
+  children: React.ReactElement<any>
+  withShadow?: boolean
+  className?: string
+  onClick?: () => void
+  active?: boolean
+}
+
+export function StickerWrapper({
+  children,
+  withShadow = true,
+  className = '',
+  onClick
+}: StickerWrapperProps) {
+  const childStyle = children.props.style || {}
+  const childClass = children.props.className || ''
+
+  // Clone the SVG icon with a thick white border to represent the sticker paper backing
+  const keylineElement = React.cloneElement(children, {
+    stroke: 'var(--sq-keyline, #FFFFFF)',
+    fill: children.props.fill && children.props.fill !== 'none' ? 'var(--sq-keyline, #FFFFFF)' : 'none',
+    strokeWidth: (parseFloat(children.props.strokeWidth || 2) + 3.5),
+    style: {
+      ...childStyle,
+      stroke: 'var(--sq-keyline, #FFFFFF)',
+      fill: children.props.fill && children.props.fill !== 'none' ? 'var(--sq-keyline, #FFFFFF)' : 'none',
+      overflow: 'visible'
+    },
+    className: `${childClass} overflow-visible text-[var(--sq-keyline)]`
+  })
+
+  // Clone the SVG icon as the foreground drawing with dark ink borders
+  const foregroundElement = React.cloneElement(children, {
+    stroke: 'var(--sq-ink, #3A2A20)',
+    fill: children.props.fill && children.props.fill !== 'none' ? 'currentColor' : 'none',
+    strokeWidth: children.props.strokeWidth || 2,
+    className: `${childClass} text-current`
+  })
+
+  return (
+    <div
+      className={`relative inline-block overflow-visible ${className}`}
+      onClick={onClick}
+      style={{
+        cursor: onClick ? 'pointer' : undefined,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        verticalAlign: 'middle'
+      }}
+    >
+      {/* 3D Sticker Drop Shadow */}
+      {withShadow && (
+        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-[70%] h-1 bg-black/16 rounded-full blur-[0.5px] pointer-events-none" />
+      )}
+      {/* Sticker Paper Backing */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ transform: 'scale(1)' }}>
+        {keylineElement}
+      </div>
+      {/* Sticker Art Foreground */}
+      <div className="relative flex items-center justify-center">
+        {foregroundElement}
+      </div>
+    </div>
   )
 }

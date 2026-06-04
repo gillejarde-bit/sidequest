@@ -11,12 +11,12 @@ export function FriendsIcon(props: StickerIconProps) {
           return (
             <>
               {/* Back friend */}
-              <circle cx="30" cy="18" r="7" fill="black" stroke="black" strokeWidth="6" />
-              <path d="M20,38 C20,30 40,30 40,38 Z" fill="black" stroke="black" strokeWidth="6" strokeLinejoin="round" />
+              <circle cx="30" cy="18" r="7" fill="currentColor" stroke="currentColor" strokeWidth="6" />
+              <path d="M20,38 C20,30 40,30 40,38 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
               
               {/* Front friend */}
-              <circle cx="18" cy="22" r="7" fill="black" stroke="black" strokeWidth="6" />
-              <path d="M8,41 C8,33 28,33 28,41 Z" fill="black" stroke="black" strokeWidth="6" strokeLinejoin="round" />
+              <circle cx="18" cy="22" r="7" fill="currentColor" stroke="currentColor" strokeWidth="6" />
+              <path d="M8,41 C8,33 28,33 28,41 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
             </>
           )
         }

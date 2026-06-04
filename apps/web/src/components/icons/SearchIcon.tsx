@@ -9,8 +9,8 @@ export function SearchIcon(props: StickerIconProps) {
         if (keyline) {
           return (
             <>
-              <circle cx="20" cy="20" r="9" fill="none" stroke="black" strokeWidth="12" />
-              <line x1="26" y1="26" x2="38" y2="38" stroke="black" strokeWidth="12" strokeLinecap="round" />
+              <circle cx="20" cy="20" r="9" fill="none" stroke="currentColor" strokeWidth="12" />
+              <line x1="26" y1="26" x2="38" y2="38" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
             </>
           )
         }

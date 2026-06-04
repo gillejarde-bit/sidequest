@@ -11,10 +11,10 @@ export function EmberSleepIcon(props: StickerIconProps) {
           return (
             <>
               {/* Flame silhouette */}
-              <path d="M24,10 C29,18 36,22 36,31 C36,38 29,41 24,41 C19,41 12,38 12,31 C12,22 19,18 24,10 Z" fill="black" stroke="black" strokeWidth="6" />
+              <path d="M24,10 C29,18 36,22 36,31 C36,38 29,41 24,41 C19,41 12,38 12,31 C12,22 19,18 24,10 Z" fill="currentColor" stroke="currentColor" strokeWidth="6" />
               {/* Sleep bubbles ZZZ outline */}
-              <text x="32" y="16" fontSize="10" fontWeight="bold" fontFamily="sans-serif" stroke="black" strokeWidth="6" fill="black">Z</text>
-              <text x="37" y="10" fontSize="7" fontWeight="bold" fontFamily="sans-serif" stroke="black" strokeWidth="6" fill="black">z</text>
+              <text x="32" y="16" fontSize="10" fontWeight="bold" fontFamily="sans-serif" stroke="currentColor" strokeWidth="6" fill="currentColor">Z</text>
+              <text x="37" y="10" fontSize="7" fontWeight="bold" fontFamily="sans-serif" stroke="currentColor" strokeWidth="6" fill="currentColor">z</text>
             </>
           )
         }
