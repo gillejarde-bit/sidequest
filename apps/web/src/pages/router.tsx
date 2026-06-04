@@ -5,7 +5,21 @@ import { Onboarding } from './onboarding'
 import { FriendsPage } from './friends'
 import { QuestsPage } from './quests'
 import { supabase } from '../lib/supabase'
-import { Map as MapIcon, Users, User, Plus, Settings as SettingsIcon, MoreHorizontal, Flame, Calendar, ChevronRight, Swords, Diamond, Trophy, Tent } from 'lucide-react'
+import { 
+  CampfireIcon, 
+  MapIcon, 
+  CompassIcon, 
+  PlusIcon, 
+  FriendsIcon, 
+  CalendarIcon, 
+  MoreDotsIcon,
+  GemIcon,
+  StreakFlameIcon,
+  SparkleIcon,
+  SettingsIcon,
+  ChevronRightIcon,
+  CloseIcon
+} from '../components/icons'
 import { usePendingRequests } from '../hooks/useFriends'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -57,7 +71,7 @@ function BottomNav() {
       label: 'Hidden Gems',
       to: '/gems' as const,
       params: undefined,
-      icon: <Diamond className="w-4 h-4 text-cyan-500" />,
+      icon: <GemIcon size={20} active={activeTab === 'gems'} withShadow={false} />,
       active: activeTab === 'gems',
       badge: false
     },
@@ -65,7 +79,7 @@ function BottomNav() {
       label: 'Group Streaks',
       to: '/streaks' as const,
       params: undefined,
-      icon: <Flame className="w-4 h-4 text-orange-500" />,
+      icon: <StreakFlameIcon size={20} active={activeTab === 'streaks'} withShadow={false} />,
       active: activeTab === 'streaks',
       badge: false
     },
@@ -73,7 +87,7 @@ function BottomNav() {
       label: 'Leaderboard',
       to: '/leaderboard' as const,
       params: undefined,
-      icon: <Trophy className="w-4 h-4 text-amber-500" />,
+      icon: <SparkleIcon size={20} active={activeTab === 'leaderboard'} withShadow={false} />,
       active: activeTab === 'leaderboard',
       badge: false
     },
@@ -81,7 +95,7 @@ function BottomNav() {
       label: 'Profile',
       to: '/profile/$id' as const,
       params: { id: user.id },
-      icon: <User className="w-4 h-4 text-indigo-500" />,
+      icon: <FriendsIcon size={20} active={activeTab === 'profile'} withShadow={false} />,
       active: activeTab === 'profile',
       badge: false
     },
@@ -89,7 +103,7 @@ function BottomNav() {
       label: 'Settings',
       to: '/settings' as const,
       params: undefined,
-      icon: <SettingsIcon className="w-4 h-4 text-gray-500" />,
+      icon: <SettingsIcon size={20} active={activeTab === 'settings'} withShadow={false} />,
       active: activeTab === 'settings',
       badge: false
     }
@@ -148,7 +162,7 @@ function BottomNav() {
                         {count}
                       </span>
                     )}
-                    <ChevronRight className="w-3.5 h-3.5 opacity-45" />
+                    <ChevronRightIcon size={14} withShadow={false} className="opacity-45" />
                   </div>
                 </Link>
               </motion.div>
@@ -158,76 +172,107 @@ function BottomNav() {
       </AnimatePresence>
 
       {/* Main Bottom Nav Bar */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white dark:bg-background border border-gray-100 dark:border-gray-800 rounded-full shadow-2xl shadow-black/10 dark:shadow-black/40 relative z-50">
+      <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 bg-[var(--sq-surface)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-pill)] shadow-[var(--sq-shadow-soft)] relative z-50">
         
         {/* [ ⛺ Campfire ] */}
-        <Link to="/" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+        <Link to="/" className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0">
+          <CampfireIcon active={activeTab === 'campfire'} size={32} />
           {activeTab === 'campfire' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <Tent className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'campfire' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ 🗺 Map ] */}
-        <Link to="/map" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+        <Link to="/map" className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0">
+          <MapIcon active={activeTab === 'map'} size={32} />
           {activeTab === 'map' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <MapIcon className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'map' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ ⚔️ Quests ] */}
-        <Link to="/quests" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+        <Link to="/quests" className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0">
+          <CompassIcon active={activeTab === 'quests'} size={32} />
           {activeTab === 'quests' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <Swords className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'quests' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
           {inviteCount > 0 && (
-            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-20 shadow-md border-2 border-white dark:border-gray-900 animate-pulse">
+            <span className="absolute top-0 right-0 min-w-4.5 h-4.5 bg-[var(--sq-heart)] text-[var(--sq-text)] text-[9px] rounded-full flex items-center justify-center font-black px-1 border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]">
               {inviteCount}
             </span>
           )}
         </Link>
 
         {/* [ + Create ] Playful Floating Create Button */}
-        <div className="w-14 h-14 sm:w-16 sm:h-16 -mt-7 sm:-mt-8 mx-1 relative z-50 shrink-0">
-          <Link to="/quest/create" className="absolute inset-0 bg-primary rounded-full flex items-center justify-center shadow-lg text-white hover:bg-[#46A302] active:scale-90 transition-all border-4 border-gray-50 dark:border-[#1A1A2E]">
-            <Plus className="w-7 h-7 sm:w-9 sm:h-9" strokeWidth={3} />
+        <div className="relative w-14 h-14 -mt-8 mx-1 shrink-0 z-50">
+          <Link to="/quest/create">
+            <motion.div
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              className="w-14 h-14 rounded-full bg-[var(--sq-ember-500)] border-4 border-[var(--sq-keyline)] flex items-center justify-center shadow-[var(--sq-shadow-glow)] cursor-pointer"
+            >
+              <PlusIcon active={true} withShadow={false} size={28} className="translate-y-[-0.5px]" />
+            </motion.div>
           </Link>
         </div>
 
         {/* [ 👥 Friends ] */}
-        <Link to="/friends" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+        <Link to="/friends" className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0">
+          <FriendsIcon active={activeTab === 'friends'} size={32} />
           {activeTab === 'friends' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <Users className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'friends' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
           {count > 0 && (
-            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-20 shadow-md border-2 border-white dark:border-gray-900 animate-pulse">
+            <span className="absolute top-0 right-0 min-w-4.5 h-4.5 bg-[var(--sq-heart)] text-[var(--sq-text)] text-[9px] rounded-full flex items-center justify-center font-black px-1 border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]">
               {count}
             </span>
           )}
         </Link>
 
         {/* [ 📅 Calendar ] */}
-        <Link to="/calendar" className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0">
+        <Link to="/calendar" className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0">
+          <CalendarIcon active={activeTab === 'calendar'} size={32} />
           {activeTab === 'calendar' && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <Calendar className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${activeTab === 'calendar' ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
         </Link>
 
         {/* [ ⋯ More ] */}
         <button 
           onClick={() => setShowMore(!showMore)}
-          className="relative flex flex-col items-center justify-center w-10 sm:w-12 h-10 sm:h-12 shrink-0 cursor-pointer focus:outline-none"
+          className="relative flex flex-col items-center justify-center w-11 h-11 shrink-0 cursor-pointer focus:outline-none"
         >
+          <MoreDotsIcon active={isMoreActive} size={32} />
           {isMoreActive && (
-            <motion.div layoutId="nav-bubble" className="absolute inset-0 bg-gray-100 dark:bg-gray-800 rounded-full z-0" />
+            <motion.div 
+              layoutId="nav-dot" 
+              className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-[var(--sq-ember-500)]"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           )}
-          <MoreHorizontal className={`w-5 h-5 sm:w-6 sm:h-6 z-10 transition-colors ${isMoreActive ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`} strokeWidth={2.5} />
           {count > 0 && (
-            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold z-20 shadow-md border-2 border-white dark:border-gray-900">
+            <span className="absolute top-0 right-0 min-w-4.5 h-4.5 bg-[var(--sq-heart)] text-[var(--sq-text)] text-[9px] rounded-full flex items-center justify-center font-black px-1 border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]">
               {count}
             </span>
           )}
@@ -354,16 +399,16 @@ function RootLayout() {
             exit={{ opacity: 0, y: -50, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
             style={{ zIndex: 9999 }}
-            className="fixed top-4 left-4 right-4 max-w-[420px] mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-100 dark:border-gray-800 rounded-3xl p-4 shadow-2xl flex items-center justify-between gap-4"
+            className="fixed top-4 left-4 right-4 max-w-[420px] mx-auto bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] flex items-center justify-between gap-4"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0 animate-pulse">
-                <Swords className="w-5 h-5 stroke-[2.5]" />
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-[var(--sq-r-sm)] bg-[var(--sq-surface)] border border-[var(--sq-hairline)] flex items-center justify-center shrink-0">
+                <CompassIcon active={true} size={28} withShadow={false} />
               </div>
-              <div className="text-left">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-primary">Quest Invite! ⚔️</h4>
-                <p className="text-xs text-gray-700 dark:text-gray-200 font-bold mt-0.5 leading-snug">
-                  <span className="text-primary font-black">@{activeToast.creatorName}</span> invited you to <span className="underline decoration-primary/45 font-black">{activeToast.questName}</span>
+              <div>
+                <h4 className="text-[11px] font-medium uppercase tracking-wider text-[var(--sq-ember-400)]">Quest invite!</h4>
+                <p className="text-xs text-[var(--sq-text)] font-medium mt-0.5 leading-snug">
+                  <span className="text-[var(--sq-ember-300)] font-medium">@{activeToast.creatorName}</span> invited you to <span className="underline decoration-[var(--sq-ember-500)]/45 font-medium">{activeToast.questName}</span>
                 </p>
               </div>
             </div>
@@ -373,15 +418,15 @@ function RootLayout() {
                   setActiveToast(null)
                   router.navigate({ to: '/quest/$id', params: { id: activeToast.questId } })
                 }}
-                className="px-3.5 py-2 bg-primary hover:bg-[#46A302] text-white text-[11px] font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer uppercase tracking-wider"
+                className="px-3.5 py-2 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-400)] text-[var(--sq-ink)] text-[11px] font-medium rounded-[var(--sq-r-sm)] border border-[var(--sq-keyline)] active:scale-95 transition-all shadow-[var(--sq-shadow-sticker)] uppercase tracking-wider cursor-pointer"
               >
                 View
               </button>
               <button
                 onClick={() => setActiveToast(null)}
-                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 flex items-center justify-center active:scale-95 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] text-[var(--sq-text-muted)] flex items-center justify-center active:scale-95 transition-colors cursor-pointer border border-[var(--sq-hairline)]"
               >
-                ✕
+                <CloseIcon size={20} withShadow={false} />
               </button>
             </div>
           </motion.div>
@@ -391,6 +436,28 @@ function RootLayout() {
       <BottomNav />
       <XPPopup />
       <LevelUpModal />
+
+      {/* Global SVG Filters for Clean Hand-Drawn Wobble Outlines */}
+      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0 }} xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="clean-wobble-sm">
+            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="clean-wobble-md">
+            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="clean-wobble-lg">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="clean-wobble-pill">
+            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
     </div>
   )
 }

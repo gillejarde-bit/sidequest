@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { QuestBook } from '../components/quest/QuestBook'
+import { CompassIcon } from '../components/icons'
 
 export function QuestsPage() {
 
@@ -20,14 +21,14 @@ export function QuestsPage() {
   const myQuests = allQuests.filter((q: any) => q.my_status === 'creator' || q.my_status === 'accepted')
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-36 pt-4 relative">
+    <div className="min-h-[100dvh] bg-[var(--sq-bg)] text-[var(--sq-text)] transition-colors duration-300 pb-36 pt-4 relative">
       
       {/* Book header */}
       <header className="max-w-md mx-auto px-6 mb-6 text-center">
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center justify-center gap-2">
-          📖 Quest Book
+        <h1 className="text-2xl font-medium text-[var(--sq-text)] uppercase tracking-wider flex items-center justify-center gap-2">
+          <CompassIcon size={32} active={true} withShadow={false} /> Quest book
         </h1>
-        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">
+        <p className="text-[10px] font-medium text-[var(--sq-text-muted)] uppercase tracking-widest mt-1">
           Open your chronicle of completed memories
         </p>
       </header>

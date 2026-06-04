@@ -1,0 +1,63 @@
+:root {
+  /* Warm dark surfaces */
+  --sq-bg: #1E140E;
+  --sq-surface: #2A1C14;
+  --sq-card: #33231A;
+  --sq-card-hover: #3D2A1F;
+  --sq-hairline: rgba(245, 223, 168, 0.10);
+  --sq-hairline-strong: rgba(245, 223, 168, 0.18);
+  
+  /* Cream text (never pure white) */
+  --sq-text: #F5E6D3;
+  --sq-text-muted: #C9B49C;
+  --sq-text-faint: #8A7560;
+  
+  /* Ember orange — primary */
+  --sq-ember-300: #FFB870;
+  --sq-ember-400: #FF9A52;
+  --sq-ember-500: #F2741E;
+  --sq-ember-600: #D85A30;
+  --sq-ember-glow: rgba(242, 116, 30, 0.38);
+  
+  /* Gold / cream highlights */
+  --sq-gold: #F6A623;
+  --sq-gold-soft: #FFCB6B;
+  --sq-banner: #F5DFA8;
+  
+  /* Warmed sage — secondary (replaces teal) */
+  --sq-sage-500: #5FA88F;
+  --sq-sage-600: #3E7A66;
+  --sq-sage-100: #CFE3DA;
+  
+  /* Semantic, warmed */
+  --sq-heart: #E2655B;
+  --sq-success: #8FB35A;
+  --sq-warning: #E8A23C;
+  
+  /* Sticker keyline + ink */
+  --sq-keyline: #FBF3E4;
+  --sq-ink: #3A2A20;
+  
+  /* Radii — cozy = generous */
+  --sq-r-sm: 10px;
+  --sq-r-md: 14px;
+  --sq-r-lg: 18px;
+  --sq-r-xl: 24px;
+  --sq-r-pill: 999px;
+  
+  /* Shadows */
+  --sq-shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.28);
+  --sq-shadow-sticker: 0 3px 6px rgba(0, 0, 0, 0.22);
+  --sq-shadow-glow: 0 0 26px var(--sq-ember-glow);
+  
+  /* Spacing (8px base) */
+  --sq-1: 4px;
+  --sq-2: 8px;
+  --sq-3: 12px;
+  --sq-4: 16px;
+  --sq-5: 24px;
+  --sq-6: 32px;
+  --sq-8: 48px;
+  
+  --sq-font: "SideQuest Sans", system-ui, sans-serif;
+}

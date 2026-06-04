@@ -3,33 +3,34 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #58CC02;
-  --color-secondary: #6C63FF;
-  --color-accent: #FF6B6B;
-  --color-surface: #FAFAF8;
-  --color-dark: #1A1A2E;
-  --color-muted: #A8A8B3;
-  --color-border: var(--border);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-primary: var(--sq-ember-500);
+  --color-primary-hover: var(--sq-ember-600);
+  --color-secondary: var(--sq-sage-500);
+  --color-accent: var(--sq-heart);
+  --color-surface: var(--sq-surface);
+  --color-dark: var(--sq-bg);
+  --color-muted: var(--sq-text-muted);
+  --color-border: var(--sq-hairline);
+  --color-background: var(--sq-bg);
+  --color-foreground: var(--sq-text);
+  --color-card: var(--sq-card);
 
-  --font-sans: "SideQuest Sans", system-ui, sans-serif;
-  
-  --font-display: "SideQuest Sans", system-ui, sans-serif;
-  --font-body: "SideQuest Sans", system-ui, sans-serif;
+  --font-sans: var(--sq-font);
+  --font-display: var(--sq-font);
+  --font-body: var(--sq-font);
 }
 
 @layer base {
   :root {
-    --background: #FAFAF8;
-    --foreground: #1A1A2E;
-    --border: #E2E8F0;
+    --background: var(--sq-bg);
+    --foreground: var(--sq-text);
+    --border: var(--sq-hairline);
   }
   
   .dark {
-    --background: #1A1A2E;
-    --foreground: #FAFAF8;
-    --border: #2D3748;
+    --background: var(--sq-bg);
+    --foreground: var(--sq-text);
+    --border: var(--sq-hairline);
   }
 }
 
@@ -44,6 +45,10 @@
 
 .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
   display: none !important;
+}
+
+.mapboxgl-canvas {
+  filter: sepia(0.35) saturate(0.85) hue-rotate(345deg) brightness(0.9) contrast(1.05) !important;
 }
 
 /* Scoped Ember Theme Scope */
@@ -288,6 +293,31 @@
 }
 .scrollbar-premium::-webkit-scrollbar-thumb:hover {
   background-color: var(--randall-rust, #C2410C);
+}
+
+/* Wobbly hand-drawn shape utilities */
+.sq-wobbly-sm {
+  border-radius: 9px 12px 10px 13px / 11px 9px 13px 10px !important;
+  filter: url(#clean-wobble-sm);
+  transform: translate3d(0, 0, 0);
+}
+
+.sq-wobbly-md {
+  border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+  filter: url(#clean-wobble-md);
+  transform: translate3d(0, 0, 0);
+}
+
+.sq-wobbly-lg {
+  border-radius: 17px 24px 22px 26px / 22px 18px 26px 20px !important;
+  filter: url(#clean-wobble-lg);
+  transform: translate3d(0, 0, 0);
+}
+
+.sq-wobbly-pill {
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
+  filter: url(#clean-wobble-pill);
+  transform: translate3d(0, 0, 0);
 }
 
 

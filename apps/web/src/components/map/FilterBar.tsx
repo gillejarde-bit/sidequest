@@ -1,14 +1,40 @@
 import { useMapStore } from '../../stores/mapStore'
 import { motion } from 'framer-motion'
+import { 
+  CompassIcon, 
+  FriendsIcon, 
+  GemIcon, 
+  CampfireIcon, 
+  MapIcon, 
+  SparkleIcon 
+} from '../icons'
 
 const FILTERS = ['Quests', 'Friends', 'Gems', 'Food', 'Outdoors', 'Nightlife']
+
+function getFilterIcon(filter: string, isActive: boolean) {
+  switch (filter) {
+    case 'Quests':
+      return <CompassIcon size={16} active={isActive} withShadow={false} />
+    case 'Friends':
+      return <FriendsIcon size={16} active={isActive} withShadow={false} />
+    case 'Gems':
+      return <GemIcon size={16} active={isActive} withShadow={false} />
+    case 'Food':
+      return <CampfireIcon size={16} active={isActive} withShadow={false} />
+    case 'Outdoors':
+      return <MapIcon size={16} active={isActive} withShadow={false} />
+    case 'Nightlife':
+    default:
+      return <SparkleIcon size={16} active={isActive} withShadow={false} />
+  }
+}
 
 export function FilterBar({ className }: { className?: string }) {
   const { activeFilters, toggleFilter } = useMapStore()
 
   return (
     <div className={className || "absolute top-4 left-0 right-0 z-10 overflow-x-auto no-scrollbar px-4"}>
-      <div className="flex gap-2 w-max">
+      <div className="flex gap-2 w-max py-1">
         {FILTERS.map((filter) => {
           const isActive = activeFilters.includes(filter)
           return (
@@ -18,21 +44,14 @@ export function FilterBar({ className }: { className?: string }) {
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => toggleFilter(filter)}
-              className={`relative isolate px-4 py-2 rounded-full text-sm font-semibold transition-colors shadow-sm backdrop-blur-md overflow-hidden ${
+              className={`relative px-4 py-1.5 text-xs font-medium transition-all shadow-[var(--sq-shadow-sticker)] flex items-center gap-1.5 cursor-pointer border-2 sq-wobbly-pill ${
                 isActive 
-                  ? 'text-white border-transparent' 
-                  : 'bg-white/90 dark:bg-[#1A1A2E]/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#1A1A2E] border'
+                  ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] border-[var(--sq-keyline)]' 
+                  : 'bg-[var(--sq-surface)] text-[var(--sq-text-muted)] border-[var(--sq-hairline-strong)] hover:bg-[var(--sq-card-hover)]'
               }`}
             >
-              {isActive && (
-                <motion.div 
-                  className="absolute inset-0 bg-primary z-[-1]"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2 }}
-                />
-              )}
-              {filter}
+              {getFilterIcon(filter, isActive)}
+              <span>{filter}</span>
             </motion.button>
           )
         })}

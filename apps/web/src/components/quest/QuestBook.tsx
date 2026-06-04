@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../stores/auth'
 import { useStampsStore } from '../../features/stamps/stampsStore'
@@ -6,9 +6,16 @@ import { usePursuitsStore } from '../../features/pursuits/pursuits.store'
 import { deriveArchetype } from '../../features/archetype/deriveArchetype'
 import { Stamp, StampKind } from './Stamp'
 import { QuestCard } from './QuestCard'
-import { Plus, Compass, ChevronLeft, ChevronRight, Bookmark, Sparkles, Award, Landmark } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
+import { 
+  PlusIcon, 
+  CompassIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon, 
+  SparkleIcon, 
+  GemIcon 
+} from '../icons'
 
 interface QuestBookProps {
   upcomingQuests: any[]
@@ -21,7 +28,6 @@ interface QuestBookProps {
 export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, onCeremonyComplete }: QuestBookProps) {
   const { user, profile } = useAuthStore()
   
-  // Stable Zustand selectors to prevent infinite re-render loops
   const stamps = useStampsStore(state => state.stamps)
   const fetchUserStamps = useStampsStore(state => state.fetchUserStamps)
   const stampsLoading = useStampsStore(state => state.loading)
@@ -31,12 +37,27 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
   const pendingCeremony = useStampsStore(state => state.pendingCeremony)
 
   const pursuitXP = usePursuitsStore(state => state.pursuitXP)
-  // Derive locally to keep selector return references perfectly stable
   const activeArchetype = deriveArchetype(pursuitXP)
 
   const [isWide, setIsWide] = useState(false)
   const [shake, setShake] = useState(false)
   const [ceremonyPhase, setCeremonyPhase] = useState<'open' | 'descent' | 'impact' | 'settle' | 'tally'>('open')
+
+  const [prevPageIndex, setPrevPageIndex] = useState(currentPageIndex)
+  const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
+  const [isAnimating, setIsAnimating] = useState(false)
+
+  useEffect(() => {
+    if (currentPageIndex !== prevPageIndex) {
+      setDirection(currentPageIndex > prevPageIndex ? 'forward' : 'backward')
+      setIsAnimating(true)
+      const timer = setTimeout(() => {
+        setIsAnimating(false)
+        setPrevPageIndex(currentPageIndex)
+      }, 550)
+      return () => clearTimeout(timer)
+    }
+  }, [currentPageIndex, prevPageIndex])
 
   // Auto-navigate to History Page 1 if there's a pending ceremony
   useEffect(() => {
@@ -72,7 +93,6 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
     }
   }
 
-  // Book Navigation helper: wide layout jumps by 2 pages, mobile by 1 page
   const nextPage = () => {
     const step = isWide ? 2 : 1
     const maxPage = 5 + Math.max(1, Math.ceil(stamps.length / 6))
@@ -88,77 +108,76 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
     }
   }
 
-  // Render individual page contents
   const renderPageContent = (pageIdx: number) => {
     switch (pageIdx) {
       case 0: // PAGE 1: Frontispiece
         return (
-          <div className="flex flex-col h-full justify-between p-6 text-gray-800 dark:text-gray-200">
+          <div className="flex flex-col h-full justify-between p-6 text-[var(--sq-ink)]">
             <div className="text-center mt-4">
-              <span className="text-[10px] font-black tracking-widest text-primary uppercase">OFFICIAL CHRONICLE</span>
-              <h2 className="text-2xl font-black mt-2 tracking-tight">QUESTER'S BOOK</h2>
-              <div className="w-12 h-1 bg-primary/20 mx-auto mt-3 rounded-full" />
+              <span className="text-[10px] font-medium tracking-widest text-[var(--sq-ember-600)] uppercase">Official Chronicle</span>
+              <h2 className="text-xl font-medium mt-2 tracking-tight">Quester's Book</h2>
+              <div className="w-12 h-1 bg-[var(--sq-ember-500)]/20 mx-auto mt-3 rounded-full" />
             </div>
 
             {/* Profile Crest Showcase */}
             <div className="flex flex-col items-center my-6 relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary/20 shadow-md relative bg-gray-150 dark:bg-gray-800">
+              <div className="w-24 h-24 rounded-[var(--sq-r-md)] overflow-hidden border-4 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] relative bg-[var(--sq-surface)] sq-wobbly-md">
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center font-black text-gray-400 text-3xl">
+                  <div className="w-full h-full flex items-center justify-center font-medium text-[var(--sq-text-muted)] text-3xl">
                     {profile?.username?.[0]?.toUpperCase()}
                   </div>
                 )}
               </div>
               <div className="mt-4 text-center">
-                <p className="font-extrabold text-sm text-gray-900 dark:text-white">
+                <p className="font-medium text-sm text-[var(--sq-ink)]">
                   @{profile?.username || 'explorer'}
                 </p>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-medium text-[var(--sq-ember-600)] uppercase tracking-widest mt-1">
                   Level {profile?.level || 1} {activeArchetype?.name || 'Wanderer'}
                 </p>
               </div>
             </div>
 
             {/* Stats list */}
-            <div className="space-y-2.5 bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800/50">
-              <div className="flex justify-between items-center text-xs font-bold">
-                <span className="text-gray-500">Quests Completed</span>
-                <span className="text-gray-900 dark:text-white">{stamps.length}</span>
+            <div className="space-y-2.5 bg-[var(--sq-surface)]/5 rounded-2xl p-4 border border-[var(--sq-ink)]/10">
+              <div className="flex justify-between items-center text-xs font-medium">
+                <span className="text-[var(--sq-ink)]/60">Quests Completed</span>
+                <span className="text-[var(--sq-ink)]">{stamps.length}</span>
               </div>
-              <div className="flex justify-between items-center text-xs font-bold">
-                <span className="text-gray-500">Pioneer Mints</span>
-                <span className="text-gray-900 dark:text-white">
+              <div className="flex justify-between items-center text-xs font-medium">
+                <span className="text-[var(--sq-ink)]/60">Pioneer Mints</span>
+                <span className="text-[var(--sq-ink)]">
                   {stamps.filter(s => s.is_pioneer).length}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs font-bold">
-                <span className="text-gray-500">Foil Crowns</span>
-                <span className="text-gray-900 dark:text-white">
+              <div className="flex justify-between items-center text-xs font-medium">
+                <span className="text-[var(--sq-ink)]/60">Foil Crowns</span>
+                <span className="text-[var(--sq-ink)]">
                   {stamps.filter(s => s.is_foil).length}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs font-bold">
-                <span className="text-gray-500">Member Since</span>
-                <span className="text-gray-900 dark:text-white">
+              <div className="flex justify-between items-center text-xs font-medium">
+                <span className="text-[var(--sq-ink)]/60">Member Since</span>
+                <span className="text-[var(--sq-ink)]">
                   {profile?.created_at ? format(new Date(profile.created_at), 'MMM yyyy') : 'Recently'}
                 </span>
               </div>
             </div>
 
-            <div className="text-[9px] text-center font-bold text-gray-400 dark:text-gray-500 tracking-wider">
-              SIDEQUEST CORP · CHRONICLE VOL. I
+            <div className="text-[9px] text-center font-medium text-[var(--sq-ink)]/40 tracking-wider">
+              SideQuest Corp · Chronicle Vol. I
             </div>
           </div>
         )
 
       case 1: // PAGE 2: Table of Contents
         return (
-          <div className="flex flex-col h-full justify-between p-6 text-gray-800 dark:text-gray-200">
+          <div className="flex flex-col h-full justify-between p-6 text-[var(--sq-ink)]">
             <div className="text-center mt-4">
-              <h2 className="text-xl font-black uppercase tracking-wider">CONTENTS</h2>
-              <div className="w-8 h-0.5 bg-gray-300 dark:bg-gray-700 mx-auto mt-2" />
+              <h2 className="text-xl font-medium uppercase tracking-wider">Contents</h2>
+              <div className="w-8 h-0.5 bg-[var(--sq-ink)]/20 mx-auto mt-2" />
             </div>
 
             <div className="space-y-1 my-auto pr-2">
@@ -190,8 +209,8 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             </div>
 
             <div className="flex justify-center mb-2">
-              <Link to="/quest/create" className="flex items-center gap-2 bg-primary text-white font-bold py-2.5 px-6 rounded-full hover:bg-primary-hover active:scale-95 transition-all text-xs shadow-md">
-                <Plus className="w-4 h-4" strokeWidth={2.5} />
+              <Link to="/quest/create" className="flex items-center gap-2 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] font-medium py-2.5 px-6 rounded-full border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] hover:bg-[var(--sq-ember-400)] active:scale-95 transition-all text-xs">
+                <PlusIcon size={16} active={false} withShadow={false} />
                 Create New Quest
               </Link>
             </div>
@@ -200,15 +219,15 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
       case 2: // PAGE 3: Upcoming Quests
         return (
-          <div className="flex flex-col h-full p-6">
-            <div className="mb-4">
-              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER I</span>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">Upcoming Quests</h2>
+          <div className="flex flex-col h-full p-6 text-[var(--sq-ink)]">
+            <div className="mb-4 text-left">
+              <span className="text-[9px] font-medium tracking-widest text-[var(--sq-ember-600)] uppercase">Chapter I</span>
+              <h2 className="text-lg font-medium text-[var(--sq-ink)]">Upcoming Quests</h2>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
               {isLoading ? (
-                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : upcomingQuests.length === 0 ? (
                 <EmptyPageContent icon="⚔️" text="No upcoming adventures" />
               ) : (
@@ -220,15 +239,15 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
       case 3: // PAGE 4: Quest Invites
         return (
-          <div className="flex flex-col h-full p-6">
-            <div className="mb-4">
-              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER II</span>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">Quest Invites</h2>
+          <div className="flex flex-col h-full p-6 text-[var(--sq-ink)]">
+            <div className="mb-4 text-left">
+              <span className="text-[9px] font-medium tracking-widest text-[var(--sq-ember-600)] uppercase">Chapter II</span>
+              <h2 className="text-lg font-medium text-[var(--sq-ink)]">Quest Invites</h2>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
               {isLoading ? (
-                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : inviteQuests.length === 0 ? (
                 <EmptyPageContent icon="✉️" text="No pending invitations" />
               ) : (
@@ -240,15 +259,15 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
       case 4: // PAGE 5: My Quests
         return (
-          <div className="flex flex-col h-full p-6">
-            <div className="mb-4">
-              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER III</span>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">My Quests</h2>
+          <div className="flex flex-col h-full p-6 text-[var(--sq-ink)]">
+            <div className="mb-4 text-left">
+              <span className="text-[9px] font-medium tracking-widest text-[var(--sq-ember-600)] uppercase">Chapter III</span>
+              <h2 className="text-lg font-medium text-[var(--sq-ink)]">My Quests</h2>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
               {isLoading ? (
-                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : myQuests.length === 0 ? (
                 <EmptyPageContent icon="🛡️" text="No organizing quests" />
               ) : (
@@ -263,22 +282,20 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
         const stampsPerPage = 6
         const startStampIdx = stampPageIndex * stampsPerPage
         const pageStamps = stamps.slice(startStampIdx, startStampIdx + stampsPerPage)
-
-        // Show blanks/embossed slots to fill up to 6 slots
         const slots = Array.from({ length: 6 })
 
         return (
-          <div className="flex flex-col h-full p-5 justify-between">
-            <div className="mb-3">
-              <span className="text-[9px] font-black tracking-widest text-primary uppercase">CHAPTER IV · CHRONICLES</span>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">History of Quests</h2>
+          <div className="flex flex-col h-full p-5 justify-between text-[var(--sq-ink)]">
+            <div className="mb-3 text-left">
+              <span className="text-[9px] font-medium tracking-widest text-[var(--sq-ember-600)] uppercase">Chapter IV · Chronicles</span>
+              <h2 className="text-lg font-medium text-[var(--sq-ink)]">History of Quests</h2>
             </div>
 
             {stamps.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto">
-                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl mb-4 border border-dashed border-gray-300">📖</div>
-                <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-sm">Your book is unwritten</h3>
-                <p className="text-[11px] text-gray-500 leading-normal max-w-[200px]">Complete your first quest to earn your first stamp!</p>
+                <div className="w-16 h-16 rounded-[var(--sq-r-md)] bg-[var(--sq-surface)]/10 flex items-center justify-center text-2xl mb-4 border-2 border-dashed border-[var(--sq-ink)]/20">📖</div>
+                <h3 className="font-medium text-[var(--sq-ink)] mb-1 text-sm">Your book is unwritten</h3>
+                <p className="text-[11px] text-[var(--sq-ink)]/60 leading-normal max-w-[200px]">Complete your first quest to earn your first stamp!</p>
               </div>
             ) : (
               <div 
@@ -302,17 +319,17 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       )
                     }
                     return (
-                      <div key={stamp.id} className="flex flex-col items-center justify-center p-1.5 bg-gray-50/20 dark:bg-gray-800/10 rounded-2xl border border-gray-150/40 dark:border-gray-800/20 text-center relative group">
+                      <div key={stamp.id} className="flex flex-col items-center justify-center p-1.5 bg-[var(--sq-surface)]/5 rounded-2xl border border-[var(--sq-ink)]/10 text-center relative group shadow-[var(--sq-shadow-sticker)]">
                         <Stamp 
                           kind={stamp.stamp_kind as StampKind} 
                           isFoil={stamp.is_foil} 
                           size={64} 
                         />
                         <div className="mt-2 text-left w-full px-1">
-                          <p className="text-[9px] font-black text-gray-900 dark:text-white line-clamp-1 uppercase tracking-tight">
+                          <p className="text-[9px] font-medium text-[var(--sq-ink)] line-clamp-1 uppercase tracking-tight">
                             {stamp.district || 'Quest'}
                           </p>
-                          <p className="text-[7px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                          <p className="text-[7px] font-medium text-[var(--sq-ink)]/40 mt-0.5">
                             {format(new Date(stamp.earned_at), 'dd MMM yyyy')}
                           </p>
                         </div>
@@ -324,12 +341,12 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                   return (
                     <div 
                       key={`empty-${idx}`} 
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-dashed border-gray-200/50 dark:border-gray-800/40 text-center select-none"
+                      className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-dashed border-[var(--sq-ink)]/20 text-center select-none"
                     >
-                      <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 dark:border-gray-800/60 flex items-center justify-center opacity-30">
-                        <Compass className="w-5 h-5 text-gray-400" />
+                      <div className="w-12 h-12 rounded-full border border-dashed border-[var(--sq-ink)]/20 flex items-center justify-center opacity-30">
+                        <CompassIcon size={24} active={false} withShadow={false} className="opacity-20" />
                       </div>
-                      <div className="w-10 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-3 opacity-30" />
+                      <div className="w-10 h-1.5 bg-[var(--sq-ink)]/10 rounded-full mt-3 opacity-30" />
                     </div>
                   )
                 })}
@@ -337,7 +354,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             )}
             
             {stamps.length > 0 && (
-              <div className="text-[8px] text-center text-gray-400 font-bold tracking-widest mt-2 uppercase">
+              <div className="text-[8px] text-center text-[var(--sq-ink)]/50 font-medium tracking-widest mt-2 uppercase">
                 Stamps {startStampIdx + 1} - {Math.min(stamps.length, startStampIdx + pageStamps.length)} of {stamps.length}
               </div>
             )}
@@ -346,7 +363,6 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
     }
   }
 
-  // Calculate current dual pages to display
   const leftPageIndex = isWide ? currentPageIndex : currentPageIndex
   const rightPageIndex = leftPageIndex + 1
 
@@ -356,10 +372,13 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
       {currentPageIndex > 1 && (
         <button
           onClick={() => setCurrentPageIndex(isWide ? 0 : 1)}
-          className="absolute -top-3 right-8 z-30 flex flex-col items-center text-primary filter drop-shadow hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="absolute -top-3 right-8 z-30 flex flex-col items-center text-[var(--sq-ember-500)] filter drop-shadow hover:scale-105 active:scale-95 transition-all cursor-pointer"
         >
-          <Bookmark className="w-6 h-10 text-primary fill-current" />
-          <span className="text-[7px] font-black text-white absolute top-1.5 tracking-tight uppercase">TOC</span>
+          {/* Custom SVG Bookmark Ribbon to remove lucide dependency */}
+          <svg width="24" height="40" viewBox="0 0 24 40">
+            <path d="M0,0 L24,0 L24,40 L12,32 L0,40 Z" fill="var(--sq-ember-500)" stroke="var(--sq-keyline)" strokeWidth="1.5" />
+          </svg>
+          <span className="text-[7px] font-medium text-[var(--sq-keyline)] absolute top-1.5 tracking-tight uppercase">TOC</span>
         </button>
       )}
 
@@ -371,84 +390,201 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
         } : {}}
         transition={{ duration: 0.25 }}
         className={`
-          w-full bg-[#E6DCC3] dark:bg-[#121319] border-8 border-[#3A2D1F] rounded-3xl relative shadow-2xl overflow-hidden
+          w-full bg-[var(--sq-bg)] border-8 border-[var(--sq-ink)] rounded-[var(--sq-r-lg)] relative shadow-2xl overflow-hidden
           aspect-[3.2/4] max-h-[calc(100dvh-180px)] flex transition-colors duration-300
         `}
       >
         {/* Leather texture backdrop details */}
         <div className="absolute inset-0 pointer-events-none bg-black/[0.04] dark:bg-white/[0.02]" />
 
-        <div className="flex-1 flex relative">
-          <AnimatePresence mode="wait">
-            {isWide ? (
-              // WIDE VIEWPORT: Two-page spread
-              <motion.div
-                key={`spread-${leftPageIndex}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.35, ease: 'easeInOut' }}
-                className="w-full h-full flex"
-              >
-                {/* Left Page */}
-                <div className="flex-1 bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden">
-                  {renderPageContent(leftPageIndex)}
-                  {/* Outer corner page numbering */}
-                  <div className="absolute bottom-4 left-4 text-[9px] font-bold text-gray-400">
-                    {leftPageIndex + 1}
+        <div className="flex-1 flex relative" style={{ perspective: "2000px", transformStyle: "preserve-3d" }}>
+          {isWide ? (
+            // DUAL PAGE (WIDE SCREEN) SPREAD WITH 3D PAGE-FLIP
+            <div className="w-full h-full flex relative" style={{ transformStyle: "preserve-3d" }}>
+              {isAnimating ? (
+                // Animating state: base background pages + 3D rotating overlay leaf
+                <>
+                  {/* Left Background Page (Target page if going backward, else previous page) */}
+                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                    {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
+                    <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                      {(direction === 'forward' ? prevPageIndex : currentPageIndex) + 1}
+                    </div>
+                  </div>
+
+                  {/* Center Creased gutter */}
+                  <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--sq-ink)]/15 via-[var(--sq-ink)]/35 to-[var(--sq-ink)]/15" />
+                  </div>
+
+                  {/* Right Background Page (Target page if going forward, else previous page) */}
+                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                    {renderPageContent(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1)}
+                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                      {(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) + 1}
+                    </div>
+                  </div>
+
+                  {/* Flipping Page Container */}
+                  <motion.div
+                    key={`flip-${prevPageIndex}-${currentPageIndex}`}
+                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
+                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
+                    transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                    style={{
+                      transformOrigin: direction === 'forward' ? 'left center' : 'right center',
+                      transformStyle: 'preserve-3d',
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      width: '50%',
+                      left: direction === 'forward' ? '50%' : '0%',
+                      zIndex: 30,
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {/* Front side of flipping page */}
+                    <div
+                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(0deg)',
+                      }}
+                    >
+                      {renderPageContent(direction === 'forward' ? prevPageIndex + 1 : currentPageIndex + 1)}
+                      <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                        {(direction === 'forward' ? prevPageIndex + 1 : currentPageIndex + 1) + 1}
+                      </div>
+                    </div>
+
+                    {/* Back side of flipping page */}
+                    <div
+                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)',
+                      }}
+                    >
+                      {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}
+                      <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                        {(direction === 'forward' ? currentPageIndex : prevPageIndex) + 1}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              ) : (
+                // Static state: show static open spreads
+                <>
+                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                    {renderPageContent(currentPageIndex)}
+                    <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                      {currentPageIndex + 1}
+                    </div>
+                  </div>
+
+                  {/* Center Creased gutter */}
+                  <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--sq-ink)]/15 via-[var(--sq-ink)]/35 to-[var(--sq-ink)]/15" />
+                  </div>
+
+                  <div className="flex-1 bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                    {renderPageContent(currentPageIndex + 1)}
+                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                      {currentPageIndex + 2}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            // SINGLE PAGE (MOBILE VIEWPORT) WITH 3D PAGE-FLIP
+            <div className="w-full h-full relative" style={{ transformStyle: "preserve-3d" }}>
+              {isAnimating ? (
+                <>
+                  {/* Background target page */}
+                  <div className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden">
+                    {renderPageContent(currentPageIndex)}
+                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                      {currentPageIndex + 1}
+                    </div>
+                  </div>
+
+                  {/* Flipping page */}
+                  <motion.div
+                    key={`flip-single-${prevPageIndex}-${currentPageIndex}`}
+                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
+                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
+                    transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                    style={{
+                      transformOrigin: 'left center',
+                      transformStyle: 'preserve-3d',
+                      position: 'absolute',
+                      inset: 0,
+                      zIndex: 30,
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {/* Front side of flipping page */}
+                    <div
+                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(0deg)',
+                      }}
+                    >
+                      {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
+                      <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                        {(direction === 'forward' ? prevPageIndex : currentPageIndex) + 1}
+                      </div>
+                    </div>
+
+                    {/* Back side of flipping page */}
+                    <div
+                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)',
+                      }}
+                    >
+                      {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}
+                      <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                        {(direction === 'forward' ? currentPageIndex : prevPageIndex) + 1}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              ) : (
+                <div className="w-full h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                  {renderPageContent(currentPageIndex)}
+                  <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                    {currentPageIndex + 1}
                   </div>
                 </div>
-
-                {/* Center Creased shadow gutter */}
-                <div className="w-12 h-full z-20 pointer-events-none relative shadow-xl shrink-0">
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/35 to-black/20 dark:from-black/40 dark:via-black/60 dark:to-black/40" />
-                </div>
-
-                {/* Right Page */}
-                <div className="flex-1 bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden">
-                  {renderPageContent(rightPageIndex)}
-                  {/* Outer corner page numbering */}
-                  <div className="absolute bottom-4 right-4 text-[9px] font-bold text-gray-400">
-                    {rightPageIndex + 1}
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              // MOBILE VIEWPORT: Single page
-              <motion.div
-                key={`single-${currentPageIndex}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="w-full h-full bg-[#FDFBF7] dark:bg-[#1C1D24] relative shadow-inner flex flex-col justify-between overflow-hidden"
-              >
-                {renderPageContent(currentPageIndex)}
-                {/* Outer corner page numbering */}
-                <div className="absolute bottom-4 right-4 text-[9px] font-bold text-gray-400">
-                  {currentPageIndex + 1}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Dynamic page turn navigation overlays (Left/Right overlay buttons) */}
         {currentPageIndex > 0 && (
           <button
             onClick={prevPage}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 dark:bg-gray-800/70 border border-gray-250/20 shadow-md flex items-center justify-center hover:bg-white dark:hover:bg-gray-800 active:scale-90 transition-all z-30 cursor-pointer"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] shadow-md flex items-center justify-center active:scale-90 transition-all z-30 cursor-pointer text-[var(--sq-text)]"
           >
-            <ChevronLeft className="w-5 h-5 text-gray-800 dark:text-gray-250" />
+            <ChevronLeftIcon size={20} active={false} withShadow={false} />
           </button>
         )}
 
         {(isWide ? rightPageIndex < 5 + Math.max(1, Math.ceil(stamps.length / 6)) : currentPageIndex < 5 + Math.max(1, Math.ceil(stamps.length / 6))) && (
           <button
             onClick={nextPage}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 dark:bg-gray-800/70 border border-gray-250/20 shadow-md flex items-center justify-center hover:bg-white dark:hover:bg-gray-800 active:scale-90 transition-all z-30 cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] shadow-md flex items-center justify-center active:scale-90 transition-all z-30 cursor-pointer text-[var(--sq-text)]"
           >
-            <ChevronRight className="w-5 h-5 text-gray-800 dark:text-gray-250" />
+            <ChevronRightIcon size={20} active={false} withShadow={false} />
           </button>
         )}
       </motion.div>
@@ -460,27 +596,27 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             initial={{ opacity: 0, scale: 0.9, y: '-30%' }}
             animate={{ opacity: 1, scale: 1, y: '-50%' }}
             exit={{ opacity: 0, scale: 0.9, y: '-30%' }}
-            className="absolute z-50 top-1/2 left-1/2 -translate-x-1/2 bg-[#FDFBF7] dark:bg-[#1C1D24] border-4 border-[#3A2D1F] rounded-3xl p-5 shadow-2xl text-center space-y-4 w-[85%] max-w-sm transition-colors duration-300 shadow-amber-950/25"
+            className="absolute z-50 top-1/2 left-1/2 -translate-x-1/2 bg-[var(--sq-banner)] border-4 border-[var(--sq-ink)] rounded-[var(--sq-r-lg)] p-5 shadow-2xl text-center space-y-4 w-[85%] max-w-sm transition-colors duration-300 shadow-amber-950/25"
           >
-            <div className="flex justify-center items-center gap-1.5 text-primary">
-              <Sparkles className="w-4 h-4 animate-bounce text-amber-500" />
-              <span className="text-[10px] font-black tracking-widest uppercase">QUEST CERTIFIED!</span>
-              <Sparkles className="w-4 h-4 animate-bounce text-amber-500" />
+            <div className="flex justify-center items-center gap-1.5 text-[var(--sq-ember-600)]">
+              <SparkleIcon size={16} active={true} withShadow={false} className="animate-bounce" />
+              <span className="text-[10px] font-medium tracking-widest uppercase">Quest Certified!</span>
+              <SparkleIcon size={16} active={true} withShadow={false} className="animate-bounce" />
             </div>
             
-            <h3 className="font-extrabold text-base text-gray-900 dark:text-white leading-tight">
+            <h3 className="font-medium text-base text-[var(--sq-ink)] leading-tight">
               {pendingCeremony.questName}
             </h3>
 
             <div className="flex justify-center items-center gap-2">
-              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-black flex items-center gap-1">
-                <Award className="w-3.5 h-3.5" />
+              <div className="bg-[var(--sq-ember-500)]/15 text-[var(--sq-ember-600)] px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                <SparkleIcon size={14} active={true} withShadow={false} />
                 +{pendingCeremony.xpAwarded} XP
               </div>
               {pendingCeremony.isPioneer && (
-                <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-wider uppercase flex items-center gap-1">
-                  <Landmark className="w-3 h-3" />
-                  PIONEER!
+                <div className="bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] px-3 py-1 rounded-full text-[9px] font-medium tracking-wider uppercase flex items-center gap-1 shadow">
+                  <GemIcon size={12} active={true} withShadow={false} />
+                  Pioneer!
                 </div>
               )}
             </div>
@@ -490,9 +626,9 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                 useStampsStore.getState().setPendingCeremony(null)
                 if (onCeremonyComplete) onCeremonyComplete()
               }}
-              className="w-full py-2.5 rounded-2xl bg-[#3A2D1F] hover:bg-[#2A1F13] text-white font-black text-center shadow-lg active:scale-95 transition-all text-xs cursor-pointer"
+              className="w-full py-2.5 rounded-2xl bg-[var(--sq-ink)] hover:bg-[var(--sq-bg)] text-[var(--sq-keyline)] font-medium text-center shadow-lg active:scale-95 transition-all text-xs cursor-pointer border border-[var(--sq-keyline)]"
             >
-              CLOSE CHRONICLE
+              Close Chronicle
             </button>
           </motion.div>
         )}
@@ -590,10 +726,10 @@ function CeremonyStampSlot({ stamp, setShake, onPhaseChange }: CeremonyStampSlot
   }, [pendingCeremony])
 
   return (
-    <div className="flex flex-col items-center justify-center p-1.5 bg-gray-50/20 dark:bg-gray-800/10 rounded-2xl border border-gray-150/40 dark:border-gray-800/20 text-center relative w-full h-full min-h-[92px]">
+    <div className="flex flex-col items-center justify-center p-1.5 bg-[var(--sq-surface)]/5 rounded-2xl border border-[var(--sq-ink)]/10 text-center relative w-full h-full min-h-[92px]">
       {(phase === 'open' || phase === 'descent') && (
-        <div className="absolute w-12 h-12 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center bg-gray-100/10 opacity-60 z-0">
-          <div className="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-700 opacity-40 animate-pulse" />
+        <div className="absolute w-12 h-12 rounded-full border-2 border-dashed border-[var(--sq-ink)]/20 flex items-center justify-center bg-gray-100/10 opacity-60 z-0">
+          <div className="w-8 h-8 rounded-full border border-dashed border-[var(--sq-ink)]/20 opacity-40 animate-pulse" />
         </div>
       )}
 
@@ -604,7 +740,7 @@ function CeremonyStampSlot({ stamp, setShake, onPhaseChange }: CeremonyStampSlot
             animate={{ scale: 2.2, opacity: [0.6, 0.8, 0] }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.55, ease: 'easeOut' }}
-            className="absolute w-12 h-12 rounded-full bg-primary/20 pointer-events-none mix-blend-screen z-10"
+            className="absolute w-12 h-12 rounded-full bg-[var(--sq-ember-500)]/20 pointer-events-none mix-blend-screen z-10"
           />
         )}
       </AnimatePresence>
@@ -638,10 +774,10 @@ function CeremonyStampSlot({ stamp, setShake, onPhaseChange }: CeremonyStampSlot
       </div>
 
       <div className="mt-2 text-left w-full px-1 z-10">
-        <p className="text-[9px] font-black text-gray-900 dark:text-white line-clamp-1 uppercase tracking-tight">
+        <p className="text-[9px] font-medium text-[var(--sq-ink)] line-clamp-1 uppercase tracking-tight">
           {stamp.district || 'Quest'}
         </p>
-        <p className="text-[7px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+        <p className="text-[7px] font-medium text-[var(--sq-ink)]/40 mt-0.5">
           {format(new Date(stamp.earned_at), 'dd MMM yyyy')}
         </p>
       </div>
@@ -654,21 +790,21 @@ function TOCItem({ index, label, count, onClick, isRedBadge }: { index: string; 
   return (
     <button
       onClick={onClick}
-      className="w-full flex justify-between items-center py-3 border-b border-dashed border-gray-200 dark:border-gray-800/60 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 px-2 rounded-xl transition-colors cursor-pointer text-left"
+      className="w-full flex justify-between items-center py-3 border-b border-dashed border-[var(--sq-ink)]/15 hover:bg-[var(--sq-surface)]/10 px-2 rounded-xl transition-colors cursor-pointer text-left sq-wobbly-sm"
     >
       <div className="flex gap-2.5 items-center">
-        <span className="text-[10px] font-black text-primary w-4">{index}</span>
-        <span className="text-xs font-bold text-gray-900 dark:text-white">{label}</span>
+        <span className="text-[10px] font-medium text-[var(--sq-ember-600)] w-4">{index}</span>
+        <span className="text-xs font-medium text-[var(--sq-ink)]">{label}</span>
       </div>
       <div className="flex gap-1.5 items-center">
-        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
           isRedBadge && count > 0 
-            ? 'bg-red-500 text-white animate-pulse' 
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+            ? 'bg-[var(--sq-heart)] text-[var(--sq-keyline)] animate-pulse border border-[var(--sq-keyline)]' 
+            : 'bg-[var(--sq-surface)]/10 text-[var(--sq-ink)]/50'
         }`}>
           {count}
         </span>
-        <ChevronRight className="w-3.5 h-3.5 opacity-30" />
+        <ChevronRightIcon size={14} active={false} withShadow={false} className="opacity-30" />
       </div>
     </button>
   )
@@ -678,7 +814,7 @@ function EmptyPageContent({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center my-auto opacity-70">
       <span className="text-3xl mb-2">{icon}</span>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{text}</p>
+      <p className="text-xs font-medium text-[var(--sq-ink)]/40 uppercase tracking-widest">{text}</p>
     </div>
   )
 }

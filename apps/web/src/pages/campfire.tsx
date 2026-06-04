@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from '@tanstack/react-router'
-import { Calendar, MapPin, Tent, MoreHorizontal, ChevronLeft, Users } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
@@ -15,6 +14,14 @@ import {
   AICampfireDigest, 
   EmptyCampfire
 } from '../components/campfire/CampfireComponents'
+import { 
+  CampfireIcon, 
+  CalendarIcon, 
+  MapIcon, 
+  MoreDotsIcon, 
+  ChevronLeftIcon, 
+  FriendsIcon 
+} from '../components/icons'
 import { format } from 'date-fns'
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -447,22 +454,22 @@ export function CampfirePage() {
               <div className="space-y-5">
                 {/* Mobile Friends/Groups Around the Fire Circle */}
                 {(friendsList.length > 0 || groups.length > 0) && (
-                  <div className="lg:hidden w-full bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-4 shadow-md overflow-hidden text-left mb-2">
+                  <div className="lg:hidden w-full bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] sq-wobbly-md overflow-hidden text-left mb-2">
                     <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-[10px] font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5">
-                        <Tent className="w-3.5 h-3.5" />
+                      <h4 className="text-[10px] font-medium uppercase text-[var(--sq-gold)] tracking-widest font-display flex items-center gap-1.5">
+                        <CampfireIcon size={16} active={true} withShadow={false} />
                         Around the Fire
                       </h4>
                       
                       {/* Mobile Groups/Friends Toggle */}
-                      <div className="flex gap-1.5 bg-gray-50 dark:bg-gray-900/50 p-0.5 rounded-lg text-[9px] font-black uppercase">
+                      <div className="flex gap-1.5 bg-[var(--sq-surface)] p-0.5 rounded-lg text-[9px] font-medium uppercase border border-[var(--sq-hairline)]">
                         <button
                           type="button"
                           onClick={() => setSidebarTab('groups')}
-                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-bold ${
+                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                             sidebarTab === 'groups' 
-                              ? 'bg-primary text-white shadow-sm' 
-                              : 'text-gray-450 dark:text-gray-400'
+                              ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] shadow-sm font-medium' 
+                              : 'text-[var(--sq-text-muted)]'
                           }`}
                         >
                           Groups
@@ -470,10 +477,10 @@ export function CampfirePage() {
                         <button
                           type="button"
                           onClick={() => setSidebarTab('friends')}
-                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-bold ${
+                          className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                             sidebarTab === 'friends' 
-                              ? 'bg-primary text-white shadow-sm' 
-                              : 'text-gray-450 dark:text-gray-400'
+                              ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] shadow-sm font-medium' 
+                              : 'text-[var(--sq-text-muted)]'
                           }`}
                         >
                           Friends
@@ -484,7 +491,7 @@ export function CampfirePage() {
                     <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
                       {sidebarTab === 'groups' ? (
                         groups.length === 0 ? (
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold py-2 w-full text-center">No groups joined yet.</p>
+                          <p className="text-[10px] text-[var(--sq-text-muted)] font-medium py-2 w-full text-center">No groups joined yet.</p>
                         ) : (
                           groups.map((group) => {
                             const isOnline = (groupMembers[group.group_id] || []).some(m => friendsMap.has(m.id))
@@ -499,26 +506,26 @@ export function CampfirePage() {
                                   {group.group_avatar ? (
                                     <img 
                                       src={group.group_avatar} 
-                                      className={`w-10 h-10 rounded-xl object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
+                                      className={`w-10 h-10 rounded-[var(--sq-r-md)] object-cover border-2 shadow-[var(--sq-shadow-sticker)] ${isOnline ? 'border-[var(--sq-success)]' : 'border-[var(--sq-keyline)]'}`} 
                                     />
                                   ) : (
                                     <div 
-                                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border-2 text-white`}
-                                      style={{ backgroundColor: group.group_color || '#6C63FF' }}
+                                      className={`w-10 h-10 rounded-[var(--sq-r-md)] flex items-center justify-center font-medium text-sm border-2 text-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]`}
+                                      style={{ backgroundColor: group.group_color || '#6C63FF', borderColor: 'var(--sq-keyline)' }}
                                     >
                                       {group.group_name[0].toUpperCase()}
                                     </div>
                                   )}
                                   {group.current_streak > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full text-[8px] font-black w-4 h-4 flex items-center justify-center shadow">
+                                    <span className="absolute -top-1.5 -right-1.5 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] rounded-full text-[8px] font-medium w-4.5 h-4.5 flex items-center justify-center border border-[var(--sq-keyline)] shadow">
                                       {group.current_streak}
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none mt-0.5">
+                                <span className="text-[9px] font-medium text-[var(--sq-text)] truncate w-full text-center leading-none mt-0.5">
                                   {group.group_name}
                                 </span>
-                                <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
+                                <span className="text-[7px] font-medium text-[var(--sq-text-muted)] uppercase tracking-wide leading-none mt-0.5">
                                   {group.member_count} mems
                                 </span>
                               </div>
@@ -531,15 +538,15 @@ export function CampfirePage() {
                           <div className="flex flex-col items-center gap-1 shrink-0 snap-start w-14">
                             <div className="relative">
                               {profile?.avatar_url ? (
-                                <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover border-2 border-[#58CC02]" />
+                                <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover border-2 border-[var(--sq-success)]" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border-2 border-[#58CC02]">
+                                <div className="w-10 h-10 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center font-medium text-sm border-2 border-[var(--sq-success)]">
                                   {profile?.username?.[0]?.toUpperCase() || 'U'}
                                 </div>
                               )}
-                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#58CC02] rounded-full border border-white dark:border-gray-800" />
+                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[var(--sq-success)] rounded-full border border-[var(--sq-keyline)]" />
                             </div>
-                            <span className="text-[9px] font-bold text-gray-500 truncate w-full text-center">You</span>
+                            <span className="text-[9px] font-medium text-[var(--sq-text-muted)] truncate w-full text-center">You</span>
                           </div>
 
                           {/* Active friends */}
@@ -552,19 +559,19 @@ export function CampfirePage() {
                                   {friend.avatar_url ? (
                                     <img 
                                       src={friend.avatar_url} 
-                                      className={`w-10 h-10 rounded-full object-cover border-2 ${isOnline ? 'border-[#58CC02]' : 'border-gray-200 dark:border-gray-700'}`} 
+                                      className={`w-10 h-10 rounded-full object-cover border-2 ${isOnline ? 'border-[var(--sq-success)]' : 'border-[var(--sq-hairline-strong)]'}`} 
                                     />
                                   ) : (
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 bg-primary/5 ${isOnline ? 'border-[#58CC02] text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium text-sm border-2 bg-[var(--sq-surface)] ${isOnline ? 'border-[var(--sq-success)] text-[var(--sq-ember-300)]' : 'border-[var(--sq-hairline-strong)] text-[var(--sq-text-muted)]'}`}>
                                       {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
                                     </div>
                                   )}
-                                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white dark:border-gray-800 ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-[var(--sq-keyline)] ${isOnline ? 'bg-[var(--sq-success)]' : 'bg-gray-650'}`} />
                                 </div>
-                                <span className="text-[9px] font-bold text-gray-850 dark:text-gray-200 truncate w-full text-center leading-none">
+                                <span className="text-[9px] font-medium text-[var(--sq-text)] truncate w-full text-center leading-none">
                                   {friend.display_name || friend.username}
                                 </span>
-                                <span className="text-[7px] font-black text-gray-450 uppercase tracking-wide leading-none mt-0.5">
+                                <span className="text-[7px] font-medium text-[var(--sq-text-faint)] uppercase tracking-wide leading-none mt-0.5">
                                   {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at).replace(' offline', '')}
                                 </span>
                               </div>
@@ -595,37 +602,35 @@ export function CampfirePage() {
                 </AnimatePresence>
               </div>
             )}
-          </div>
-
-          {/* Right Rail Sidebar (Visible on large viewports >= 1024px) */}
+          </div>          {/* Right Rail Sidebar (Visible on large viewports >= 1024px) */}
           <div className="hidden lg:flex flex-col gap-6 w-[300px] shrink-0 sticky top-6">
             
             {/* 1. Next Quest card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl relative overflow-hidden">
+            <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] sq-wobbly-md relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
               
-              <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-3">
-                <Calendar className="w-4 h-4" />
+              <h3 className="text-xs font-medium uppercase text-[var(--sq-gold)] tracking-widest font-display flex items-center gap-1.5 mb-3">
+                <CalendarIcon size={18} active={true} withShadow={false} />
                 Next Quest
               </h3>
 
               {nextQuest ? (
                 <div className="space-y-3 relative z-10 text-left">
                   <div>
-                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white line-clamp-1">{nextQuest.name}</h4>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold mt-0.5">
+                    <h4 className="font-medium text-sm text-[var(--sq-text)] line-clamp-1">{nextQuest.name}</h4>
+                    <p className="text-[10px] text-[var(--sq-text-muted)] font-medium mt-0.5">
                       {format(new Date(nextQuest.starts_at), "EEEE, MMM d @ h:mm a")}
                     </p>
                   </div>
                   
                   {nextQuest.location && (
-                    <div className="flex items-start gap-2 bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800/30">
-                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2 bg-[var(--sq-surface)] p-2.5 rounded-lg border border-[var(--sq-hairline)]">
+                      <MapIcon size={18} active={true} withShadow={false} className="shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight line-clamp-1">
+                        <p className="text-xs font-medium text-[var(--sq-text)] leading-tight line-clamp-1">
                           {nextQuest.location.name}
                         </p>
-                        <p className="text-[9px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                        <p className="text-[9px] text-[var(--sq-text-muted)] truncate mt-0.5">
                           {nextQuest.location.address}
                         </p>
                       </div>
@@ -635,38 +640,38 @@ export function CampfirePage() {
                   <Link
                     to="/quest/$id"
                     params={{ id: nextQuest.id }}
-                    className="w-full py-2 bg-primary hover:bg-primary-hover text-white text-[11px] font-black rounded-lg active:scale-95 transition-all shadow-md block text-center uppercase tracking-wider font-display border border-transparent"
+                    className="w-full py-2 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-400)] text-[var(--sq-ink)] text-[11px] font-medium rounded-[var(--sq-r-sm)] border-2 border-[var(--sq-keyline)] active:scale-95 transition-all shadow-[var(--sq-shadow-sticker)] block text-center uppercase tracking-wider font-display"
                   >
                     View Quest Details
                   </Link>
 
-                  <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700/50">
+                  <div className="flex justify-center pt-1 border-t border-[var(--sq-hairline)]">
                     <Link
                       to="/quests"
-                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                      className="p-1.5 hover:bg-[var(--sq-surface)] rounded-full transition-colors flex items-center justify-center cursor-pointer"
                       title="Go to Quest Book"
                     >
-                      <MoreHorizontal className="w-5 h-5 text-gray-400 hover:text-gray-650 dark:hover:text-gray-250" />
+                      <MoreDotsIcon size={20} active={false} withShadow={false} />
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-4 relative z-10 space-y-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">No upcoming quests scheduled.</p>
+                  <p className="text-xs text-[var(--sq-text-muted)] font-medium">No upcoming quests scheduled.</p>
                   <Link
                     to="/quest/create"
-                    className="inline-block text-xs font-black text-primary hover:underline"
+                    className="inline-block text-xs font-medium text-[var(--sq-ember-300)] hover:underline"
                   >
                     + Create a Quest
                   </Link>
 
-                  <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700/50">
+                  <div className="flex justify-center pt-1 border-t border-[var(--sq-hairline)]">
                     <Link
                       to="/quests"
-                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                      className="p-1.5 hover:bg-[var(--sq-surface)] rounded-full transition-colors flex items-center justify-center cursor-pointer"
                       title="Go to Quest Book"
                     >
-                      <MoreHorizontal className="w-5 h-5 text-gray-400 hover:text-gray-655 dark:hover:text-gray-250" />
+                      <MoreDotsIcon size={20} active={false} withShadow={false} />
                     </Link>
                   </div>
                 </div>
@@ -674,25 +679,25 @@ export function CampfirePage() {
             </div>
 
             {/* 2. Around the Fire Card */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700/80 rounded-xl p-5 shadow-xl relative overflow-hidden text-left">
+            <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] sq-wobbly-md relative overflow-hidden text-left">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none" />
               
-              <h3 className="text-xs font-black uppercase text-[#F0B45C] tracking-widest font-display flex items-center gap-1.5 mb-3">
-                <Tent className="w-4 h-4" />
+              <h3 className="text-xs font-medium uppercase text-[var(--sq-gold)] tracking-widest font-display flex items-center gap-1.5 mb-3">
+                <CampfireIcon size={18} active={true} withShadow={false} />
                 Around the Fire
               </h3>
 
               {/* Sidebar toggle between Groups and Friends */}
-              <div className="flex gap-2 mb-3 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-lg text-[10px] font-black uppercase">
+              <div className="flex gap-2 mb-3 bg-[var(--sq-surface)] p-1 rounded-lg text-[10px] font-medium uppercase border border-[var(--sq-hairline)]">
                 <button
                   onClick={() => setSidebarTab('groups')}
-                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'groups' ? 'bg-primary text-white shadow-sm' : 'text-gray-450 dark:text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'groups' ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] font-medium shadow-sm' : 'text-[var(--sq-text-muted)] hover:text-[var(--sq-text)]'}`}
                 >
                   Groups
                 </button>
                 <button
                   onClick={() => setSidebarTab('friends')}
-                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'friends' ? 'bg-primary text-white shadow-sm' : 'text-gray-450 dark:text-gray-400 hover:text-gray-650 dark:hover:text-gray-200'}`}
+                  className={`flex-1 py-1 rounded text-center transition-colors cursor-pointer ${sidebarTab === 'friends' ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] font-medium shadow-sm' : 'text-[var(--sq-text-muted)] hover:text-[var(--sq-text)]'}`}
                 >
                   Friends
                 </button>
@@ -702,29 +707,29 @@ export function CampfirePage() {
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                 {sidebarTab === 'groups' ? (
                   groups.length === 0 ? (
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-bold text-center py-4">No groups joined yet.</p>
+                    <p className="text-[11px] text-[var(--sq-text-muted)] font-medium text-center py-4">No groups joined yet.</p>
                   ) : (
                     groups.map((group) => {
                       const members = groupMembers[group.group_id] || []
                       const isExpanded = !!expandedGroups[group.group_id]
                       
                       return (
-                        <div key={group.group_id} className="border-b border-gray-105 dark:border-gray-700/50 pb-2 last:border-0 last:pb-0">
+                        <div key={group.group_id} className="border-b border-[var(--sq-hairline)] pb-2 last:border-0 last:pb-0">
                           <div className="w-full flex items-center justify-between py-1">
                             <button
                               onClick={() => setSelectedCampfireGroup(group)}
-                              className="flex items-center gap-2 text-left hover:text-primary transition-colors focus:outline-none group/btn cursor-pointer min-w-0 flex-1"
+                              className="flex items-center gap-2 text-left hover:text-[var(--sq-ember-300)] transition-colors focus:outline-none group/btn cursor-pointer min-w-0 flex-1"
                             >
                               <div 
-                                className="w-5 h-5 rounded-md flex items-center justify-center text-white font-extrabold text-[10px] shrink-0"
+                                className="w-5 h-5 rounded-md flex items-center justify-center text-[var(--sq-keyline)] font-medium text-[10px] shrink-0 border border-[var(--sq-keyline)] shadow"
                                 style={{ backgroundColor: group.group_color || '#6C63FF' }}
                               >
                                 {group.group_name[0].toUpperCase()}
                               </div>
-                              <span className="font-extrabold text-xs text-gray-900 dark:text-white group-hover/btn:text-primary transition-colors line-clamp-1">
+                              <span className="font-medium text-xs text-[var(--sq-text)] group-hover/btn:text-[var(--sq-ember-300)] transition-colors line-clamp-1">
                                 {group.group_name}
                                 {group.group_code && (
-                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold ml-1.5">
+                                  <span className="text-[10px] text-[var(--sq-text-muted)] font-medium ml-1.5">
                                     #{group.group_code}
                                   </span>
                                 )}
@@ -732,16 +737,16 @@ export function CampfirePage() {
                             </button>
                             <button
                               onClick={() => setExpandedGroups(prev => ({ ...prev, [group.group_id]: !prev[group.group_id] }))}
-                              className="text-[10px] font-bold text-gray-450 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded border cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-850"
+                              className="text-[10px] font-medium text-[var(--sq-text-muted)] bg-[var(--sq-surface)] px-1.5 py-0.5 rounded border border-[var(--sq-hairline)] cursor-pointer hover:bg-[var(--sq-card-hover)]"
                             >
                               {isExpanded ? 'Hide' : 'Show'}
                             </button>
                           </div>
 
                           {isExpanded && (
-                            <div className="mt-2 pl-3 space-y-2 border-l border-gray-150 dark:border-gray-750">
+                            <div className="mt-2 pl-3 space-y-2 border-l border-[var(--sq-hairline-strong)]">
                               {members.length === 0 ? (
-                                <p className="text-[10px] text-gray-450 font-bold">No members found.</p>
+                                <p className="text-[10px] text-[var(--sq-text-muted)] font-medium">No members found.</p>
                               ) : (
                                 members.map((member) => {
                                   const isOnline = friendsMap.has(member.id) || member.id === user?.id
@@ -752,21 +757,21 @@ export function CampfirePage() {
                                         {member.avatar_url ? (
                                           <img src={member.avatar_url} alt={member.username} className="w-6 h-6 rounded-full object-cover shrink-0 animate-fade-in" />
                                         ) : (
-                                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-primary/20">
+                                          <div className="w-6 h-6 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center text-[10px] font-medium shrink-0 border border-[var(--sq-hairline)]">
                                             {member.display_name?.[0]?.toUpperCase() || member.username[0].toUpperCase()}
                                           </div>
                                         )}
                                         <div className="min-w-0">
-                                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate leading-tight">
+                                          <p className="text-xs font-medium text-[var(--sq-text)] truncate leading-tight">
                                             {member.display_name || member.username}
                                           </p>
-                                          <p className="text-[8px] text-gray-450 font-bold truncate">@{member.username}</p>
+                                          <p className="text-[8px] text-[var(--sq-text-muted)] font-medium truncate">@{member.username}</p>
                                         </div>
                                       </div>
 
                                       <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                                        <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[var(--sq-success)]' : 'bg-gray-650'}`} />
+                                        <span className="text-[8px] font-medium text-[var(--sq-text-faint)] uppercase tracking-wide">
                                           {isOnline ? 'Online' : formatOfflineTime(member.last_seen_at)}
                                         </span>
                                       </div>
@@ -782,32 +787,32 @@ export function CampfirePage() {
                   )
                 ) : (
                   friendsList.length === 0 ? (
-                    <p className="text-[11px] text-gray-450 dark:text-gray-500 font-bold text-center py-4">No friends added yet.</p>
+                    <p className="text-[11px] text-[var(--sq-text-muted)] font-medium text-center py-4">No friends added yet.</p>
                   ) : (
                     friendsList.map((friend) => {
                       const isOnline = friendsMap.has(friend.id)
                       
                       return (
-                        <div key={friend.id} className="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700/50 pb-2 last:border-0 last:pb-0">
+                        <div key={friend.id} className="flex items-center justify-between gap-2 border-b border-[var(--sq-hairline)] pb-2 last:border-0 last:pb-0">
                           <div className="flex items-center gap-2 min-w-0">
                             {friend.avatar_url ? (
                               <img src={friend.avatar_url} alt={friend.username} className="w-7 h-7 rounded-full object-cover shrink-0" />
                             ) : (
-                              <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
+                              <div className="w-7 h-7 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center text-xs font-medium shrink-0 border border-[var(--sq-hairline)]">
                                 {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
                               </div>
                             )}
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-gray-900 dark:text-white truncate leading-tight">
+                            <div className="min-w-0 text-left">
+                              <p className="text-xs font-medium text-[var(--sq-text)] truncate leading-tight">
                                 {friend.display_name || friend.username}
                               </p>
-                              <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold truncate">@{friend.username}</p>
+                              <p className="text-[9px] text-[var(--sq-text-muted)] font-medium truncate">@{friend.username}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                            <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[var(--sq-success)]' : 'bg-gray-650'}`} />
+                            <span className="text-[8px] font-medium text-[var(--sq-text-faint)] uppercase tracking-wide">
                               {isOnline ? 'Online' : formatOfflineTime(friend.last_seen_at)}
                             </span>
                           </div>
@@ -826,8 +831,6 @@ export function CampfirePage() {
       </div>
       {/* Read timeTick to satisfy TypeScript noUnusedLocals and force re-render ticks */}
       <span className="hidden">{timeTick}</span>
-
-      {/* Group Profile detailed view (Full-Screen Overlay z-[100]) */}
       <Portal>
         <AnimatePresence>
           {selectedCampfireGroup && (
@@ -835,36 +838,36 @@ export function CampfirePage() {
               initial={{ opacity: 0, y: '10%' }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: '10%' }}
-              className="fixed inset-0 z-[100] bg-gray-50 dark:bg-gray-900 overflow-y-auto pb-10 flex flex-col text-gray-900 dark:text-white"
+              className="fixed inset-0 z-[100] bg-[var(--sq-bg)] overflow-y-auto pb-10 flex flex-col text-[var(--sq-text)]"
             >
               {/* Header banner */}
               <div 
                 className="relative pt-12 pb-6 px-6 shadow-sm shrink-0"
-                style={{ background: `linear-gradient(to bottom, ${selectedCampfireGroup.group_color || '#6C63FF'}55, transparent)` }}
+                style={{ background: `linear-gradient(to bottom, ${selectedCampfireGroup.group_color || '#6C63FF'}33, transparent)` }}
               >
                 <button 
                   onClick={() => setSelectedCampfireGroup(null)}
-                  className="absolute top-4 left-4 p-2.5 rounded-full bg-white/60 hover:bg-white/90 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm text-gray-800 dark:text-white transition-colors active:scale-95 cursor-pointer"
+                  className="absolute top-4 left-4 p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] text-[var(--sq-text)] transition-colors active:scale-95 cursor-pointer border border-[var(--sq-hairline)]"
                 >
-                  <ChevronLeft size={22} strokeWidth={2.5} />
+                  <ChevronLeftIcon size={24} active={false} withShadow={false} />
                 </button>
                 
                 <div className="flex flex-col items-center text-center mt-6">
                   {selectedCampfireGroup.group_avatar ? (
-                    <img src={selectedCampfireGroup.group_avatar} className="w-20 h-20 rounded-2xl object-cover shadow-lg border-2 border-white dark:border-gray-800" />
+                    <img src={selectedCampfireGroup.group_avatar} className="w-20 h-20 rounded-[var(--sq-r-md)] object-cover shadow-lg border-4 border-[var(--sq-keyline)]" />
                   ) : (
                     <div 
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-black text-4xl shadow-lg"
+                      className="w-20 h-20 rounded-[var(--sq-r-md)] flex items-center justify-center text-[var(--sq-keyline)] font-medium text-4xl shadow-lg border-4 border-[var(--sq-keyline)]"
                       style={{ backgroundColor: selectedCampfireGroup.group_color || '#6C63FF' }}
                     >
                       {selectedCampfireGroup.group_name[0].toUpperCase()}
                     </div>
                   )}
                   
-                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                  <h1 className="mt-3 text-xl font-medium text-[var(--sq-text)] tracking-tight">
                     {selectedCampfireGroup.group_name}
                     {selectedCampfireGroup.group_code && (
-                      <span className="text-sm text-gray-400 dark:text-gray-500 font-extrabold ml-2">
+                      <span className="text-sm text-[var(--sq-text-muted)] font-medium ml-2">
                         #{selectedCampfireGroup.group_code}
                       </span>
                     )}
@@ -872,7 +875,7 @@ export function CampfirePage() {
                   
                   {/* Type Badge */}
                   {selectedCampfireGroupDetails?.group_type && (
-                    <span className="mt-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black tracking-wider uppercase rounded-full">
+                    <span className="mt-1.5 px-3 py-1 bg-[var(--sq-ember-500)]/15 border border-[var(--sq-ember-500)]/30 text-[var(--sq-ember-400)] text-[10px] font-medium tracking-wider uppercase rounded-full">
                       {selectedCampfireGroupDetails.group_type} Group
                     </span>
                   )}
@@ -884,41 +887,41 @@ export function CampfirePage() {
                 
                 {/* Group Description */}
                 {selectedCampfireGroupDetails?.description && (
-                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 text-left">
-                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5">About the Group</h4>
-                    <p className="text-sm font-semibold text-gray-750 dark:text-gray-300 leading-relaxed">{selectedCampfireGroupDetails.description}</p>
+                  <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] sq-wobbly-md text-left">
+                    <h4 className="text-[10px] font-medium uppercase text-[var(--sq-text-muted)] tracking-wider mb-1.5">About the Group</h4>
+                    <p className="text-sm font-medium text-[var(--sq-text)] leading-relaxed">{selectedCampfireGroupDetails.description}</p>
                   </div>
                 )}
 
                 {/* Group Experience / Level Progression */}
                 {selectedCampfireGroupDetails && (
-                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 text-left">
+                  <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] sq-wobbly-md text-left">
                     <div className="flex justify-between items-end mb-3">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Group Progression</h4>
-                        <p className="text-xs text-gray-500 font-bold mt-1">Level {selectedCampfireGroupDetails.level || 1}</p>
+                        <h4 className="text-[10px] font-medium uppercase text-[var(--sq-text-muted)] tracking-wider">Group Progression</h4>
+                        <p className="text-xs text-[var(--sq-text-muted)] font-medium mt-1">Level {selectedCampfireGroupDetails.level || 1}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-black text-primary">
+                        <span className="text-sm font-medium text-[var(--sq-ember-400)]">
                           {(selectedCampfireGroupDetails.xp || 0) % 100} / 100 XP
                         </span>
                       </div>
                     </div>
-                    <div className="h-2.5 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-[var(--sq-surface)] rounded-full overflow-hidden border border-[var(--sq-hairline)]">
                       <div 
-                        className="h-full rounded-full bg-primary"
+                        className="h-full rounded-full bg-[var(--sq-ember-500)]"
                         style={{ width: `${(selectedCampfireGroupDetails.xp || 0) % 100}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 mt-2 block text-center">Gains XP from Quest completions together! ⚔️</span>
+                    <span className="text-[9px] text-[var(--sq-text-faint)] mt-2 block text-center">Gains XP from Quest completions together! ⚔️</span>
                   </div>
                 )}
 
                 {/* Group Members List */}
-                <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 space-y-3 text-left">
-                  <div className="pb-2 border-b border-gray-100 dark:border-gray-700/50">
-                    <h3 className="font-extrabold text-sm text-gray-800 dark:text-white flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-primary" /> Members ({(groupMembers[selectedCampfireGroup.group_id] || []).length})
+                <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] sq-wobbly-md space-y-3 text-left">
+                  <div className="pb-2 border-b border-[var(--sq-hairline)]">
+                    <h3 className="font-medium text-sm text-[var(--sq-text)] flex items-center gap-1.5">
+                      <FriendsIcon size={18} active={true} withShadow={false} /> Members ({(groupMembers[selectedCampfireGroup.group_id] || []).length})
                     </h3>
                   </div>
 
@@ -927,30 +930,30 @@ export function CampfirePage() {
                       const isOnline = friendsMap.has(member.id) || member.id === user?.id
                       
                       return (
-                        <div key={member.id} className="flex items-center justify-between gap-2 border-b border-gray-50 dark:border-gray-700/30 pb-2 last:border-0 last:pb-0">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                        <div key={member.id} className="flex items-center justify-between gap-2 border-b border-[var(--sq-hairline-strong)]/30 pb-2 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2.5 min-w-0 text-left">
                             {member.avatar_url ? (
                               <img src={member.avatar_url} className="w-8 h-8 rounded-full object-cover shrink-0" />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
+                              <div className="w-8 h-8 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center text-xs font-medium shrink-0 border border-[var(--sq-hairline)]">
                                 {member.display_name?.[0]?.toUpperCase() || member.username[0].toUpperCase()}
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-xs font-extrabold text-gray-900 dark:text-white truncate leading-tight">
+                              <p className="text-xs font-medium text-[var(--sq-text)] truncate leading-tight">
                                 {member.display_name || member.username}
                               </p>
-                              <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold truncate">@{member.username}</p>
+                              <p className="text-[9px] text-[var(--sq-text-muted)] font-medium truncate">@{member.username}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[9px] font-black uppercase text-gray-400 px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 border">
+                            <span className="text-[9px] font-medium uppercase text-[var(--sq-text-muted)] px-1.5 py-0.5 rounded bg-[var(--sq-surface)] border border-[var(--sq-hairline)]">
                               {member.role}
                             </span>
                             <div className="flex items-center gap-1">
-                              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#58CC02]' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                              <span className="text-[8px] font-black text-gray-450 uppercase tracking-wide">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[var(--sq-success)]' : 'bg-gray-650'}`} />
+                              <span className="text-[8px] font-medium text-[var(--sq-text-faint)] uppercase tracking-wide">
                                 {isOnline ? 'Online' : formatOfflineTime(member.last_seen_at).replace(' offline', '')}
                               </span>
                             </div>
