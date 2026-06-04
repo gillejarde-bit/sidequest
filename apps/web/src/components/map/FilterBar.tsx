@@ -34,7 +34,7 @@ export function FilterBar({ className }: { className?: string }) {
 
   return (
     <div className={className || "absolute top-4 left-0 right-0 z-10 overflow-x-auto no-scrollbar px-4"}>
-      <div className="flex gap-2 w-max py-1">
+      <div className="flex gap-3.5 w-max py-1">
         {FILTERS.map((filter) => {
           const isActive = activeFilters.includes(filter)
           return (

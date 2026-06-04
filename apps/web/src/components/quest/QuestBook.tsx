@@ -225,7 +225,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
               <h2 className="text-lg font-medium text-[var(--sq-ink)]">Upcoming Quests</h2>
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] scrollbar-premium">
               {isLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : upcomingQuests.length === 0 ? (
@@ -245,7 +245,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
               <h2 className="text-lg font-medium text-[var(--sq-ink)]">Quest Invites</h2>
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] scrollbar-premium">
               {isLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : inviteQuests.length === 0 ? (
@@ -265,7 +265,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
               <h2 className="text-lg font-medium text-[var(--sq-ink)]">My Quests</h2>
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] no-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 max-h-[calc(100%-60px)] scrollbar-premium">
               {isLoading ? (
                 <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" /></div>
               ) : myQuests.length === 0 ? (
@@ -301,7 +301,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
               <div 
                 ref={pageIdx === currentPageIndex ? historyScrollRef : null}
                 onScroll={handleHistoryScroll}
-                className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 gap-x-3 gap-y-4 py-2 pr-1 max-h-[calc(100%-50px)]"
+                className="flex-1 overflow-y-auto scrollbar-premium grid grid-cols-2 gap-x-3 gap-y-4 py-2 pr-1 max-h-[calc(100%-50px)]"
               >
                 {slots.map((_, idx) => {
                   const stampIdx = startStampIdx + idx
