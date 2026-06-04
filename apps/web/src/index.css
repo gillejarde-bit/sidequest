@@ -92,15 +92,8 @@
   font-family: "SideQuest Sans", system-ui, sans-serif !important;
 }
 
-/* Typography hand-lettered style wobble */
-[data-theme="ember"] h1,
-[data-theme="ember"] h2,
-[data-theme="ember"] h3,
-[data-theme="ember"] h4,
-[data-theme="ember"] .font-display,
-[data-theme="ember"] .text-2xl,
-[data-theme="ember"] .text-3xl,
-[data-theme="ember"] .text-4xl {
+/* Global SVG wobbly crayon outline filter for icons/illustrations under Ember theme */
+[data-theme="ember"] svg {
   filter: url(#clean-wobble-sm) !important;
   transform: translate3d(0, 0, 0);
 }
@@ -118,10 +111,36 @@
 [data-theme="ember"] .bg-card,
 [data-theme="ember"] .rounded-3xl,
 [data-theme="ember"] .rounded-2xl {
+  position: relative !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  filter: none !important;
+  border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+}
+
+[data-theme="ember"] .bg-white::before,
+[data-theme="ember"] .bg-gray-50::before,
+[data-theme="ember"] .bg-gray-100::before,
+[data-theme="ember"] .bg-gray-200::before,
+[data-theme="ember"] .dark\:bg-gray-800::before,
+[data-theme="ember"] .dark\:bg-gray-900::before,
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]::before,
+[data-theme="ember"] .bg-\[\#1A1A2E\]::before,
+[data-theme="ember"] .dark\:bg-\[\#111122\]::before,
+[data-theme="ember"] .bg-card::before,
+[data-theme="ember"] .rounded-3xl::before,
+[data-theme="ember"] .rounded-2xl::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
   background-color: var(--hearth-brown) !important;
+  border: 2px solid var(--seam-brown) !important;
   border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
   filter: url(#clean-wobble-md) !important;
-  transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0) !important;
+  pointer-events: none !important;
 }
 
 [data-theme="ember"] .bg-background,
@@ -130,7 +149,7 @@
   background-color: var(--forge-black) !important;
 }
 
-/* Global button, input, select, textarea overrides for wobbly pill shape */
+/* Global button, input, select, textarea overrides for wobbly pill shape (no text filter for readability) */
 [data-theme="ember"] button:not(.w-11):not(.w-8):not(.w-10):not(.w-14):not(.p-1\.5):not(.w-12):not(.w-7):not(.w-6),
 [data-theme="ember"] .btn,
 [data-theme="ember"] input,
@@ -138,8 +157,7 @@
 [data-theme="ember"] textarea,
 [data-theme="ember"] .rounded-xl:not(.w-24):not(.w-8) {
   border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
-  filter: url(#clean-wobble-pill) !important;
-  transform: translate3d(0, 0, 0);
+  filter: none !important;
 }
 
 /* Opacity and card blur backgrounds in Ember theme */
@@ -349,6 +367,59 @@
   border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
   filter: url(#clean-wobble-pill);
   transform: translate3d(0, 0, 0);
+}
+
+/* Scoped overrides for Ember theme to keep text crisp while retaining wobbly borders */
+[data-theme="ember"] .sq-wobbly-sm {
+  filter: none !important;
+}
+
+[data-theme="ember"] .sq-wobbly-pill {
+  filter: none !important;
+}
+
+[data-theme="ember"] .sq-wobbly-md {
+  position: relative !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  filter: none !important;
+  border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+}
+
+[data-theme="ember"] .sq-wobbly-md::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  background-color: var(--sq-card, var(--hearth-brown)) !important;
+  border: 2px solid var(--seam-brown) !important;
+  border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+  filter: url(#clean-wobble-md) !important;
+  transform: translate3d(0, 0, 0) !important;
+  pointer-events: none !important;
+}
+
+[data-theme="ember"] .sq-wobbly-lg {
+  position: relative !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  filter: none !important;
+  border-radius: 17px 24px 22px 26px / 22px 18px 26px 20px !important;
+}
+
+[data-theme="ember"] .sq-wobbly-lg::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  background-color: var(--sq-card, var(--hearth-brown)) !important;
+  border: 2px solid var(--seam-brown) !important;
+  border-radius: 17px 24px 22px 26px / 22px 18px 26px 20px !important;
+  filter: url(#clean-wobble-lg) !important;
+  transform: translate3d(0, 0, 0) !important;
+  pointer-events: none !important;
 }
 
 
