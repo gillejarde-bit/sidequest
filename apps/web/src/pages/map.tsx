@@ -67,6 +67,7 @@ function getTimeUntil(dateStr: string) {
 
 export function MapPage() {
   const mapRef = useRef<MapRef>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { profile } = useAuthStore()
 
@@ -427,7 +428,7 @@ export function MapPage() {
   const sheetData = selectedLocation ?? selectedQuest ?? selectedGem ?? null
 
   return (
-    <div className="relative w-full h-[100dvh] bg-dark overflow-hidden">
+    <div ref={mapContainerRef} className="relative w-full h-[100dvh] bg-dark overflow-hidden">
       
       {/* Floating control overlay stacked at the top */}
       <div 
@@ -482,8 +483,12 @@ export function MapPage() {
 
       {/* Happening Soon collapsible panel in top right corner */}
       {happeningSoonQuests.length > 0 && (
-        <div 
-          className="absolute top-4 right-4 pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3 shadow-xl transition-all w-full max-w-[280px] md:max-w-[320px]"
+        <motion.div 
+          drag
+          dragConstraints={mapContainerRef}
+          dragMomentum={false}
+          dragElastic={0.1}
+          className="absolute top-4 right-4 pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3 shadow-xl w-full max-w-[280px] md:max-w-[320px] cursor-grab active:cursor-grabbing"
           style={{ zIndex: Z_INDEX.map_ui }}
         >
           <div className="flex items-center justify-between mb-2">
@@ -541,7 +546,7 @@ export function MapPage() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
       )}
 
       <Map

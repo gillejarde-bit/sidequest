@@ -111,12 +111,26 @@
 [data-theme="ember"] .bg-card,
 [data-theme="ember"] .rounded-3xl,
 [data-theme="ember"] .rounded-2xl {
-  position: relative !important;
   background-color: transparent !important;
   background-image: none !important;
   border-color: transparent !important;
   filter: none !important;
   border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+}
+
+[data-theme="ember"] .bg-white:not(.absolute):not(.fixed),
+[data-theme="ember"] .bg-gray-50:not(.absolute):not(.fixed),
+[data-theme="ember"] .bg-gray-100:not(.absolute):not(.fixed),
+[data-theme="ember"] .bg-gray-200:not(.absolute):not(.fixed),
+[data-theme="ember"] .dark\:bg-gray-800:not(.absolute):not(.fixed),
+[data-theme="ember"] .dark\:bg-gray-900:not(.absolute):not(.fixed),
+[data-theme="ember"] .dark\:bg-\[\#1A1A2E\]:not(.absolute):not(.fixed),
+[data-theme="ember"] .bg-\[\#1A1A2E\]:not(.absolute):not(.fixed),
+[data-theme="ember"] .dark\:bg-\[\#111122\]:not(.absolute):not(.fixed),
+[data-theme="ember"] .bg-card:not(.absolute):not(.fixed),
+[data-theme="ember"] .rounded-3xl:not(.absolute):not(.fixed),
+[data-theme="ember"] .rounded-2xl:not(.absolute):not(.fixed) {
+  position: relative !important;
 }
 
 [data-theme="ember"] .bg-white::before,
@@ -379,12 +393,15 @@
 }
 
 [data-theme="ember"] .sq-wobbly-md {
-  position: relative !important;
   background-color: transparent !important;
   background-image: none !important;
   border-color: transparent !important;
   filter: none !important;
   border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
+}
+
+[data-theme="ember"] .sq-wobbly-md:not(.absolute):not(.fixed) {
+  position: relative !important;
 }
 
 [data-theme="ember"] .sq-wobbly-md::before {
@@ -401,12 +418,15 @@
 }
 
 [data-theme="ember"] .sq-wobbly-lg {
-  position: relative !important;
   background-color: transparent !important;
   background-image: none !important;
   border-color: transparent !important;
   filter: none !important;
   border-radius: 17px 24px 22px 26px / 22px 18px 26px 20px !important;
+}
+
+[data-theme="ember"] .sq-wobbly-lg:not(.absolute):not(.fixed) {
+  position: relative !important;
 }
 
 [data-theme="ember"] .sq-wobbly-lg::before {
