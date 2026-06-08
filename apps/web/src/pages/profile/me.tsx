@@ -13,10 +13,22 @@ import { AvatarBorder } from '../../components/profile/borders';
 import { ExperienceBreakdown } from '../../components/profile/ExperienceBreakdown';
 import { ProfileDevPanel } from '../../components/profile/ProfileDevPanel';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, X, Star, Calendar, Users, Map, Flame, Trophy, Settings as SettingsIcon, ChevronRight } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { formatDistanceToNow } from 'date-fns';
 import { getAvatarUrl } from '../../lib/avatar';
+
+import { 
+  CloseIcon, 
+  SparkleIcon, 
+  CalendarIcon, 
+  CrewIcon, 
+  MapIcon, 
+  StreakFlameIcon, 
+  GemIcon, 
+  SettingsIcon, 
+  ChevronRightIcon, 
+  ScissorsIcon
+} from '../../components/icons';
 
 const PRESET_COLORS = ['#6C63FF', '#58CC02', '#FF6B6B', '#FFD93D', '#3498DB', '#E67E22'];
 
@@ -96,16 +108,12 @@ export function MeProfile() {
 
   const archetypeLoreItem = getArchetypeLoreItem();
 
-  // ... (keep the other hooks)
-
   const queryClient = useQueryClient();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editColor, setEditColor] = useState('');
-
-
 
   const { data: userGroups = [] } = useQuery<any[]>({
     queryKey: ['user-groups-profile', user?.id],
@@ -144,15 +152,15 @@ export function MeProfile() {
 
   if (!initialized) {
     return (
-      <div className="flex-1 flex items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex-1 flex items-center justify-center h-full min-h-screen bg-[var(--sq-bg)]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--sq-ember-500)]"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-[var(--sq-bg)] text-[var(--sq-text)]">
         <h2 className="text-xl font-bold">Please log in to view your profile</h2>
       </div>
     );
@@ -160,7 +168,7 @@ export function MeProfile() {
 
   if (xpError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900 text-red-500">
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-[var(--sq-bg)] text-[var(--sq-heart)]">
         <div>Error loading profile: {(xpError as any)?.message || 'Unknown error'}</div>
       </div>
     );
@@ -168,15 +176,15 @@ export function MeProfile() {
 
   if (isXpLoading || isPursuitsLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex-1 flex items-center justify-center h-full min-h-screen bg-[var(--sq-bg)]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--sq-ember-500)]"></div>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900 text-red-500">
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-[var(--sq-bg)] text-[var(--sq-heart)]">
         <div>Profile data not found. Please try logging out and logging back in.</div>
       </div>
     );
@@ -184,7 +192,7 @@ export function MeProfile() {
 
   if (!xpStats) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-gray-50 dark:bg-gray-900 text-red-500">
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-[var(--sq-bg)] text-[var(--sq-heart)]">
         <div>Could not load XP stats. Please try again later.</div>
       </div>
     );
@@ -208,35 +216,36 @@ export function MeProfile() {
   const StatBox = ({ icon: Icon, label, value, color }: any) => (
     <motion.div 
       whileHover={{ y: -2 }}
-      className={`bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center gap-2`}
+      className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 text-center shadow-[var(--sq-shadow-soft)] flex flex-col items-center justify-center gap-2 relative sq-wobbly-md cursor-pointer"
     >
-      <div className={`p-2 rounded-xl bg-opacity-10`} style={{ backgroundColor: `${color}20`, color }}>
-        <Icon size={24} />
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+      <div className="p-2 rounded-xl bg-opacity-10 z-10" style={{ backgroundColor: `${color}20`, color }}>
+        <Icon size={24} withShadow={false} />
       </div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white">{value || 0}</div>
-      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</div>
+      <div className="text-2xl font-black text-[var(--sq-text)] z-10">{value || 0}</div>
+      <div className="text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider z-10">{label}</div>
     </motion.div>
   );
 
   return (
-    <div className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div data-theme="ember" className="min-h-screen pb-24 bg-background text-foreground transition-colors duration-300 w-full">
       {/* HEADER SECTION */}
       <div 
         className="relative pt-20 pb-8 px-4 flex flex-col items-center text-center shadow-sm"
-        style={{ background: `linear-gradient(to bottom, ${profile.profile_color || '#6C63FF'}33, transparent)` }}
+        style={{ background: `linear-gradient(to bottom, ${profile.profile_color || 'var(--sq-sage-500)'}22, transparent)` }}
       >
-        <div className="absolute top-4 right-4 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2 z-20">
           <button 
             onClick={handleEditOpen}
-            className="p-2 rounded-full bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm transition-colors"
+            className="p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
           >
-            <Edit2 size={20} />
+            <ScissorsIcon size={20} withShadow={false} />
           </button>
           <Link 
             to="/settings"
-            className="p-2 rounded-full bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm transition-colors"
+            className="p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
           >
-            <SettingsIcon size={20} />
+            <SettingsIcon size={20} withShadow={false} />
           </Link>
         </div>
 
@@ -245,17 +254,17 @@ export function MeProfile() {
             <img 
               src={getAvatarUrl(profile.avatar_url, profile.username || user?.id)} 
               alt="Avatar"
-              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full shadow-lg object-cover bg-white"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover bg-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]"
             />
           </AvatarBorder>
-          <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full border-2 border-white shadow-sm flex items-center gap-1">
-            <Star size={12} fill="currentColor" />
+          <div className="absolute -bottom-2 -right-2 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] text-xs font-black px-2 py-1 rounded-full border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center gap-1">
+            <SparkleIcon size={12} active={true} withShadow={false} />
             Lvl {derivedLevel}
           </div>
         </div>
 
-        <h1 className="mt-4 text-2xl font-bold">{profile.display_name || 'Anonymous'}</h1>
-        <p className="text-gray-500 font-medium">@{profile.username || user?.id?.slice(0, 8)}</p>
+        <h1 className="mt-4 text-2xl font-black text-[var(--sq-text)]">{profile.display_name || 'Anonymous'}</h1>
+        <p className="text-sm text-[var(--sq-text-muted)] font-medium">@{profile.username || user?.id?.slice(0, 8)}</p>
         
         {/* Active Archetype Badge */}
         <motion.div 
@@ -263,7 +272,7 @@ export function MeProfile() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-          className="mt-3 px-4 py-1.5 rounded-full text-sm font-black tracking-wide text-white shadow-md flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+          className="mt-3 px-4 py-1.5 rounded-full text-sm font-black tracking-wide text-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
           style={{ 
             background: archetype.kind === 'hybrid'
               ? `linear-gradient(135deg, ${archetype.baseColor}, ${archetype.accentColor})`
@@ -277,7 +286,7 @@ export function MeProfile() {
         {/* Archetype blurb */}
         {archetypeLoreItem && (
           <div className="mt-4 max-w-sm text-center px-4 flex flex-col items-center">
-            <p className="text-xs text-gray-650 dark:text-gray-300 leading-relaxed font-semibold">
+            <p className="text-xs text-[var(--sq-text)] font-semibold leading-relaxed">
               {archetypeLoreItem.short}
             </p>
             <AnimatePresence initial={false}>
@@ -287,10 +296,10 @@ export function MeProfile() {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="text-gray-500 dark:text-gray-400 mt-2 text-[11px] leading-relaxed text-center flex flex-col gap-1.5 bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-gray-100/50 dark:border-gray-800/40 w-full"
+                  className="text-[var(--sq-text-muted)] mt-2 text-[11px] leading-relaxed text-center flex flex-col gap-1.5 bg-[var(--sq-surface)]/40 p-3 rounded-2xl border border-[var(--sq-hairline-strong)] w-full"
                 >
                   <p className="leading-relaxed font-medium">{archetypeLoreItem.long}</p>
-                  <p className="text-[10px] text-gray-450 dark:text-gray-500 font-semibold italic">({getArchetypeReason()})</p>
+                  <p className="text-[10px] text-[var(--sq-text-faint)] font-semibold italic">({getArchetypeReason()})</p>
                 </motion.div>
               ) : null}
             </AnimatePresence>
@@ -305,33 +314,34 @@ export function MeProfile() {
         )}
 
         {profile.bio && (
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 max-w-md">
+          <p className="mt-4 text-sm text-[var(--sq-text-muted)] max-w-md">
             {profile.bio}
           </p>
         )}
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 space-y-8 mt-4">
+      <div className="max-w-md mx-auto px-4 space-y-6 mt-4">
         {/* XP SECTION */}
         <motion.div 
           whileHover={{ y: -2 }}
           onClick={() => setIsBreakdownOpen(true)}
-          className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer active:scale-[0.99] transition-all"
+          className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-6 shadow-[var(--sq-shadow-soft)] cursor-pointer active:scale-[0.99] transition-all relative sq-wobbly-md"
         >
-          <div className="flex justify-between items-end mb-4">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+          <div className="flex justify-between items-end mb-4 relative z-10">
             <div>
-              <h2 className="text-lg font-bold">Experience</h2>
-              <p className="text-sm text-gray-500">{xpIntoCurrentLevel} / {xpForNextLevelTotal} XP (Level Progress)</p>
+              <h2 className="text-sm font-black uppercase tracking-wider text-[var(--sq-text-muted)]">Experience</h2>
+              <p className="text-xs text-[var(--sq-text-faint)] mt-1">{xpIntoCurrentLevel} / {xpForNextLevelTotal} XP (Level Progress)</p>
             </div>
             <div className="text-right">
               <span className="text-2xl font-black text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${archetype.baseColor}, ${archetype.accentColor})` }}>
                 {totalXP}
               </span>
-              <span className="text-xs text-gray-500 ml-1 block">Total XP</span>
+              <span className="text-[10px] text-gray-500 ml-1 block font-black uppercase">Total XP</span>
             </div>
           </div>
           
-          <div className="h-3 bg-gray-200/60 dark:bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-3 bg-[var(--sq-surface)] rounded-full overflow-hidden relative z-10 border border-[var(--sq-hairline)]">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
@@ -342,49 +352,52 @@ export function MeProfile() {
               }}
             />
           </div>
-          <p className="text-[10px] text-gray-400 mt-2 text-right">Tap to view Experience Breakdown</p>
+          <p className="text-[9px] text-[var(--sq-text-faint)] mt-2 text-right relative z-10 font-bold uppercase tracking-wider">Tap to view Experience Breakdown</p>
         </motion.div>
 
         {/* STATS GRID */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <StatBox icon={Map} label="Attended" value={xpStats.total_quests_attended} color="#3B82F6" />
-          <StatBox icon={Calendar} label="Organized" value={xpStats.total_quests_organized} color="#10B981" />
-          <StatBox icon={Star} label="Gems Found" value={xpStats.total_gems_found} color="#F59E0B" />
-          <StatBox icon={Users} label="Friends" value={(profile as any).friend_count || 0} color="#8B5CF6" />
-          <StatBox icon={Flame} label="Curr Streak" value={xpStats.current_streak} color="#EF4444" />
-          <StatBox icon={Trophy} label="Best Streak" value={xpStats.longest_streak} color="#F97316" />
+        <div className="grid grid-cols-2 gap-4">
+          <StatBox icon={MapIcon} label="Attended" value={xpStats.total_quests_attended} color="var(--sq-sage-500)" />
+          <StatBox icon={CalendarIcon} label="Organized" value={xpStats.total_quests_organized} color="var(--sq-ember-400)" />
+          <StatBox icon={SparkleIcon} label="Gems Found" value={xpStats.total_gems_found} color="var(--sq-gold)" />
+          <StatBox icon={CrewIcon} label="Friends" value={(profile as any).friend_count || 0} color="var(--sq-sage-600)" />
+          <StatBox icon={StreakFlameIcon} label="Curr Streak" value={xpStats.current_streak} color="var(--sq-ember-500)" />
+          <StatBox icon={GemIcon} label="Best Streak" value={xpStats.longest_streak} color="var(--sq-gold-soft)" />
         </div>
+
         {/* FEATURED GROUP SECTION */}
         {userGroups.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold px-2">Featured Group</h2>
-            <div className="px-2">
+            <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Featured Group</h2>
+            <div>
               <Link 
                 to="/friends"
-                className="block bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all active:scale-[0.99]"
+                className="block bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] hover:bg-[var(--sq-card-hover)] hover:shadow-md transition-all active:scale-[0.99] relative sq-wobbly-md"
               >
-                <div className="flex items-center justify-between gap-4">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
+                
+                <div className="flex items-center justify-between gap-4 relative z-10">
                   <div className="flex items-center gap-3.5 min-w-0">
                     {userGroups[0].avatar_url ? (
-                      <img src={userGroups[0].avatar_url} className="w-12 h-12 rounded-2xl object-cover shrink-0 animate-fade-in" alt="Group Icon" />
+                      <img src={userGroups[0].avatar_url} className="w-12 h-12 rounded-[var(--sq-r-md)] object-cover shrink-0 border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" alt="Group Icon" />
                     ) : (
                       <div 
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shrink-0"
-                        style={{ backgroundColor: userGroups[0].group_color || '#6C63FF' }}
+                        className="w-12 h-12 rounded-[var(--sq-r-md)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center justify-center text-white font-black text-xl shrink-0"
+                        style={{ backgroundColor: userGroups[0].group_color || 'var(--sq-sage-500)' }}
                       >
                         {userGroups[0].name[0].toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0 text-left">
-                      <h3 className="font-extrabold text-sm text-gray-900 dark:text-white truncate leading-tight">
+                      <h3 className="font-extrabold text-sm text-[var(--sq-text)] truncate leading-tight">
                         {userGroups[0].name}
                       </h3>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black tracking-wider uppercase rounded-full">
+                        <span className="px-2 py-0.5 bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] text-[8px] font-black tracking-wider uppercase rounded-full">
                           {userGroups[0].group_type || 'Social'}
                         </span>
                         <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
-                          <Users className="w-3 h-3 text-primary" />
+                          <CrewIcon size={12} withShadow={false} />
                           {userGroups[0].member_count} members
                         </span>
                         <span className="text-[10px] text-gray-400 font-bold">
@@ -396,12 +409,12 @@ export function MeProfile() {
 
                   <div className="flex items-center gap-2 shrink-0">
                     {userGroups[0].streak > 0 && (
-                      <div className="flex items-center gap-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-500 font-bold px-2 py-1 rounded-xl text-xs">
-                        <Flame className="w-3.5 h-3.5 animate-pulse" fill="currentColor" />
+                      <div className="flex items-center gap-0.5 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-black px-2 py-0.5 rounded-lg text-[10px] uppercase tracking-wider">
+                        <StreakFlameIcon size={14} active={true} withShadow={false} />
                         <span>{userGroups[0].streak}</span>
                       </div>
                     )}
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRightIcon size={20} withShadow={false} />
                   </div>
                 </div>
               </Link>
@@ -411,30 +424,32 @@ export function MeProfile() {
 
         {/* TITLES SECTION */}
         <div className="space-y-3">
-          <h2 className="text-lg font-bold px-2">Titles</h2>
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x px-2 scrollbar-hide">
+          <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Titles</h2>
+          <div className="flex gap-3 overflow-x-auto pb-4 snap-x px-1 scrollbar-premium">
             {allTitles.map((t: any) => {
               const isUnlocked = derivedLevel >= t.min_level;
               const isActive = profile.title === t.name;
               return (
                 <div 
                   key={t.id} 
-                  className={`snap-center shrink-0 w-48 p-4 rounded-2xl border ${isActive ? 'ring-2 shadow-md' : 'opacity-80'} transition-all cursor-pointer`}
-                  style={{ 
-                    borderColor: isActive ? (profile as any).profile_color : 'var(--color-gray-200)',
-                    backgroundColor: isActive ? `${(profile as any).profile_color}10` : 'var(--color-white)',
-                  }}
+                  className={`snap-center shrink-0 w-48 p-4 rounded-2xl border transition-all cursor-pointer relative ${
+                    isActive 
+                      ? 'bg-[var(--sq-surface)] border-2 border-[var(--sq-ember-500)] shadow-[var(--sq-shadow-sticker)] text-[var(--sq-text)]' 
+                      : 'bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] text-[var(--sq-text-muted)] opacity-70'
+                  }`}
                   onClick={() => {
                     if (isUnlocked && !isActive) updateProfile.mutate({ title: t.name });
                   }}
                 >
-                  <div className="font-bold mb-1" style={{ color: isUnlocked ? 'inherit' : '#9CA3AF' }}>{t.name}</div>
-                  <div className="text-xs text-gray-500">{t.requirement}</div>
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
+                  
+                  <div className="font-extrabold mb-1 text-sm relative z-10" style={{ color: isUnlocked ? 'inherit' : 'var(--sq-text-faint)' }}>{t.name}</div>
+                  <div className="text-xs text-[var(--sq-text-muted)] relative z-10 leading-snug">{t.requirement}</div>
                   {!isUnlocked && (
-                    <div className="mt-2 text-xs font-semibold text-red-500">Unlocks at Lv {t.min_level}</div>
+                    <div className="mt-2 text-[10px] font-black uppercase tracking-wide text-[var(--sq-heart)] relative z-10">Unlocks at Lv {t.min_level}</div>
                   )}
                   {isActive && (
-                    <div className="mt-2 text-xs font-semibold" style={{ color: (profile as any).profile_color }}>Active</div>
+                    <div className="mt-2 text-[10px] font-black uppercase tracking-wide text-[var(--sq-ember-300)] relative z-10">Active</div>
                   )}
                 </div>
               );
@@ -444,8 +459,9 @@ export function MeProfile() {
 
         {/* BADGES SECTION */}
         <div className="space-y-3">
-          <h2 className="text-lg font-bold px-2">Badges</h2>
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Badges</h2>
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-6 shadow-[var(--sq-shadow-soft)] relative">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
             <CustomBadgeGrid 
               unlockedBadgeIds={unlockedBadgeIds} 
             />
@@ -455,19 +471,22 @@ export function MeProfile() {
         {/* RECENT XP */}
         {xpStats.recent_xp_events?.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold px-2">Recent Activity</h2>
-            <div className="bg-white dark:bg-gray-800 rounded-3xl p-2 shadow-sm border border-gray-100 dark:border-gray-700">
-              {xpStats.recent_xp_events.map((event: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-700 last:border-0">
-                  <div className="flex flex-col">
-                    <span className="font-medium capitalize">{event.action_type.replace(/_/g, ' ')}</span>
-                    <span className="text-xs text-gray-500">{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
+            <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Recent Activity</h2>
+            <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] relative">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
+              <div className="flex flex-col gap-3 relative z-10">
+                {xpStats.recent_xp_events.map((event: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-3 border-b border-[var(--sq-hairline-strong)]/30 last:border-0 last:pb-0">
+                    <div className="flex flex-col text-left">
+                      <span className="font-extrabold text-sm text-[var(--sq-text)] capitalize">{event.action_type.replace(/_/g, ' ')}</span>
+                      <span className="text-[10px] text-[var(--sq-text-muted)] mt-0.5">{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
+                    </div>
+                    <div className="font-black text-xs text-[var(--sq-ember-300)] bg-[var(--sq-ember-500)]/10 px-3 py-1 rounded-full border border-[var(--sq-ember-500)]/20 shadow-sm">
+                      +{event.points} XP
+                    </div>
                   </div>
-                  <div className="font-bold text-green-500 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full text-sm">
-                    +{event.points} XP
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -480,7 +499,7 @@ export function MeProfile() {
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#1E140E]/80 backdrop-blur-sm p-4"
             onClick={() => setIsEditing(false)}
           >
             <motion.div 
@@ -489,45 +508,52 @@ export function MeProfile() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-md bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-3xl p-6 shadow-xl"
+              className="w-full max-w-md bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-t-3xl sm:rounded-3xl p-6 shadow-xl relative"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold">Edit Profile</h3>
-                <button onClick={() => setIsEditing(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
-                  <X size={20} />
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-t-3xl sm:rounded-3xl" />
+              
+              <div className="flex justify-between items-center mb-6 relative z-10">
+                <h3 className="text-lg font-black text-[var(--sq-text)]">Edit Profile</h3>
+                <button 
+                  onClick={() => setIsEditing(false)} 
+                  className="p-2 bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] rounded-full text-[var(--sq-text)] cursor-pointer"
+                >
+                  <CloseIcon size={20} withShadow={false} />
                 </button>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-5 relative z-10">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Display Name</label>
+                  <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">Display Name</label>
                   <input 
                     type="text" 
                     value={editName} 
                     onChange={e => setEditName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bio</label>
+                  <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">Bio</label>
                   <textarea 
                     value={editBio} 
                     onChange={e => setEditBio(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
+                    className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm resize-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Profile Color</label>
+                  <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">Profile Color</label>
                   <div className="flex flex-wrap gap-3">
                     {PRESET_COLORS.map(color => (
                       <button
                         key={color}
                         onClick={() => setEditColor(color)}
-                        className={`w-10 h-10 rounded-full transition-transform ${editColor === color ? 'scale-110 ring-4 ring-offset-2 dark:ring-offset-gray-900' : 'hover:scale-105'}`}
-                        style={{ backgroundColor: color, '--tw-ring-color': color } as any}
+                        className={`w-10 h-10 rounded-full transition-transform cursor-pointer ${
+                          editColor === color ? 'scale-110 ring-4 ring-[var(--sq-ember-500)] ring-offset-2 dark:ring-offset-gray-900' : 'hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color } as any}
                       />
                     ))}
                   </div>
@@ -536,7 +562,7 @@ export function MeProfile() {
                 <button 
                   onClick={handleSave}
                   disabled={updateProfile.isPending}
-                  className="w-full py-3.5 mt-4 rounded-xl text-white font-bold shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-3.5 mt-4 rounded-full text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-black uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer"
                   style={{ backgroundColor: editColor }}
                 >
                   {updateProfile.isPending ? 'Saving...' : 'Save Changes'}

@@ -4,9 +4,18 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/auth'
 import { useFriends, useSendFriendRequest, useRespondToRequest } from '../hooks/useFriends'
 import { motion } from 'framer-motion'
-import { Camera, ChevronLeft, Check, UserPlus, ShieldAlert, Award, MapPin } from 'lucide-react'
 import type { Database } from '../types/database.types'
 import { getAvatarUrl } from '../lib/avatar'
+
+import { 
+  ChevronLeftIcon,
+  CheckIcon,
+  UserPlusIcon,
+  UploadIcon,
+  MapIcon,
+  CloseIcon,
+  CompassIcon
+} from '../components/icons'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -70,13 +79,6 @@ export function Profile() {
             setFriendStatus('none')
             setFriendshipId(null)
           }
-
-          // Fetch mutual friends (basic intersection for now)
-          const { data: mfData } = await supabase.rpc('search_users' as any, { search_term: data.username })
-          if (mfData && (mfData as any[]).length > 0) {
-            // we can use the search RPC which returns mutual count, but we need the actual friends.
-            // For now, let's just do a simple query or skip it if too complex
-          }
         }
       }
       setLoading(false)
@@ -123,8 +125,17 @@ export function Profile() {
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
-  if (!profile) return <div className="p-8 text-center text-gray-500">Profile not found.</div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[var(--sq-bg)]">
+      <div className="animate-spin w-8 h-8 border-4 border-[var(--sq-ember-500)] border-t-transparent rounded-full" />
+    </div>
+  )
+  
+  if (!profile) return (
+    <div className="p-8 text-center text-[var(--sq-text-muted)] font-black bg-[var(--sq-bg)] min-h-screen">
+      Profile not found.
+    </div>
+  )
 
   const level = profile.level || 1
   const xp = profile.xp || 0
@@ -133,11 +144,14 @@ export function Profile() {
   const progress = Math.min(100, Math.max(0, ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100))
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
-      <header className="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-xl border-b border-gray-200">
+    <div data-theme="ember" className="min-h-screen bg-background text-foreground pb-32 w-full">
+      <header className="sticky top-0 z-40 bg-[var(--sq-bg)] border-b border-[var(--sq-hairline-strong)]">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <button onClick={() => window.history.back()} className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm text-gray-900 active:scale-95">
-            <ChevronLeft className="w-5 h-5" />
+          <button 
+            onClick={() => window.history.back()} 
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
+          >
+            <ChevronLeftIcon size={20} withShadow={false} />
           </button>
           <div className="w-10" />
         </div>
@@ -147,41 +161,41 @@ export function Profile() {
         {/* Header Section */}
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-4">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-white shadow-md">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-[var(--sq-surface)] flex items-center justify-center border-4 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]">
               {profile.avatar_url ? (
                 <img src={getAvatarUrl(profile.avatar_url, profile.username)} alt={profile.username} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl font-bold text-gray-500">{profile.username[0].toUpperCase()}</span>
+                <span className="text-3xl font-black text-[var(--sq-ember-300)]">{profile.username[0].toUpperCase()}</span>
               )}
             </div>
             {isOwnProfile && (
-              <label className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer shadow-md hover:scale-105 transition-transform">
-                <Camera size={16} />
+              <label className="absolute bottom-0 right-0 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] p-2 rounded-full cursor-pointer shadow-md hover:scale-105 transition-transform border border-[var(--sq-keyline)]">
+                <UploadIcon size={16} withShadow={false} />
                 <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={uploading} />
               </label>
             )}
           </div>
           
-          <h1 className="text-2xl font-black text-gray-900">{profile.display_name || profile.username}</h1>
-          <p className="text-gray-500 font-medium mb-1">@{profile.username}</p>
+          <h1 className="text-2xl font-black text-[var(--sq-text)]">{profile.display_name || profile.username}</h1>
+          <p className="text-sm text-[var(--sq-text-muted)] font-medium mb-1">@{profile.username}</p>
           {profile.title && (
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block">
+            <span className="px-3 py-1 bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] rounded-full text-xs font-black uppercase tracking-wider mb-4 inline-block">
               {profile.title}
             </span>
           )}
 
           {/* Level & XP Bar */}
-          <div className="w-full max-w-xs mt-2">
+          <div className="w-full max-w-xs mt-2 bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] sq-wobbly-md">
             <div className="flex justify-between text-xs font-bold mb-1">
-              <span className="text-purple-600">Level {level}</span>
-              <span className="text-gray-500">{xp} / {nextLevelXp} XP</span>
+              <span className="text-[var(--sq-ember-300)] font-black">Level {level}</span>
+              <span className="text-[var(--sq-text-muted)] font-semibold">{xp} / {nextLevelXp} XP</span>
             </div>
-            <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-2.5 bg-[var(--sq-surface)] rounded-full overflow-hidden border border-[var(--sq-hairline)]">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-[#58CC02] to-[#4CAF50]"
+                className="h-full bg-[var(--sq-ember-500)]"
               />
             </div>
           </div>
@@ -191,25 +205,27 @@ export function Profile() {
         {!isOwnProfile && (
           <div className="flex justify-center">
             {friendStatus === 'none' && (
-              <button onClick={handleAddFriend} className="w-48 bg-white border-2 border-primary text-primary font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm">
-                <UserPlus className="w-5 h-5" /> Add Friend
+              <button onClick={handleAddFriend} className="w-48 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold py-3 rounded-full flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer text-sm uppercase tracking-wider">
+                <UserPlusIcon size={18} withShadow={false} /> Add Friend
               </button>
             )}
             {friendStatus === 'sent' && (
-              <button disabled className="w-48 bg-gray-100 text-gray-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+              <button disabled className="w-48 bg-[var(--sq-surface)] text-[var(--sq-text-muted)] border border-[var(--sq-hairline-strong)] font-extrabold py-3 rounded-full flex items-center justify-center gap-2 text-sm uppercase tracking-wider opacity-85">
                 Request Sent
               </button>
             )}
             {friendStatus === 'received' && friendshipId && (
-              <button onClick={() => respond({ friendshipId, requesterId: id, action: 'accept' })} className="w-48 bg-green-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 shadow-md">
-                <Check className="w-5 h-5" /> Accept Request
+              <button onClick={() => respond({ friendshipId, requesterId: id, action: 'accept' })} className="w-48 bg-[var(--sq-sage-500)] hover:bg-[var(--sq-sage-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold py-3 rounded-full flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer text-sm uppercase tracking-wider">
+                <CheckIcon size={18} withShadow={false} /> Accept Request
               </button>
             )}
             {friendStatus === 'friends' && (
-              <button onClick={handleRemoveFriend} className="w-48 bg-green-50 border border-green-200 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors group">
-                <Check className="w-5 h-5 group-hover:hidden" />
+              <button onClick={handleRemoveFriend} className="w-48 bg-[var(--sq-surface)] border border-[var(--sq-hairline-strong)] text-[var(--sq-text)] font-extrabold py-3 rounded-full flex items-center justify-center gap-2 hover:bg-[var(--sq-heart)] hover:text-[var(--sq-keyline)] hover:border-[var(--sq-keyline)] transition-all group active:scale-95 cursor-pointer text-sm uppercase tracking-wider">
+                <CheckIcon size={18} withShadow={false} className="group-hover:hidden" />
                 <span className="group-hover:hidden">Friends ✓</span>
-                <ShieldAlert className="w-5 h-5 hidden group-hover:block" />
+                <div className="hidden group-hover:block shrink-0">
+                  <CloseIcon size={18} withShadow={false} />
+                </div>
                 <span className="hidden group-hover:inline">Remove</span>
               </button>
             )}
@@ -218,41 +234,48 @@ export function Profile() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <p className="text-xl font-black text-gray-900">{stats.questCount}</p>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Quests</p>
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 text-center shadow-[var(--sq-shadow-soft)] relative sq-wobbly-md">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+            <p className="text-xl font-black text-[var(--sq-text)] relative z-10">{stats.questCount}</p>
+            <p className="text-[9px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mt-1 relative z-10">Quests</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <p className="text-xl font-black text-gray-900">{stats.friendCount}</p>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Friends</p>
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 text-center shadow-[var(--sq-shadow-soft)] relative sq-wobbly-md">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+            <p className="text-xl font-black text-[var(--sq-text)] relative z-10">{stats.friendCount}</p>
+            <p className="text-[9px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mt-1 relative z-10">Friends</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <p className="text-xl font-black text-primary">{xp}</p>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total XP</p>
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 text-center shadow-[var(--sq-shadow-soft)] relative sq-wobbly-md">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+            <p className="text-xl font-black text-[var(--sq-ember-300)] relative z-10">{xp}</p>
+            <p className="text-[9px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mt-1 relative z-10">Total XP</p>
           </div>
         </div>
 
         {/* Quest History */}
         <div className="space-y-3">
-          <h2 className="font-bold text-gray-900 px-1">Recent Quests</h2>
-          <div className="bg-white rounded-3xl p-2 shadow-sm border border-gray-100">
+          <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Recent Quests</h2>
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-2 shadow-[var(--sq-shadow-soft)] relative">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
             {recentQuests.length > 0 ? (
-              recentQuests.map(q => (
-                <Link key={q.id} to="/quest/$id" params={{ id: q.id }} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    <Award className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 truncate">{q.name}</h3>
-                    <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {q.locations?.name || 'Unknown Location'}
-                    </p>
-                  </div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                </Link>
-              ))
+              <div className="flex flex-col gap-1 relative z-10">
+                {recentQuests.map(q => (
+                  <Link key={q.id} to="/quest/$id" params={{ id: q.id }} className="flex items-center gap-4 p-3 hover:bg-[var(--sq-surface)] rounded-2xl transition-colors cursor-pointer">
+                    <div className="w-10 h-10 rounded-[var(--sq-r-md)] bg-[var(--sq-ember-500)]/10 border border-[var(--sq-ember-500)]/20 flex items-center justify-center text-[var(--sq-ember-300)] shrink-0 shadow-sm">
+                      <CompassIcon size={18} active={true} withShadow={false} />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <h3 className="font-extrabold text-sm text-[var(--sq-text)] truncate">{q.name}</h3>
+                      <p className="text-xs text-[var(--sq-text-muted)] truncate flex items-center gap-1 mt-0.5">
+                        <MapIcon size={12} withShadow={false} className="inline-block shrink-0" /> 
+                        {q.locations?.name || 'Unknown Location'}
+                      </p>
+                    </div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--sq-ember-500)] shrink-0 border border-[var(--sq-keyline)] shadow" />
+                  </Link>
+                ))}
+              </div>
             ) : (
-              <div className="p-6 text-center text-gray-400 text-sm">
+              <div className="p-6 text-center text-[var(--sq-text-muted)] text-sm font-bold relative z-10">
                 No quests completed yet.
               </div>
             )}
