@@ -216,36 +216,36 @@ export function MeProfile() {
   const StatBox = ({ icon: Icon, label, value, color }: any) => (
     <motion.div 
       whileHover={{ y: -2 }}
-      className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 text-center shadow-[var(--sq-shadow-soft)] flex flex-col items-center justify-center gap-2 relative sq-wobbly-md cursor-pointer"
+      className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-6 sm:p-7 text-center shadow-[var(--sq-shadow-soft)] flex flex-col items-center justify-center gap-3 relative sq-wobbly-md cursor-pointer"
     >
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
-      <div className="p-2 rounded-xl bg-opacity-10 z-10" style={{ backgroundColor: `${color}20`, color }}>
-        <Icon size={24} withShadow={false} />
+      <div className="p-3.5 rounded-2xl bg-opacity-10 z-10" style={{ backgroundColor: `${color}20`, color }}>
+        <Icon size={32} withShadow={false} />
       </div>
-      <div className="text-2xl font-black text-[var(--sq-text)] z-10">{value || 0}</div>
-      <div className="text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider z-10">{label}</div>
+      <div className="text-3xl sm:text-4xl font-black text-[var(--sq-text)] z-10">{value || 0}</div>
+      <div className="text-xs sm:text-sm font-black text-[var(--sq-text-muted)] uppercase tracking-wider z-10">{label}</div>
     </motion.div>
   );
 
   return (
-    <div data-theme="ember" className="min-h-screen pb-24 bg-background text-foreground transition-colors duration-300 w-full">
+    <div data-theme="ember" className="min-h-screen pb-24 bg-background text-foreground transition-colors duration-300 w-full flex flex-col items-center">
       {/* HEADER SECTION */}
       <div 
-        className="relative pt-20 pb-8 px-4 flex flex-col items-center text-center shadow-sm"
+        className="relative pt-20 pb-10 px-6 flex flex-col items-center text-center shadow-sm w-full max-w-2xl"
         style={{ background: `linear-gradient(to bottom, ${profile.profile_color || 'var(--sq-sage-500)'}22, transparent)` }}
       >
-        <div className="absolute top-4 right-4 flex gap-2 z-20">
+        <div className="absolute top-4 right-6 flex gap-3 z-20">
           <button 
             onClick={handleEditOpen}
-            className="p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
+            className="p-3 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
           >
-            <ScissorsIcon size={20} withShadow={false} />
+            <ScissorsIcon size={22} withShadow={false} />
           </button>
           <Link 
             to="/settings"
-            className="p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
+            className="p-3 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-all active:scale-95 cursor-pointer"
           >
-            <SettingsIcon size={20} withShadow={false} />
+            <SettingsIcon size={22} withShadow={false} />
           </Link>
         </div>
 
@@ -254,17 +254,17 @@ export function MeProfile() {
             <img 
               src={getAvatarUrl(profile.avatar_url, profile.username || user?.id)} 
               alt="Avatar"
-              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover bg-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]"
+              className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover bg-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]"
             />
           </AvatarBorder>
-          <div className="absolute -bottom-2 -right-2 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] text-xs font-black px-2 py-1 rounded-full border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center gap-1">
-            <SparkleIcon size={12} active={true} withShadow={false} />
+          <div className="absolute -bottom-2 -right-2 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] text-sm font-black px-3 py-1.5 rounded-full border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center gap-1.5">
+            <SparkleIcon size={14} active={true} withShadow={false} />
             Lvl {derivedLevel}
           </div>
         </div>
 
-        <h1 className="mt-4 text-2xl font-black text-[var(--sq-text)]">{profile.display_name || 'Anonymous'}</h1>
-        <p className="text-sm text-[var(--sq-text-muted)] font-medium">@{profile.username || user?.id?.slice(0, 8)}</p>
+        <h1 className="mt-5 text-3xl sm:text-4xl font-black text-[var(--sq-text)]">{profile.display_name || 'Anonymous'}</h1>
+        <p className="text-base sm:text-lg text-[var(--sq-text-muted)] font-medium mt-1">@{profile.username || user?.id?.slice(0, 8)}</p>
         
         {/* Active Archetype Badge */}
         <motion.div 
@@ -272,7 +272,7 @@ export function MeProfile() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-          className="mt-3 px-4 py-1.5 rounded-full text-sm font-black tracking-wide text-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
+          className="mt-3.5 px-6 py-2.5 rounded-full text-base font-black tracking-wide text-white border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center gap-1.5"
           style={{ 
             background: archetype.kind === 'hybrid'
               ? `linear-gradient(135deg, ${archetype.baseColor}, ${archetype.accentColor})`
@@ -285,8 +285,8 @@ export function MeProfile() {
 
         {/* Archetype blurb */}
         {archetypeLoreItem && (
-          <div className="mt-4 max-w-sm text-center px-4 flex flex-col items-center">
-            <p className="text-xs text-[var(--sq-text)] font-semibold leading-relaxed">
+          <div className="mt-5 max-w-md text-center px-4 flex flex-col items-center">
+            <p className="text-sm text-[var(--sq-text)] font-semibold leading-relaxed">
               {archetypeLoreItem.short}
             </p>
             <AnimatePresence initial={false}>
@@ -296,7 +296,7 @@ export function MeProfile() {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="text-[var(--sq-text-muted)] mt-2 text-[11px] leading-relaxed text-center flex flex-col gap-1.5 bg-[var(--sq-surface)]/40 p-3 rounded-2xl border border-[var(--sq-hairline-strong)] w-full"
+                  className="text-[var(--sq-text-muted)] mt-2.5 text-xs leading-relaxed text-center flex flex-col gap-2 bg-[var(--sq-surface)]/40 p-4 rounded-2xl border border-[var(--sq-hairline-strong)] w-full"
                 >
                   <p className="leading-relaxed font-medium">{archetypeLoreItem.long}</p>
                   <p className="text-[10px] text-[var(--sq-text-faint)] font-semibold italic">({getArchetypeReason()})</p>
@@ -305,7 +305,7 @@ export function MeProfile() {
             </AnimatePresence>
             <button
               onClick={() => setIsProfileLoreExpanded(!isProfileLoreExpanded)}
-              className="text-[10px] font-black uppercase tracking-wider mt-2 hover:underline focus:outline-none cursor-pointer inline-flex items-center gap-0.5"
+              className="text-xs font-black uppercase tracking-wider mt-3 hover:underline focus:outline-none cursor-pointer inline-flex items-center gap-0.5"
               style={{ color: archetype.baseColor }}
             >
               {isProfileLoreExpanded ? 'Read Less ▲' : 'Read More ▼'}
@@ -314,34 +314,34 @@ export function MeProfile() {
         )}
 
         {profile.bio && (
-          <p className="mt-4 text-sm text-[var(--sq-text-muted)] max-w-md">
+          <p className="mt-4 text-base text-[var(--sq-text-muted)] max-w-md leading-relaxed">
             {profile.bio}
           </p>
         )}
       </div>
 
-      <div className="max-w-md mx-auto px-4 space-y-6 mt-4">
+      <div className="max-w-2xl mx-auto px-4 space-y-8 mt-6 w-full">
         {/* XP SECTION */}
         <motion.div 
           whileHover={{ y: -2 }}
           onClick={() => setIsBreakdownOpen(true)}
-          className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-6 shadow-[var(--sq-shadow-soft)] cursor-pointer active:scale-[0.99] transition-all relative sq-wobbly-md"
+          className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-8 shadow-[var(--sq-shadow-soft)] cursor-pointer active:scale-[0.99] transition-all relative sq-wobbly-md"
         >
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
           <div className="flex justify-between items-end mb-4 relative z-10">
             <div>
-              <h2 className="text-sm font-black uppercase tracking-wider text-[var(--sq-text-muted)]">Experience</h2>
-              <p className="text-xs text-[var(--sq-text-faint)] mt-1">{xpIntoCurrentLevel} / {xpForNextLevelTotal} XP (Level Progress)</p>
+              <h2 className="text-lg font-black uppercase tracking-wider text-[var(--sq-text-muted)]">Experience</h2>
+              <p className="text-sm text-[var(--sq-text-faint)] mt-1 font-semibold">{xpIntoCurrentLevel} / {xpForNextLevelTotal} XP (Level Progress)</p>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-black text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${archetype.baseColor}, ${archetype.accentColor})` }}>
+              <span className="text-4xl font-black text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${archetype.baseColor}, ${archetype.accentColor})` }}>
                 {totalXP}
               </span>
-              <span className="text-[10px] text-gray-500 ml-1 block font-black uppercase">Total XP</span>
+              <span className="text-xs text-gray-500 ml-1 block font-black uppercase">Total XP</span>
             </div>
           </div>
           
-          <div className="h-3 bg-[var(--sq-surface)] rounded-full overflow-hidden relative z-10 border border-[var(--sq-hairline)]">
+          <div className="h-5 bg-[var(--sq-surface)] rounded-full overflow-hidden relative z-10 border border-[var(--sq-hairline)]">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
@@ -352,11 +352,11 @@ export function MeProfile() {
               }}
             />
           </div>
-          <p className="text-[9px] text-[var(--sq-text-faint)] mt-2 text-right relative z-10 font-bold uppercase tracking-wider">Tap to view Experience Breakdown</p>
+          <p className="text-xs text-[var(--sq-text-faint)] mt-2.5 text-right relative z-10 font-black uppercase tracking-wider">Tap to view Experience Breakdown</p>
         </motion.div>
 
         {/* STATS GRID */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
           <StatBox icon={MapIcon} label="Attended" value={xpStats.total_quests_attended} color="var(--sq-sage-500)" />
           <StatBox icon={CalendarIcon} label="Organized" value={xpStats.total_quests_organized} color="var(--sq-ember-400)" />
           <StatBox icon={SparkleIcon} label="Gems Found" value={xpStats.total_gems_found} color="var(--sq-gold)" />
@@ -372,35 +372,35 @@ export function MeProfile() {
             <div>
               <Link 
                 to="/friends"
-                className="block bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] hover:bg-[var(--sq-card-hover)] hover:shadow-md transition-all active:scale-[0.99] relative sq-wobbly-md"
+                className="block bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-7 shadow-[var(--sq-shadow-soft)] hover:bg-[var(--sq-card-hover)] hover:shadow-md transition-all active:scale-[0.99] relative sq-wobbly-md"
               >
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
                 
                 <div className="flex items-center justify-between gap-4 relative z-10">
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex items-center gap-4 min-w-0">
                     {userGroups[0].avatar_url ? (
-                      <img src={userGroups[0].avatar_url} className="w-12 h-12 rounded-[var(--sq-r-md)] object-cover shrink-0 border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" alt="Group Icon" />
+                      <img src={userGroups[0].avatar_url} className="w-16 h-16 rounded-[var(--sq-r-md)] object-cover shrink-0 border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" alt="Group Icon" />
                     ) : (
                       <div 
-                        className="w-12 h-12 rounded-[var(--sq-r-md)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center justify-center text-white font-black text-xl shrink-0"
+                        className="w-16 h-16 rounded-[var(--sq-r-md)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center justify-center text-white font-black text-xl shrink-0"
                         style={{ backgroundColor: userGroups[0].group_color || 'var(--sq-sage-500)' }}
                       >
                         {userGroups[0].name[0].toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0 text-left">
-                      <h3 className="font-extrabold text-sm text-[var(--sq-text)] truncate leading-tight">
+                      <h3 className="font-extrabold text-lg text-[var(--sq-text)] truncate leading-tight">
                         {userGroups[0].name}
                       </h3>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] text-[8px] font-black tracking-wider uppercase rounded-full">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] text-[9px] font-black tracking-wider uppercase rounded-full">
                           {userGroups[0].group_type || 'Social'}
                         </span>
-                        <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+                        <span className="text-xs text-gray-400 font-bold flex items-center gap-1">
                           <CrewIcon size={12} withShadow={false} />
                           {userGroups[0].member_count} members
                         </span>
-                        <span className="text-[10px] text-gray-400 font-bold">
+                        <span className="text-xs text-gray-400 font-bold">
                           Lvl {userGroups[0].level || 1}
                         </span>
                       </div>
@@ -414,7 +414,7 @@ export function MeProfile() {
                         <span>{userGroups[0].streak}</span>
                       </div>
                     )}
-                    <ChevronRightIcon size={20} withShadow={false} />
+                    <ChevronRightIcon size={22} withShadow={false} />
                   </div>
                 </div>
               </Link>
@@ -425,14 +425,14 @@ export function MeProfile() {
         {/* TITLES SECTION */}
         <div className="space-y-3">
           <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Titles</h2>
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x px-1 scrollbar-premium">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x px-1 scrollbar-premium">
             {allTitles.map((t: any) => {
               const isUnlocked = derivedLevel >= t.min_level;
               const isActive = profile.title === t.name;
               return (
                 <div 
                   key={t.id} 
-                  className={`snap-center shrink-0 w-48 p-4 rounded-2xl border transition-all cursor-pointer relative ${
+                  className={`snap-center shrink-0 w-64 p-6 rounded-2xl border transition-all cursor-pointer relative ${
                     isActive 
                       ? 'bg-[var(--sq-surface)] border-2 border-[var(--sq-ember-500)] shadow-[var(--sq-shadow-sticker)] text-[var(--sq-text)]' 
                       : 'bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] text-[var(--sq-text-muted)] opacity-70'
@@ -443,13 +443,13 @@ export function MeProfile() {
                 >
                   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
                   
-                  <div className="font-extrabold mb-1 text-sm relative z-10" style={{ color: isUnlocked ? 'inherit' : 'var(--sq-text-faint)' }}>{t.name}</div>
-                  <div className="text-xs text-[var(--sq-text-muted)] relative z-10 leading-snug">{t.requirement}</div>
+                  <div className="font-extrabold mb-1.5 text-lg relative z-10" style={{ color: isUnlocked ? 'inherit' : 'var(--sq-text-faint)' }}>{t.name}</div>
+                  <div className="text-sm text-[var(--sq-text-muted)] font-semibold relative z-10 leading-snug">{t.requirement}</div>
                   {!isUnlocked && (
-                    <div className="mt-2 text-[10px] font-black uppercase tracking-wide text-[var(--sq-heart)] relative z-10">Unlocks at Lv {t.min_level}</div>
+                    <div className="mt-2 text-xs font-black uppercase tracking-wide text-[var(--sq-heart)] relative z-10">Unlocks at Lv {t.min_level}</div>
                   )}
                   {isActive && (
-                    <div className="mt-2 text-[10px] font-black uppercase tracking-wide text-[var(--sq-ember-300)] relative z-10">Active</div>
+                    <div className="mt-2 text-xs font-black uppercase tracking-wide text-[var(--sq-ember-300)] relative z-10">Active</div>
                   )}
                 </div>
               );
@@ -460,7 +460,7 @@ export function MeProfile() {
         {/* BADGES SECTION */}
         <div className="space-y-3">
           <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Badges</h2>
-          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-6 shadow-[var(--sq-shadow-soft)] relative">
+          <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-8 sm:p-10 shadow-[var(--sq-shadow-soft)] relative">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
             <CustomBadgeGrid 
               unlockedBadgeIds={unlockedBadgeIds} 
@@ -472,9 +472,9 @@ export function MeProfile() {
         {xpStats.recent_xp_events?.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-xs font-black uppercase tracking-wider text-[var(--sq-text-muted)] px-1">Recent Activity</h2>
-            <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] relative">
+            <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] relative">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
-              <div className="flex flex-col gap-3 relative z-10">
+              <div className="flex flex-col gap-4 relative z-10">
                 {xpStats.recent_xp_events.map((event: any, i: number) => (
                   <div key={i} className="flex items-center justify-between p-3 border-b border-[var(--sq-hairline-strong)]/30 last:border-0 last:pb-0">
                     <div className="flex flex-col text-left">

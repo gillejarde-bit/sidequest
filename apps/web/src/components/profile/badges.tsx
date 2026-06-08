@@ -16,7 +16,7 @@ export function GemHunterIcon({ locked }: { locked: boolean }) {
   const border = locked ? '#D1D5DB' : '#A5F3FC';
 
   return (
-    <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-16 h-16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="16" fill={bg} stroke={border} strokeWidth="3" />
       {/* Cel-shaded diamond geometry */}
       <path d="M32 12 L48 28 L32 52 L16 28 Z" fill={color} stroke="#FFFFFF" strokeWidth="2" strokeLinejoin="round" />
@@ -33,7 +33,7 @@ export function EarlyBirdIcon({ locked }: { locked: boolean }) {
   const border = locked ? '#D1D5DB' : '#FDE68A';
 
   return (
-    <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-16 h-16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="16" fill={bg} stroke={border} strokeWidth="3" />
       {/* Sun rising over mountain silhouette */}
       <path d="M14 48 C 20 40, 44 40, 50 48" fill="#10B981" fillOpacity={locked ? 0.3 : 1} /> {/* Mountain hill */}
@@ -51,7 +51,7 @@ export function CityExplorerIcon({ locked }: { locked: boolean }) {
   const border = locked ? '#D1D5DB' : '#DDD6FE';
 
   return (
-    <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-16 h-16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="16" fill={bg} stroke={border} strokeWidth="3" />
       {/* Map pin / Compass badge */}
       <circle cx="32" cy="32" r="16" stroke={color} strokeWidth="3.5" fill="#FFFFFF" />
@@ -70,7 +70,7 @@ export function QuestMasterIcon({ locked }: { locked: boolean }) {
   const border = locked ? '#D1D5DB' : '#FEE2E2';
 
   return (
-    <svg className="w-12 h-12" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-16 h-16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="16" fill={bg} stroke={border} strokeWidth="3" />
       {/* Crown SVG */}
       <path d="M16 46 L12 24 L24 34 L32 16 L40 34 L52 24 L48 46 Z" fill="#F59E0B" fillOpacity={locked ? 0.3 : 1} stroke="#D97706" strokeWidth="2.5" strokeLinejoin="round" />
@@ -121,7 +121,7 @@ interface BadgeGridProps {
 
 export function BadgeGrid({ unlockedBadgeIds }: BadgeGridProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
       {ALL_MOCK_BADGES.map(badge => {
         const isUnlocked = unlockedBadgeIds.includes(badge.id);
         
@@ -129,32 +129,32 @@ export function BadgeGrid({ unlockedBadgeIds }: BadgeGridProps) {
           <motion.div
             key={badge.id}
             whileHover={{ y: isUnlocked ? -3 : 0 }}
-            className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all ${
+            className={`flex flex-col items-center justify-center p-5 rounded-[var(--sq-r-lg)] border transition-all ${
               isUnlocked 
                 ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm' 
                 : 'bg-gray-50/50 dark:bg-gray-900/40 border-dashed border-gray-200 dark:border-gray-800 opacity-60'
             }`}
           >
-            <div className="relative mb-2">
+            <div className="relative mb-2.5">
               {badge.icon({ locked: !isUnlocked })}
               {!isUnlocked && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400 bg-white dark:bg-gray-800 p-0.5 rounded-full shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-gray-400 bg-white dark:bg-gray-800 p-0.5 rounded-full shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
               )}
             </div>
             
-            <div className={`text-xs font-bold text-center ${isUnlocked ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
+            <div className={`text-sm font-black text-center ${isUnlocked ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
               {badge.name}
             </div>
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-1 leading-tight max-w-[120px]">
+            <div className="text-[11px] text-gray-400 dark:text-gray-500 text-center mt-1.5 leading-tight max-w-[130px]">
               {badge.description}
             </div>
             
             {isUnlocked && (
-              <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md mt-2 ${
+              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2.5 ${
                 badge.rarity === 'legendary' 
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
                   : badge.rarity === 'rare'
