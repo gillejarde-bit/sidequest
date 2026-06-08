@@ -1,13 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Flame, Loader2, Users, Plus, ChevronLeft, Scissors, ZoomIn, ZoomOut, Upload, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useFriends, usePendingRequests, useRespondToRequest } from '../hooks/useFriends'
 import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { FriendCard } from '../components/social/FriendCard'
 import { UserSearchCard } from '../components/social/UserSearchCard'
 import { useAuthStore } from '../stores/auth'
+import { BannerRibbon } from '../components/campfire/CampfireComponents'
+import { 
+  SearchIcon, 
+  StreakFlameIcon, 
+  CrewIcon, 
+  PlusIcon, 
+  ChevronLeftIcon, 
+  CheckIcon,
+  UploadIcon,
+  ScissorsIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  CompassIcon,
+  FriendsIcon
+} from '../components/icons'
 
 const generateUUID = () => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -56,19 +70,21 @@ export function FriendsPage() {
   }, [])
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300 pb-24">
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 pt-safe transition-colors duration-300">
-        <h1 className="text-2xl font-black px-6 py-4 text-gray-900 dark:text-white">Social</h1>
-        
-        <div className="flex px-4 relative">
-          <TabButton active={activeTab === 'friends'} onClick={() => setActiveTab('friends')} label="Friends" />
-          <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} label="Groups" />
-          <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} label="Requests" badge />
-          <TabButton active={activeTab === 'find'} onClick={() => setActiveTab('find')} label="Find" />
+    <div data-theme="ember" className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-24 w-full">
+      <header className="sticky top-0 z-40 bg-[var(--sq-bg)] border-b border-[var(--sq-hairline-strong)] pt-safe transition-colors duration-300">
+        <div className="max-w-md mx-auto">
+          <BannerRibbon title="Social" />
+          
+          <div className="flex p-1 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-full mx-4 mb-4 gap-1">
+            <TabButton active={activeTab === 'friends'} onClick={() => setActiveTab('friends')} label="Friends" />
+            <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} label="Groups" />
+            <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} label="Requests" badge />
+            <TabButton active={activeTab === 'find'} onClick={() => setActiveTab('find')} label="Find" />
+          </div>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto">
+      <main className="max-w-md mx-auto px-4 pt-4">
         <AnimatePresence mode="wait">
           {activeTab === 'friends' && <FriendsTab key="friends" onGoFind={() => setActiveTab('find')} />}
           {activeTab === 'groups' && <GroupsTab key="groups" />}
@@ -86,23 +102,20 @@ function TabButton({ active, onClick, label, badge }: { active: boolean, onClick
   return (
     <button
       onClick={onClick}
-      className={`flex-1 pb-4 relative text-sm font-bold transition-colors ${active ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}
+      className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-full transition-all cursor-pointer relative ${
+        active 
+          ? 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] scale-105' 
+          : 'text-[var(--sq-text-muted)] hover:text-[var(--sq-text)]'
+      }`}
     >
       <div className="flex items-center justify-center gap-1.5">
         {label}
         {badge && count > 0 && (
-          <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+          <span className="bg-[var(--sq-heart)] text-[var(--sq-keyline)] text-[9px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-[var(--sq-keyline)] font-black">
             {count}
           </span>
         )}
       </div>
-      {active && (
-        <motion.div
-          layoutId="tab-indicator"
-          className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        />
-      )}
     </button>
   )
 }
@@ -110,25 +123,50 @@ function TabButton({ active, onClick, label, badge }: { active: boolean, onClick
 function FriendsTab({ onGoFind }: { onGoFind: () => void }) {
   const { data: friends, isLoading } = useFriends()
 
-  if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+  if (isLoading) return (
+    <div className="p-8 flex justify-center">
+      <div className="animate-spin w-8 h-8 border-4 border-[var(--sq-ember-500)] border-t-transparent rounded-full" />
+    </div>
+  )
 
   if (!friends || friends.length === 0) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 text-center mt-12">
-        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No friends yet</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Adventure is better together. Find your friends and start questing!</p>
-        <button onClick={onGoFind} className="bg-primary text-white font-bold py-3 px-8 rounded-full hover:bg-primary-hover active:scale-95 transition-all">
-          Find Friends →
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }} 
+        className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-8 shadow-[var(--sq-shadow-soft)] text-center max-w-sm mx-auto mt-8 relative"
+      >
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none rounded-[var(--sq-r-lg)]" />
+        <div className="w-20 h-20 bg-[var(--sq-surface)] border-4 border-[var(--sq-keyline)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[var(--sq-shadow-sticker)]">
+          <FriendsIcon size={44} active={true} withShadow={false} />
+        </div>
+        <h2 className="text-lg font-extrabold text-[var(--sq-text)] mb-2">No friends yet</h2>
+        <p className="text-xs text-[var(--sq-text-muted)] mb-6 leading-relaxed">
+          Adventure is better together. Find your friends and start questing!
+        </p>
+        <button 
+          onClick={onGoFind} 
+          className="w-full py-3 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold uppercase tracking-wider rounded-full active:scale-95 transition-all cursor-pointer"
+        >
+          Find Friends
         </button>
       </motion.div>
     )
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white dark:bg-gray-900 transition-colors duration-300">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="flex flex-col gap-3 pb-6"
+    >
       {friends.map((friend, i) => (
-        <motion.div key={friend.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+        <motion.div 
+          key={friend.id} 
+          initial={{ opacity: 0, y: 10 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: i * 0.04 }}
+        >
           {/* Mock isOnline to false for now, would sync with Realtime presence */}
           <FriendCard friend={friend} isOnline={false} />
         </motion.div>
@@ -141,18 +179,26 @@ function RequestsTab() {
   const { requests, isLoading } = usePendingRequests()
   const { mutate: respond } = useRespondToRequest()
 
-  if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+  if (isLoading) return (
+    <div className="p-8 flex justify-center">
+      <div className="animate-spin w-8 h-8 border-4 border-[var(--sq-ember-500)] border-t-transparent rounded-full" />
+    </div>
+  )
 
   if (requests.length === 0) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 text-center text-gray-500 mt-8">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        className="p-8 text-center text-[var(--sq-text-muted)] font-bold mt-8"
+      >
         No pending requests.
       </motion.div>
     )
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 space-y-4">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-3 pb-6">
       <AnimatePresence>
         {requests.map((req) => (
           <motion.div 
@@ -160,31 +206,37 @@ function RequestsTab() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, overflow: 'hidden' }}
-            className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300"
+            className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-4 shadow-[var(--sq-shadow-soft)] relative"
           >
-            <div className="flex items-center gap-4 mb-4">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+            
+            <div className="flex items-center gap-4 mb-4 relative z-10">
               {req.avatar_url ? (
-                <img src={req.avatar_url} alt={req.username} className="w-12 h-12 rounded-full object-cover" />
+                <img 
+                  src={req.avatar_url} 
+                  alt={req.username} 
+                  className="w-12 h-12 rounded-[var(--sq-r-md)] object-cover border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" 
+                />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex items-center justify-center font-bold text-lg">
-                  {req.username[0].toUpperCase()}
+                <div className="w-12 h-12 rounded-[var(--sq-r-md)] bg-[var(--sq-surface)] border-2 border-[var(--sq-keyline)] text-[var(--sq-ember-300)] flex items-center justify-center font-black text-lg shadow-[var(--sq-shadow-sticker)] uppercase">
+                  {(req.display_name?.[0] || req.username[0]).toUpperCase()}
                 </div>
               )}
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 dark:text-white">{req.display_name || req.username}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">@{req.username}</p>
+                <h3 className="font-extrabold text-sm text-[var(--sq-text)]">{req.display_name || req.username}</h3>
+                <p className="text-xs text-[var(--sq-text-muted)] mt-0.5">@{req.username}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5 relative z-10">
               <button 
                 onClick={() => respond({ friendshipId: req.friendship_id, requesterId: req.user_id, action: 'accept' })}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 rounded-xl active:scale-95 transition-all"
+                className="flex-1 py-2.5 bg-[var(--sq-sage-500)] hover:bg-[var(--sq-sage-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold uppercase tracking-wider rounded-full active:scale-95 transition-all cursor-pointer text-xs"
               >
                 Accept
               </button>
               <button 
                 onClick={() => respond({ friendshipId: req.friendship_id, requesterId: req.user_id, action: 'decline' })}
-                className="flex-1 border-2 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-bold py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all"
+                className="flex-1 py-2.5 bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] text-[var(--sq-text-muted)] border-2 border-[var(--sq-hairline-strong)] font-extrabold uppercase tracking-wider rounded-full active:scale-95 transition-all cursor-pointer text-xs"
               >
                 Decline
               </button>
@@ -216,22 +268,24 @@ function FindTab() {
   }, [query])
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4">
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
+      <div className="relative">
+        <div className="absolute left-4 top-3 z-10 flex items-center justify-center h-8">
+          <SearchIcon size={22} withShadow={false} />
+        </div>
         <input 
           type="text"
           placeholder="Search by username..."
           value={query}
           onChange={e => setQuery(e.target.value)}
-          className="w-full bg-white dark:bg-gray-800 border-0 rounded-2xl py-3 pl-12 pr-4 shadow-sm text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary transition-colors duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          className="w-full bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-full py-3.5 pl-12 pr-12 text-[var(--sq-text)] font-semibold placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm"
         />
         {searching && (
-          <div className="absolute right-4 top-3.5 w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="absolute right-4 top-4 w-5 h-5 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full animate-spin" />
         )}
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 transition-colors duration-300">
+      <div className="flex flex-col gap-3 pb-6">
         <AnimatePresence>
           {results.map((user) => (
             <motion.div key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -241,7 +295,7 @@ function FindTab() {
         </AnimatePresence>
         
         {query.length >= 2 && results.length === 0 && !searching && (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-[var(--sq-text-muted)] font-bold bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)]">
             No users found matching "{query}"
           </div>
         )}
@@ -673,7 +727,7 @@ function GroupsTab() {
   if (loading) {
     return (
       <div className="p-8 flex justify-center">
-        <Loader2 className="animate-spin w-8 h-8 text-primary" />
+        <div className="animate-spin w-8 h-8 border-4 border-[var(--sq-ember-500)] border-t-transparent rounded-full" />
       </div>
     )
   }
@@ -682,101 +736,117 @@ function GroupsTab() {
   const nonGroupFriends = friendsList.filter(f => !groupMembersList.some(m => m.id === f.id))
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white dark:bg-gray-900 transition-colors duration-305 px-4 pt-4 space-y-4">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 pb-6">
       
       {/* Create & Join Buttons side by side */}
       <div className="flex gap-3">
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-primary/10 border-2 border-dashed border-primary hover:bg-primary/20 text-primary font-black rounded-2xl transition-all cursor-pointer text-xs"
+          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-[var(--sq-surface)] border-2 border-dashed border-[var(--sq-ember-500)] text-[var(--sq-ember-300)] hover:bg-[var(--sq-card-hover)] font-black rounded-2xl transition-all cursor-pointer text-xs uppercase tracking-wider relative overflow-hidden"
         >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
+          <PlusIcon size={18} withShadow={false} />
           Assemble Group
         </button>
         <button
           onClick={() => setIsJoinModalOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-secondary/10 border-2 border-dashed border-secondary hover:bg-secondary/20 text-secondary font-black rounded-2xl transition-all cursor-pointer text-xs"
+          className="flex-1 flex items-center justify-center gap-1.5 py-4 bg-[var(--sq-surface)] border-2 border-dashed border-[var(--sq-sage-500)] text-[var(--sq-sage-500)] hover:bg-[var(--sq-card-hover)] font-black rounded-2xl transition-all cursor-pointer text-xs uppercase tracking-wider relative overflow-hidden"
         >
-          <Users className="w-4 h-4" strokeWidth={2.5} />
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
+          <CrewIcon size={18} withShadow={false} />
           Join with Code
         </button>
       </div>
 
       {groups.length === 0 ? (
-        <div className="p-8 text-center mt-6">
-          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Groups joined yet</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Assemble your first group above to start questing together!</p>
+        <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-8 shadow-[var(--sq-shadow-soft)] text-center mt-6 relative">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.04] pointer-events-none rounded-[var(--sq-r-lg)]" />
+          <div className="w-20 h-20 bg-[var(--sq-surface)] border-4 border-[var(--sq-keyline)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[var(--sq-shadow-sticker)]">
+            <CrewIcon size={44} active={true} withShadow={false} />
+          </div>
+          <h2 className="text-lg font-bold text-[var(--sq-text)] mb-2">No Groups joined yet</h2>
+          <p className="text-xs text-[var(--sq-text-muted)] leading-relaxed">
+            Assemble your first group above to start questing together!
+          </p>
         </div>
       ) : (
-        groups.map((group, i) => {
-          const isVisible = !hiddenGroupIds.includes(group.group_id)
-          
-          return (
-            <motion.div 
-              key={group.group_id} 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: i * 0.04 }}
-              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-105 dark:border-gray-700/50 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setSelectedGroup(group)}
-            >
-              <div className="flex items-center gap-3">
-                {group.group_avatar ? (
-                  <img src={group.group_avatar} className="w-10 h-10 rounded-xl object-cover" />
-                ) : (
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg"
-                    style={{ backgroundColor: group.group_color || '#6C63FF' }}
-                  >
-                    {group.group_name[0].toUpperCase()}
-                  </div>
-                )}
+        <div className="flex flex-col gap-3">
+          {groups.map((group, i) => {
+            const isVisible = !hiddenGroupIds.includes(group.group_id)
+            
+            return (
+              <motion.div 
+                key={group.group_id} 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ delay: i * 0.04 }}
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-855 rounded-2xl border border-gray-100 dark:border-gray-700/50 hover:bg-[var(--sq-card-hover)] hover:shadow-md transition-all cursor-pointer relative"
+                onClick={() => setSelectedGroup(group)}
+              >
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-2xl" />
 
-                <div>
-                  <h3 className="font-extrabold text-gray-950 dark:text-white text-sm leading-tight">
-                    {group.group_name}
-                    {group.group_code && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 font-bold ml-1.5">
-                        #{group.group_code}
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-gray-400 font-semibold flex items-center gap-1 mt-0.5">
-                    <Users className="w-3.5 h-3.5" />
-                    {group.member_count} members
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4" onClick={e => e.stopPropagation()}>
-                {/* Flame Streak Badge */}
-                {group.current_streak > 0 && (
-                  <div className="flex items-center gap-0.5 bg-orange-100 dark:bg-orange-950/30 text-orange-500 font-bold px-2 py-0.5 rounded-lg text-xs">
-                    <Flame className="w-3.5 h-3.5" fill="currentColor" />
-                    <span>{group.current_streak}</span>
-                  </div>
-                )}
-
-                {/* Map Visibility Switch */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-400 uppercase">Map</span>
-                  <button
-                    onClick={() => toggleGroupVisibility(group.group_id)}
-                    className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${isVisible ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  >
-                    <motion.div
-                      layout
-                      className="w-6 h-6 bg-white rounded-full shadow-md"
-                      animate={{ x: isVisible ? 20 : 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                <div className="flex items-center gap-3 relative z-10">
+                  {group.group_avatar ? (
+                    <img 
+                      src={group.group_avatar} 
+                      className="w-10 h-10 rounded-[var(--sq-r-md)] object-cover border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" 
                     />
-                  </button>
+                  ) : (
+                    <div 
+                      className="w-10 h-10 rounded-[var(--sq-r-md)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] flex items-center justify-center text-white font-black text-lg"
+                      style={{ backgroundColor: group.group_color || 'var(--sq-sage-500)' }}
+                    >
+                      {group.group_name[0].toUpperCase()}
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="font-extrabold text-[var(--sq-text)] text-sm leading-tight">
+                      {group.group_name}
+                      {group.group_code && (
+                        <span className="text-xs text-gray-400 dark:text-gray-500 font-bold ml-1.5">
+                          #{group.group_code}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-gray-450 font-semibold flex items-center gap-1 mt-0.5">
+                      <CrewIcon size={14} withShadow={false} />
+                      {group.member_count} members
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )
-        })
+
+                <div className="flex items-center gap-4 relative z-10" onClick={e => e.stopPropagation()}>
+                  {/* Flame Streak Badge */}
+                  {group.current_streak > 0 && (
+                    <div className="flex items-center gap-0.5 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-black px-2 py-0.5 rounded-lg text-[10px] uppercase tracking-wider">
+                      <StreakFlameIcon size={14} active={true} withShadow={false} />
+                      <span>{group.current_streak}</span>
+                    </div>
+                  )}
+
+                  {/* Map Visibility Switch */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-gray-405 uppercase">Map</span>
+                    <button
+                      onClick={() => toggleGroupVisibility(group.group_id)}
+                      className={`w-12 h-7 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        isVisible ? 'bg-[var(--sq-ember-500)] border border-[var(--sq-keyline)] shadow' : 'bg-[var(--sq-surface)] border border-[var(--sq-hairline-strong)]'
+                      }`}
+                    >
+                      <motion.div
+                        layout
+                        className="w-5.5 h-5.5 bg-[var(--sq-keyline)] border border-[var(--sq-ink)] rounded-full shadow-md"
+                        animate={{ x: isVisible ? 18 : 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
       )}
       {/* Assemble a New Group Modal */}
       <Portal>
@@ -785,52 +855,54 @@ function GroupsTab() {
             <>
               <motion.div 
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
+                animate={{ opacity: 0.55 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setIsCreateModalOpen(false)}
-                className="fixed inset-0 z-[140] bg-black pointer-events-auto"
+                className="fixed inset-0 z-[140] bg-[#1E140E]/80 backdrop-blur-sm pointer-events-auto"
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[140] max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700 max-h-[85vh] overflow-y-auto"
+                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[140] max-w-md bg-[var(--sq-card)] rounded-3xl shadow-2xl p-6 border border-[var(--sq-hairline-strong)] max-h-[85vh] overflow-y-auto"
               >
-                <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                  <Users className="w-6 h-6 text-primary" />
-                  Assemble a New Group
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
+                
+                <h2 className="text-xl font-black text-[var(--sq-text)] flex items-center gap-2 mb-2 relative z-10">
+                  <CrewIcon size={24} active={true} withShadow={false} className="text-[var(--sq-ember-500)]" />
+                  Assemble Group
                 </h2>
-                <p className="text-xs font-semibold text-gray-400 mb-5">
+                <p className="text-xs font-semibold text-[var(--sq-text-muted)] mb-5 relative z-10 leading-relaxed">
                   Rally your friends to tackle quests together, maintain a unified streak flame, and earn exclusive team rewards!
                 </p>
 
-                <form onSubmit={handleCreateGroupSubmit} className="space-y-4">
+                <form onSubmit={handleCreateGroupSubmit} className="space-y-4 relative z-10">
                   <div className="flex flex-col items-center gap-2.5 mb-6">
                     {/* Group Icon Circular Selector */}
                     <div 
                       onClick={() => fileInputRef.current?.click()}
-                      className="relative w-24 h-24 rounded-full border-4 border-dashed border-gray-200 dark:border-gray-700/85 bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center text-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-colors shadow-inner"
+                      className="relative w-24 h-24 rounded-[var(--sq-r-lg)] border-4 border-dashed border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] flex flex-col items-center justify-center text-center cursor-pointer overflow-hidden group hover:border-[var(--sq-ember-500)]/50 transition-colors shadow-inner"
                       style={crewAvatarUrl ? { borderStyle: 'solid', borderColor: groupColor } : {}}
                     >
                       {crewAvatarUrl ? (
-                        <img src={crewAvatarUrl} alt="Group Icon Preview" className="w-full h-full object-cover" />
+                        <img src={crewAvatarUrl} alt="Group Icon Preview" className="w-full h-full object-cover border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" />
                       ) : (
                         <>
-                          <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1 group-hover:text-primary transition-colors" />
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Upload Pic</span>
+                          <UploadIcon size={24} withShadow={false} />
+                          <span className="text-[9px] font-black text-[var(--sq-text-muted)] uppercase tracking-wide mt-1">Upload Pic</span>
                         </>
                       )}
                       {uploading && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold">
-                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
                         </div>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-xs font-black text-primary hover:text-[#46A302] active:scale-95 transition-all"
+                      className="text-xs font-black text-[var(--sq-ember-300)] hover:text-[var(--sq-ember-400)] active:scale-95 transition-all"
                     >
                       {crewAvatarUrl ? 'Change Photo' : 'Choose Group Icon'}
                     </button>
@@ -844,7 +916,7 @@ function GroupsTab() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Group Name
                     </label>
                     <input
@@ -853,27 +925,27 @@ function GroupsTab() {
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
                       placeholder="e.g. Taco Tuesday Alliance"
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:border-primary transition-colors text-sm"
+                      className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Group Type
                     </label>
                     <select
                       value={groupType}
                       onChange={(e) => setGroupType(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors text-sm"
+                      className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-semibold text-[var(--sq-text)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm"
                     >
                       {groupTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
+                        <option key={type} value={type} className="bg-[var(--sq-surface)]">{type}</option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Description / Vibe
                     </label>
                     <textarea
@@ -881,12 +953,12 @@ function GroupsTab() {
                       onChange={(e) => setGroupDesc(e.target.value)}
                       placeholder="Describe your group's focus..."
                       rows={2}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
+                      className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-sm resize-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Group Banner Color
                     </label>
                     <div className="flex items-center gap-2.5">
@@ -895,7 +967,9 @@ function GroupsTab() {
                           key={color}
                           type="button"
                           onClick={() => setGroupColor(color)}
-                          className={`w-8 h-8 rounded-full transition-transform active:scale-90 ${groupColor === color ? 'ring-4 ring-primary ring-offset-2 dark:ring-offset-gray-800 scale-105' : ''}`}
+                          className={`w-8 h-8 rounded-full transition-transform active:scale-90 ${
+                            groupColor === color ? 'ring-4 ring-[var(--sq-ember-500)] ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''
+                          }`}
                           style={{ backgroundColor: color }}
                         />
                       ))}
@@ -903,32 +977,34 @@ function GroupsTab() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Invite Friends to Group
                     </label>
                     {friendsList.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">No friends available to invite yet.</p>
+                      <p className="text-xs text-[var(--sq-text-muted)] italic">No friends available to invite yet.</p>
                     ) : (
                       <div className="space-y-3">
                         {/* Search friends input */}
                         <div className="relative">
-                          <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+                          <div className="absolute left-3.5 top-2.5 z-10 flex items-center justify-center h-6">
+                            <SearchIcon size={18} withShadow={false} />
+                          </div>
                           <input 
                             type="text"
                             placeholder="Search friends by username..."
                             value={inviteSearchQuery}
                             onChange={(e) => setInviteSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-405 focus:outline-none focus:border-primary transition-colors text-xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-full font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-xs"
                           />
                         </div>
 
                         {/* Avatars Grid Selector */}
-                        <div className="max-h-[160px] overflow-y-auto border border-gray-100 dark:border-gray-800 rounded-2xl p-3 bg-gray-55 dark:bg-gray-900">
+                        <div className="max-h-[160px] overflow-y-auto border border-[var(--sq-hairline)] rounded-2xl p-3 bg-[var(--sq-surface)] scrollbar-premium">
                           {friendsList.filter(f => {
                             const query = inviteSearchQuery.toLowerCase()
                             return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
                           }).length === 0 ? (
-                            <p className="text-xs text-gray-400 italic text-center py-4">No friends found matching "{inviteSearchQuery}"</p>
+                            <p className="text-xs text-[var(--sq-text-muted)] italic text-center py-4">No friends found matching "{inviteSearchQuery}"</p>
                           ) : (
                             <div className="grid grid-cols-4 gap-2">
                               {friendsList.filter(f => {
@@ -954,17 +1030,17 @@ function GroupsTab() {
                                         <img 
                                           src={friend.avatar_url} 
                                           alt={friend.username} 
-                                          className={`w-11 h-11 rounded-full object-cover border-2 transition-all ${
+                                          className={`w-11 h-11 rounded-[var(--sq-r-md)] object-cover border-2 transition-all ${
                                             isSelected 
-                                              ? 'ring-4 ring-primary border-transparent scale-105 shadow-md' 
-                                              : 'border-gray-250 dark:border-gray-700/80 opacity-80'
+                                              ? 'ring-4 ring-[var(--sq-ember-500)] border-transparent scale-105 shadow-md' 
+                                              : 'border-[var(--sq-hairline-strong)] opacity-80'
                                           }`} 
                                         />
                                       ) : (
-                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${
+                                        <div className={`w-11 h-11 rounded-[var(--sq-r-md)] flex items-center justify-center font-black text-sm border-2 transition-all ${
                                           isSelected 
-                                            ? 'ring-4 ring-primary border-transparent scale-105 shadow-md bg-primary/20 text-primary' 
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-250 opacity-80'
+                                            ? 'ring-4 ring-[var(--sq-ember-500)] border-transparent scale-105 shadow-md bg-[var(--sq-ember-500)]/20 text-[var(--sq-ember-300)]' 
+                                            : 'bg-[var(--sq-surface)] text-[var(--sq-text-muted)] border-[var(--sq-hairline-strong)] opacity-80'
                                         }`}>
                                           {(friend.display_name?.[0] || friend.username[0]).toUpperCase()}
                                         </div>
@@ -972,12 +1048,12 @@ function GroupsTab() {
                                       
                                       {/* Highlight Selected Badge */}
                                       {isSelected && (
-                                        <span className="absolute -top-1 -right-1 bg-primary text-white rounded-full flex items-center justify-center w-4 h-4 shadow-sm border border-white dark:border-gray-800">
-                                          <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                                        <span className="absolute -top-1.5 -right-1.5 bg-[var(--sq-ember-500)] text-[var(--sq-ink)] rounded-full flex items-center justify-center w-4.5 h-4.5 shadow border border-[var(--sq-keyline)]">
+                                          <CheckIcon size={12} withShadow={false} />
                                         </span>
                                       )}
                                     </div>
-                                    <span className="text-[9px] font-bold text-gray-700 dark:text-gray-300 text-center truncate w-12 leading-tight">
+                                    <span className="text-[9px] font-bold text-[var(--sq-text)] text-center truncate w-12 leading-tight">
                                       {friend.display_name || friend.username}
                                     </span>
                                   </button>
@@ -994,20 +1070,20 @@ function GroupsTab() {
                     <button
                       type="button"
                       onClick={() => setIsCreateModalOpen(false)}
-                      className="w-1/2 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
+                      className="w-1/2 py-3 bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline-strong)] text-[var(--sq-text-muted)] font-extrabold rounded-full active:scale-95 transition-all text-sm cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={creating}
-                      className="w-1/2 py-3 bg-primary hover:bg-[#46A302] disabled:bg-primary/50 text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-primary/25"
+                      className="w-1/2 py-3 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-600)] disabled:opacity-50 text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold rounded-full active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {creating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <div className="animate-spin w-4 h-4 border-2 border-[var(--sq-ink)] border-t-transparent rounded-full" />
                       ) : (
                         <>
-                          <Check className="w-4 h-4" strokeWidth={2.5} />
+                          <CheckIcon size={16} withShadow={false} />
                           Assemble
                         </>
                       )}
@@ -1027,33 +1103,35 @@ function GroupsTab() {
             <>
               <motion.div 
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
+                animate={{ opacity: 0.55 }}
                 exit={{ opacity: 0 }}
                 onClick={() => {
                   setIsJoinModalOpen(false)
                   setJoinCode('')
                   setJoinError(null)
                 }}
-                className="fixed inset-0 z-[140] bg-black pointer-events-auto"
+                className="fixed inset-0 z-[140] bg-[#1E140E]/80 backdrop-blur-sm pointer-events-auto"
               />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[140] max-w-sm bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700"
+                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[140] max-w-sm bg-[var(--sq-card)] rounded-3xl shadow-2xl p-6 border border-[var(--sq-hairline-strong)]"
               >
-                <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                  <Users className="w-6 h-6 text-secondary" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
+                
+                <h2 className="text-xl font-black text-[var(--sq-text)] flex items-center gap-2 mb-2 relative z-10">
+                  <CrewIcon size={24} active={true} withShadow={false} className="text-[var(--sq-sage-500)]" />
                   Join Group
                 </h2>
-                <p className="text-xs font-semibold text-gray-400 mb-5">
+                <p className="text-xs font-semibold text-[var(--sq-text-muted)] mb-5 relative z-10 leading-relaxed">
                   Enter the 6-character unique group code (e.g., ABC123) sent by your friends to join their Group instantly!
                 </p>
 
-                <form onSubmit={handleJoinGroup} className="space-y-4">
+                <form onSubmit={handleJoinGroup} className="space-y-4 relative z-10">
                   <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-[var(--sq-text-muted)] uppercase tracking-wider mb-1.5">
                       Group Code
                     </label>
                     <input
@@ -1063,12 +1141,12 @@ function GroupsTab() {
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                       placeholder="e.g. ABC123"
-                      className="w-full px-4 py-3 bg-gray-55 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-black tracking-widest text-center text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-secondary transition-colors text-lg uppercase"
+                      className="w-full px-4 py-3 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-[var(--sq-r-md)] font-black tracking-widest text-center text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-sage-500)] transition-colors text-lg uppercase"
                     />
                   </div>
 
                   {joinError && (
-                    <div className="p-3 text-xs font-semibold bg-red-50 text-red-600 rounded-xl border border-red-100">
+                    <div className="p-3 text-xs font-semibold bg-red-950/20 text-[var(--sq-heart)] rounded-xl border border-[var(--sq-heart)]/20">
                       {joinError}
                     </div>
                   )}
@@ -1081,20 +1159,20 @@ function GroupsTab() {
                         setJoinCode('')
                         setJoinError(null)
                       }}
-                      className="w-1/2 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
+                      className="w-1/2 py-3 bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline-strong)] text-[var(--sq-text-muted)] font-extrabold rounded-full active:scale-95 transition-all text-sm cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={joining}
-                      className="w-1/2 py-3 bg-secondary hover:bg-secondary/90 disabled:bg-secondary/50 text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-secondary/25"
+                      className="w-1/2 py-3 bg-[var(--sq-sage-500)] hover:bg-[var(--sq-sage-600)] disabled:opacity-50 text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold rounded-full active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {joining ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <div className="animate-spin w-4 h-4 border-2 border-[var(--sq-ink)] border-t-transparent rounded-full" />
                       ) : (
                         <>
-                          <Check className="w-4 h-4" strokeWidth={2.5} />
+                          <CheckIcon size={16} withShadow={false} />
                           Join Group
                         </>
                       )}
@@ -1107,7 +1185,7 @@ function GroupsTab() {
         </AnimatePresence>
       </Portal>
 
-      {/* Image Cropper dedicated full-screen view (z-[150] avoids nav bar blockage) */}
+      {/* Image Cropper dedicated full-screen view */}
       <Portal>
         <AnimatePresence>
           {cropImage && (
@@ -1115,24 +1193,25 @@ function GroupsTab() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-[150] flex flex-col justify-between bg-[#0a0d18] text-white select-none"
+              className="fixed inset-0 z-[150] flex flex-col justify-between bg-[var(--sq-bg)] text-[var(--sq-text)] select-none"
             >
-              <div className="w-full flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gray-950/20 backdrop-blur-md">
+              <div className="w-full flex items-center justify-between px-6 py-5 border-b border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)]/20 backdrop-blur-md">
                 <button 
                   type="button" 
                   onClick={() => setCropImage(null)}
-                  className="text-white/60 hover:text-white text-sm font-extrabold flex items-center gap-1 active:scale-95 transition-transform"
+                  className="text-[var(--sq-text-muted)] hover:text-[var(--sq-text)] text-sm font-extrabold flex items-center gap-1 active:scale-95 transition-transform cursor-pointer"
                 >
                   ← Back
                 </button>
-                <h3 className="text-lg font-black tracking-tight text-center text-white flex items-center gap-2">
-                  <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Group Icon
+                <h3 className="text-lg font-black tracking-tight text-center flex items-center gap-2">
+                  <ScissorsIcon size={20} withShadow={false} /> Edit Group Icon
                 </h3>
                 <div className="w-12" />
               </div>
 
               <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-6 relative min-h-0">
-                <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none"
+                <div 
+                  className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[var(--sq-ember-500)] shadow-[var(--sq-shadow-glow)] bg-[var(--sq-surface)] cursor-move flex items-center justify-center select-none"
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
@@ -1154,19 +1233,19 @@ function GroupsTab() {
                   <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/10 pointer-events-none" />
                   <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none" />
                 </div>
-                <p className="text-xs text-white/50 mt-4 sm:mt-6 tracking-wide uppercase font-bold">
+                <p className="text-[10px] text-[var(--sq-text-muted)] mt-4 sm:mt-6 tracking-wide uppercase font-black">
                   Drag to Reposition
                 </p>
               </div>
 
-              <div className="w-full max-w-md mx-auto px-6 pb-4 sm:pb-8 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent shrink-0">
-                <div className="w-full flex flex-col gap-2 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                  <div className="flex justify-between items-center text-xs text-white/60 font-black px-1">
+              <div className="w-full max-w-md mx-auto px-6 pb-4 sm:pb-8 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-[var(--sq-bg)] to-transparent shrink-0">
+                <div className="w-full flex flex-col gap-2 bg-[var(--sq-surface)]/40 p-4 rounded-2xl border border-[var(--sq-hairline)]">
+                  <div className="flex justify-between items-center text-[10px] text-[var(--sq-text-muted)] font-black px-1">
                     <span>ZOOM LEVEL</span>
                     <span>{Math.round(cropZoom * 100)}%</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <ZoomOut className="w-4 h-4 text-white/40" />
+                    <ZoomOutIcon size={16} withShadow={false} />
                     <input 
                       type="range" 
                       min="1.0" 
@@ -1174,9 +1253,9 @@ function GroupsTab() {
                       step="0.05"
                       value={cropZoom}
                       onChange={(e) => setCropZoom(parseFloat(e.target.value))}
-                      className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#58CC02] focus:outline-none"
+                      className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-[var(--sq-ember-500)] focus:outline-none bg-[var(--sq-surface)]"
                     />
-                    <ZoomIn className="w-4 h-4 text-white/40" />
+                    <ZoomInIcon size={16} withShadow={false} />
                   </div>
                 </div>
 
@@ -1184,14 +1263,14 @@ function GroupsTab() {
                   <button
                     type="button"
                     onClick={() => setCropImage(null)}
-                    className="flex-1 border border-white/10 hover:bg-white/5 text-white font-extrabold py-4 rounded-2xl transition-colors cursor-pointer text-center text-sm"
+                    className="flex-1 border border-[var(--sq-hairline-strong)] hover:bg-[var(--sq-surface)] text-[var(--sq-text-muted)] font-extrabold py-4 rounded-full transition-colors cursor-pointer text-center text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handlePerformCrop}
-                    className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
+                    className="flex-1 bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold py-4 rounded-full transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
                   >
                     Save & Continue
                   </button>
@@ -1202,7 +1281,7 @@ function GroupsTab() {
         </AnimatePresence>
       </Portal>
 
-      {/* Group Profile detailed view (Full-Screen Overlay z-[100]) */}
+      {/* Group Profile detailed view */}
       <Portal>
         <AnimatePresence>
           {selectedGroup && (
@@ -1210,36 +1289,36 @@ function GroupsTab() {
               initial={{ opacity: 0, y: '10%' }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: '10%' }}
-              className="fixed inset-0 z-[100] bg-gray-50 dark:bg-gray-900 overflow-y-auto pb-10 flex flex-col"
+              className="fixed inset-0 z-[100] bg-[var(--sq-bg)] overflow-y-auto pb-10 flex flex-col"
             >
               {/* Header banner */}
               <div 
                 className="relative pt-12 pb-6 px-6 shadow-sm shrink-0"
-                style={{ background: `linear-gradient(to bottom, ${selectedGroup.group_color || '#6C63FF'}55, transparent)` }}
+                style={{ background: `linear-gradient(to bottom, ${selectedGroup.group_color || 'var(--sq-sage-500)'}35, transparent)` }}
               >
                 <button 
                   onClick={() => setSelectedGroup(null)}
-                  className="absolute top-4 left-4 p-2.5 rounded-full bg-white/60 hover:bg-white/90 dark:bg-black/20 dark:hover:bg-black/40 backdrop-blur-sm text-gray-800 dark:text-white transition-colors active:scale-95 cursor-pointer"
+                  className="absolute top-4 left-4 p-2.5 rounded-full bg-[var(--sq-surface)] hover:bg-[var(--sq-card-hover)] border border-[var(--sq-hairline)] text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-colors active:scale-95 cursor-pointer"
                 >
-                  <ChevronLeft size={22} strokeWidth={2.5} />
+                  <ChevronLeftIcon size={20} withShadow={false} />
                 </button>
                 
                 <div className="flex flex-col items-center text-center mt-6">
                   {selectedGroup.group_avatar ? (
-                    <img src={selectedGroup.group_avatar} className="w-20 h-20 rounded-2xl object-cover shadow-lg border-2 border-white dark:border-gray-800" />
+                    <img src={selectedGroup.group_avatar} className="w-20 h-20 rounded-[var(--sq-r-lg)] object-cover shadow-lg border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" />
                   ) : (
                     <div 
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-black text-4xl shadow-lg"
+                      className="w-20 h-20 rounded-[var(--sq-r-lg)] flex items-center justify-center text-white font-black text-4xl shadow-lg border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]"
                       style={{ backgroundColor: selectedGroup.group_color || '#6C63FF' }}
                     >
                       {selectedGroup.group_name[0].toUpperCase()}
                     </div>
                   )}
                   
-                  <h1 className="mt-3 text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                  <h1 className="mt-3 text-xl font-black text-[var(--sq-text)] tracking-tight">
                     {selectedGroup.group_name}
                     {selectedGroup.group_code && (
-                      <span className="text-sm text-gray-400 dark:text-gray-505 font-extrabold ml-2">
+                      <span className="text-sm text-[var(--sq-text-muted)] font-extrabold ml-2">
                         #{selectedGroup.group_code}
                       </span>
                     )}
@@ -1247,7 +1326,7 @@ function GroupsTab() {
                   
                   {/* Type Badge */}
                   {selectedGroupDetails?.group_type && (
-                    <span className="mt-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black tracking-wider uppercase rounded-full">
+                    <span className="mt-1.5 px-3 py-1 bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] text-[10px] font-black tracking-wider uppercase rounded-full">
                       {selectedGroupDetails.group_type} Group
                     </span>
                   )}
@@ -1259,46 +1338,52 @@ function GroupsTab() {
                 
                 {/* Group Description */}
                 {selectedGroupDetails?.description && (
-                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50">
-                    <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5">About the Group</h4>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">{selectedGroupDetails.description}</p>
+                  <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] relative">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+                    <h4 className="text-[10px] font-black uppercase text-[var(--sq-text-muted)] tracking-wider mb-1.5">About the Group</h4>
+                    <p className="text-sm font-semibold text-[var(--sq-text)] leading-relaxed relative z-10">{selectedGroupDetails.description}</p>
                   </div>
                 )}
 
                 {/* Group Experience / Level Progression */}
                 {selectedGroupDetails && (
-                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50">
-                    <div className="flex justify-between items-end mb-3">
+                  <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] relative">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+                    <div className="flex justify-between items-end mb-3 relative z-10">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Group Progression</h4>
-                        <p className="text-xs text-gray-500 font-bold mt-1">Level {selectedGroupDetails.level || 1}</p>
+                        <h4 className="text-[10px] font-black uppercase text-[var(--sq-text-muted)] tracking-wider">Group Progression</h4>
+                        <p className="text-xs text-[var(--sq-text)] font-bold mt-1">Level {selectedGroupDetails.level || 1}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-black text-primary">
+                        <span className="text-sm font-black text-[var(--sq-ember-300)]">
                           {(selectedGroupDetails.xp || 0) % 100} / 100 XP
                         </span>
                       </div>
                     </div>
-                    <div className="h-2.5 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-[var(--sq-surface)] rounded-full overflow-hidden relative z-10">
                       <div 
-                        className="h-full rounded-full bg-primary"
+                        className="h-full rounded-full bg-[var(--sq-ember-500)]"
                         style={{ width: `${(selectedGroupDetails.xp || 0) % 100}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 mt-2 block text-center">Gains XP from Quest completions together! ⚔️</span>
+                    <span className="text-[9px] font-bold text-[var(--sq-text-muted)] mt-2 block text-center relative z-10 flex items-center justify-center gap-0.5">
+                      Gains XP from Quest completions together! 
+                      <CompassIcon size={12} active={true} withShadow={false} className="inline-block" />
+                    </span>
                   </div>
                 )}
 
                 {/* Group Members List */}
-                <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 space-y-3">
-                  <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700/50">
-                    <h3 className="font-extrabold text-sm text-gray-800 dark:text-white flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-primary" /> Members ({groupMembersList.length})
+                <div className="bg-[var(--sq-card)] border border-[var(--sq-hairline-strong)] rounded-[var(--sq-r-lg)] p-5 shadow-[var(--sq-shadow-soft)] relative space-y-3">
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+                  <div className="flex justify-between items-center pb-2 border-b border-[var(--sq-hairline-strong)] relative z-10">
+                    <h3 className="font-extrabold text-sm text-[var(--sq-text)] flex items-center gap-1.5">
+                      <CrewIcon size={16} active={true} withShadow={false} className="text-[var(--sq-ember-500)]" /> Members ({groupMembersList.length})
                     </h3>
                     {isCreatorOfSelectedGroup && (
                       <button
                         onClick={() => setShowInviteOverlay(true)}
-                        className="text-xs font-black text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                        className="text-xs font-black text-[var(--sq-ember-300)] hover:underline flex items-center gap-0.5 cursor-pointer"
                       >
                         + Invite Friend
                       </button>
@@ -1307,29 +1392,29 @@ function GroupsTab() {
 
                   {loadingMembers ? (
                     <div className="py-6 flex justify-center">
-                      <Loader2 className="animate-spin w-6 h-6 text-primary" />
+                      <div className="animate-spin w-6 h-6 border-2 border-[var(--sq-ember-500)] border-t-transparent rounded-full" />
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 relative z-10">
                       {groupMembersList.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between gap-2 border-b border-gray-50 dark:border-gray-700/30 pb-2 last:border-0 last:pb-0">
+                        <div key={member.id} className="flex items-center justify-between gap-2 border-b border-[var(--sq-hairline-strong)]/30 pb-2 last:border-0 last:pb-0">
                           <div className="flex items-center gap-2.5 min-w-0">
                             {member.avatar_url ? (
-                              <img src={member.avatar_url} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              <img src={member.avatar_url} className="w-8 h-8 rounded-full object-cover shrink-0 border border-[var(--sq-keyline)]" />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
-                                {member.display_name?.[0]?.toUpperCase() || member.username[0].toUpperCase()}
+                              <div className="w-8 h-8 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center text-xs font-bold shrink-0 border border-[var(--sq-hairline)]">
+                                {(member.display_name?.[0] || member.username[0]).toUpperCase()}
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-xs font-extrabold text-gray-900 dark:text-white truncate leading-tight">
+                              <p className="text-xs font-extrabold text-[var(--sq-text)] truncate leading-tight">
                                 {member.display_name || member.username}
                               </p>
-                              <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold truncate">@{member.username}</p>
+                              <p className="text-[9px] text-[var(--sq-text-muted)] font-bold truncate">@{member.username}</p>
                             </div>
                           </div>
 
-                          <span className="text-[9px] font-black uppercase text-gray-400 px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 border">
+                          <span className="text-[8px] font-black uppercase text-[var(--sq-text-muted)] px-1.5 py-0.5 rounded bg-[var(--sq-surface)] border border-[var(--sq-hairline-strong)]">
                             {member.role}
                           </span>
                         </div>
@@ -1344,13 +1429,13 @@ function GroupsTab() {
         </AnimatePresence>
       </Portal>
 
-      {/* Invite Member overlay overlay (z-[110]) */}
+      {/* Invite Member overlay */}
       <Portal>
         <AnimatePresence>
           {showInviteOverlay && (
             <>
               <div 
-                className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm pointer-events-auto"
+                className="fixed inset-0 z-[110] bg-[#1E140E]/80 backdrop-blur-sm pointer-events-auto"
                 onClick={() => {
                   setShowInviteOverlay(false)
                   setInviteOverlaySearchQuery('')
@@ -1360,42 +1445,46 @@ function GroupsTab() {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[120] max-w-sm bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl border border-gray-150 dark:border-gray-700 space-y-4"
+                className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-[120] max-w-sm bg-[var(--sq-card)] rounded-3xl p-6 border border-[var(--sq-hairline-strong)] space-y-4 shadow-2xl"
               >
-                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700/50">
-                  <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Invite Friends to Group</h3>
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-3xl" />
+                
+                <div className="flex justify-between items-center pb-2 border-b border-[var(--sq-hairline-strong)] relative z-10">
+                  <h3 className="font-extrabold text-sm text-[var(--sq-text)]">Invite Friends to Group</h3>
                   <button 
                     onClick={() => {
                       setShowInviteOverlay(false)
                       setInviteOverlaySearchQuery('')
                     }} 
-                    className="text-xs text-gray-400 font-bold"
+                    className="text-xs text-[var(--sq-text-muted)] font-bold cursor-pointer"
                   >
                     Close
                   </button>
                 </div>
 
                 {nonGroupFriends.length > 0 && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <div className="relative z-10">
+                    <div className="absolute left-3 top-2 z-10 flex items-center justify-center h-6">
+                      <SearchIcon size={18} withShadow={false} />
+                    </div>
                     <input 
                       type="text"
                       placeholder="Search friends by username..."
                       value={inviteOverlaySearchQuery}
                       onChange={(e) => setInviteOverlaySearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-xs"
+                      className="w-full pl-9 pr-4 py-2 bg-[var(--sq-surface)] border border-[var(--sq-hairline)] rounded-full font-semibold text-[var(--sq-text)] placeholder-[var(--sq-text-faint)] focus:outline-none focus:border-[var(--sq-ember-500)] transition-colors text-xs"
                     />
                   </div>
                 )}
 
-                <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
+                <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 relative z-10 scrollbar-premium">
                   {nonGroupFriends.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic text-center py-6">All your friends are already in this group!</p>
+                    <p className="text-xs text-[var(--sq-text-muted)] italic text-center py-6">All your friends are already in this group!</p>
                   ) : nonGroupFriends.filter(f => {
                     const query = inviteOverlaySearchQuery.toLowerCase()
                     return f.username.toLowerCase().includes(query) || (f.display_name && f.display_name.toLowerCase().includes(query))
                   }).length === 0 ? (
-                    <p className="text-xs text-gray-400 italic text-center py-6">No friends found matching "{inviteOverlaySearchQuery}"</p>
+                    <p className="text-xs text-[var(--sq-text-muted)] italic text-center py-6">No friends found matching "{inviteOverlaySearchQuery}"</p>
                   ) : (
                     nonGroupFriends.filter(f => {
                       const query = inviteOverlaySearchQuery.toLowerCase()
@@ -1403,7 +1492,7 @@ function GroupsTab() {
                     }).map((friend) => (
                       <div 
                         key={friend.id}
-                        className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors"
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-[var(--sq-surface)] cursor-pointer transition-colors"
                         onClick={() => {
                           handleInviteFriendToGroup(friend.id)
                           setInviteOverlaySearchQuery('')
@@ -1411,17 +1500,17 @@ function GroupsTab() {
                       >
                         <div className="flex items-center gap-2">
                           {friend.avatar_url ? (
-                            <img src={friend.avatar_url} className="w-7 h-7 rounded-full object-cover" />
+                            <img src={friend.avatar_url} className="w-7 h-7 rounded-full object-cover border border-[var(--sq-keyline)]" />
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold border border-primary/20">
-                              {friend.display_name?.[0]?.toUpperCase() || friend.username[0].toUpperCase()}
+                            <div className="w-7 h-7 rounded-full bg-[var(--sq-surface)] text-[var(--sq-ember-300)] flex items-center justify-center text-xs font-bold border border-[var(--sq-hairline)]">
+                              {(friend.display_name?.[0] || friend.username[0]).toUpperCase()}
                             </div>
                           )}
-                          <span className="text-xs font-bold text-gray-750 dark:text-gray-200">
+                          <span className="text-xs font-bold text-[var(--sq-text)]">
                             {friend.display_name || friend.username}
                           </span>
                         </div>
-                        <span className="text-[10px] font-black text-primary uppercase">Add</span>
+                        <span className="text-[10px] font-black text-[var(--sq-ember-300)] uppercase">Add</span>
                       </div>
                     ))
                   )}
@@ -1435,4 +1524,3 @@ function GroupsTab() {
     </motion.div>
   )
 }
-

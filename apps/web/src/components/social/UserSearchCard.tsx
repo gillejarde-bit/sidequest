@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, UserPlus } from 'lucide-react'
-import { useSendFriendRequest } from '../../hooks/useFriends'
+import { CheckIcon, UserPlusIcon } from '../icons'
 import { ProfilePopup } from './ProfilePopup'
+import { useSendFriendRequest } from '../../hooks/useFriends'
 import { supabase } from '../../lib/supabase'
 
 interface UserSearchCardProps {
@@ -49,86 +49,99 @@ export function UserSearchCard({ user }: UserSearchCardProps) {
     })
   }
 
+
   return (
     <>
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors"
+        className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-850 border border-gray-100 dark:border-gray-700/50 hover:bg-[var(--sq-card-hover)] transition-colors relative"
       >
-        <button onClick={() => setShowProfile(true)} className="shrink-0 text-left active:scale-95 transition-transform">
+        {/* Paper Grain Overlay */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-[0.03] pointer-events-none rounded-[var(--sq-r-lg)]" />
+
+        <button onClick={() => setShowProfile(true)} className="shrink-0 text-left active:scale-95 transition-transform cursor-pointer z-10">
           {user.avatar_url ? (
-            <img src={user.avatar_url} alt={user.username} className="w-12 h-12 rounded-full object-cover bg-gray-100 dark:bg-gray-700" />
+            <img 
+              src={user.avatar_url} 
+              alt={user.username} 
+              className="w-12 h-12 rounded-[var(--sq-r-md)] object-cover border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)]" 
+            />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 flex items-center justify-center font-bold text-lg transition-colors">
-              {user.display_name?.[0]?.toUpperCase() || user.username[0].toUpperCase()}
+            <div className="w-12 h-12 rounded-[var(--sq-r-md)] bg-[var(--sq-surface)] border-2 border-[var(--sq-keyline)] text-[var(--sq-ember-300)] flex items-center justify-center font-black text-lg shadow-[var(--sq-shadow-sticker)] uppercase">
+              {(user.display_name?.[0] || user.username[0]).toUpperCase()}
             </div>
           )}
         </button>
 
-        <div className="flex-1 min-w-0">
-          <button onClick={() => setShowProfile(true)} className="text-left w-full group">
+        <div className="flex-1 min-w-0 z-10">
+          <button onClick={() => setShowProfile(true)} className="text-left w-full group cursor-pointer">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-gray-900 dark:text-white truncate group-hover:text-primary transition-colors">
+              <h3 className="font-extrabold text-sm text-gray-955 dark:text-white truncate group-hover:text-[var(--sq-ember-300)] transition-colors">
                 {user.display_name || user.username}
               </h3>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 shrink-0 transition-colors">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border border-[var(--sq-keyline)] shadow-sm shrink-0 uppercase tracking-wider">
                 Lv {user.level || 1}
               </span>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate transition-colors">@{user.username}</p>
+            <p className="text-xs text-gray-450 dark:text-gray-455 truncate mt-0.5">@{user.username}</p>
           </button>
           {user.mutual_friend_count > 0 && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 transition-colors">{user.mutual_friend_count} mutual friends</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 font-semibold">
+              {user.mutual_friend_count} mutual friend{user.mutual_friend_count > 1 ? 's' : ''}
+            </p>
           )}
         </div>
 
-      <AnimatePresence mode="wait">
-        {status === 'none' ? (
-          <motion.button
-            key="add"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            onClick={handleAdd}
-            className="shrink-0 px-3 py-1.5 rounded-full border-2 border-primary text-primary font-bold text-sm flex items-center gap-1 active:scale-95 transition-transform"
-          >
-            <UserPlus className="w-4 h-4" /> Add
-          </motion.button>
-        ) : status === 'sent' ? (
-          <motion.button
-            key="sent"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            disabled
-            className="shrink-0 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 font-bold text-sm flex items-center gap-1 transition-colors"
-          >
-            Sent
-          </motion.button>
-        ) : status === 'received' ? (
-          <motion.button
-            key="received"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            disabled
-            className="shrink-0 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-sm flex items-center gap-1 border border-blue-200 dark:border-blue-800 transition-colors"
-          >
-            Pending
-          </motion.button>
-        ) : (
-          <motion.button
-            key="friends"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            disabled
-            className="shrink-0 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 font-bold text-sm flex items-center gap-1 border border-green-200 dark:border-green-800 transition-colors"
-          >
-            <Check className="w-4 h-4" /> Friends
-          </motion.button>
-        )}
-      </AnimatePresence>
-    </motion.div>
-    {showProfile && <ProfilePopup userId={user.id} onClose={() => setShowProfile(false)} />}
+        <div className="z-10">
+          <AnimatePresence mode="wait">
+            {status === 'none' ? (
+              <motion.button
+                key="add"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={handleAdd}
+                className="shrink-0 px-3 py-1.5 rounded-full bg-[var(--sq-ember-500)] hover:bg-[var(--sq-ember-600)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold uppercase tracking-wider text-[11px] flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+              >
+                <UserPlusIcon size={16} withShadow={false} /> Add
+              </motion.button>
+            ) : status === 'sent' ? (
+              <motion.button
+                key="sent"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                disabled
+                className="shrink-0 px-3 py-1.5 rounded-full bg-[var(--sq-surface)] text-[var(--sq-text-muted)] border border-[var(--sq-hairline-strong)] font-extrabold uppercase tracking-wider text-[11px]"
+              >
+                Sent
+              </motion.button>
+            ) : status === 'received' ? (
+              <motion.button
+                key="received"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                disabled
+                className="shrink-0 px-3 py-1.5 rounded-full bg-[var(--sq-surface)] text-[var(--sq-text-muted)] border border-[var(--sq-hairline-strong)] font-extrabold uppercase tracking-wider text-[11px]"
+              >
+                Pending
+              </motion.button>
+            ) : (
+              <motion.button
+                key="friends"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                disabled
+                className="shrink-0 px-3 py-1.5 rounded-full bg-[var(--sq-sage-500)] text-[var(--sq-ink)] border-2 border-[var(--sq-keyline)] shadow-[var(--sq-shadow-sticker)] font-extrabold uppercase tracking-wider text-[11px] flex items-center gap-1"
+              >
+                <CheckIcon size={16} withShadow={false} /> Friends
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+      {showProfile && <ProfilePopup userId={user.id} onClose={() => setShowProfile(false)} />}
     </>
   )
 }
+
