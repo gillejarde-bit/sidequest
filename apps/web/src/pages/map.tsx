@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Map, { NavigationControl, MapRef, Marker } from 'react-map-gl'
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import Map, { NavigationControl, MapRef, Marker, Source, Layer } from 'react-map-gl'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -32,21 +32,23 @@ import * as h3 from 'h3-js'
 
 // ─── H3 compat wrappers ────────────────────────────────────────────────────────
 const latLngToCell = (lat: number, lng: number, res: number): string => {
-  if (typeof h3.latLngToCell === 'function') {
-    return h3.latLngToCell(lat, lng, res)
-  } else if (typeof (h3 as any)['geoToH3'] === 'function') {
-    return (h3 as any)['geoToH3'](lat, lng, res)
-  }
-  return ''
+  return h3.latLngToCell(lat, lng, res)
 }
 
 const gridDisk = (cell: string, k: number): string[] => {
-  if (typeof h3.gridDisk === 'function') {
-    return h3.gridDisk(cell, k)
-  } else if (typeof (h3 as any)['kRing'] === 'function') {
-    return (h3 as any)['kRing'](cell, k)
-  }
-  return []
+  return h3.gridDisk(cell, k)
+}
+
+const cellToParent = (cell: string, res: number): string => {
+  return h3.cellToParent(cell, res)
+}
+
+const cellToBoundary = (cell: string, formatAsGeoJson: boolean): [number, number][] => {
+  return h3.cellToBoundary(cell, formatAsGeoJson)
+}
+
+const cellsToMultiPolygon = (cells: string[], formatAsGeoJson: boolean): number[][][][] => {
+  return h3.cellsToMultiPolygon(cells, formatAsGeoJson)
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -135,6 +137,9 @@ export function MapPage() {
 
   const isAppReady = mapLoaded && firstFogPainted
 
+  const [fogData, setFogData] = useState<Record<number, any>>({})
+  const [linesData, setLinesData] = useState<Record<number, any>>({})
+
   const hasCenteredOnUserRef = useRef(false)
 
   // Populate revealSet from Supabase database coverage rows on load
@@ -143,6 +148,149 @@ export function MapPage() {
       setRevealSet(coverage)
     }
   }, [coverage, setRevealSet])
+
+  // Precompute explored parent resolutions and build GeoJSON layers for native rendering
+  useEffect(() => {
+    if (!revealSet) return
+
+    const timer = setTimeout(() => {
+      const fineCells = Array.from(revealSet)
+      if (fineCells.length === 0) {
+        const emptyFog: Record<number, any> = {}
+        const emptyLines: Record<number, any> = {}
+        const resolutions = [10, 8, 6, 4, 2, 1]
+        resolutions.forEach(res => {
+          emptyFog[res] = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]]
+            },
+            properties: {}
+          }
+          emptyLines[res] = {
+            type: 'FeatureCollection',
+            features: []
+          }
+        })
+        setFogData(emptyFog)
+        setLinesData(emptyLines)
+        return
+      }
+
+      // 1. Group explored fine cells into their respective resolution parents
+      const exploredSets: Record<number, Set<string>> = {
+        10: new Set(revealSet),
+        8: new Set(),
+        6: new Set(),
+        4: new Set(),
+        2: new Set(),
+        1: new Set()
+      }
+
+      const resolutions = [8, 6, 4, 2, 1]
+      fineCells.forEach(cell => {
+        resolutions.forEach(res => {
+          try {
+            const parent = cellToParent(cell, res)
+            if (parent) exploredSets[res].add(parent)
+          } catch (e) {}
+        })
+      })
+
+      // 2. Generate GeoJSON for each resolution (Polygon with holes + outlines/frontier)
+      const nextFog: Record<number, any> = {}
+      const nextLines: Record<number, any> = {}
+
+      const allRes = [10, 8, 6, 4, 2, 1]
+      allRes.forEach(res => {
+        const setForRes = exploredSets[res]
+        const cellsArray = Array.from(setForRes)
+
+        let merged: number[][][][] = []
+        try {
+          merged = cellsToMultiPolygon(cellsArray, true)
+        } catch (e) {
+          console.error('[Map] cellsToMultiPolygon failed for res', res, e)
+        }
+
+        // Build fog polygon (World bounding box with explored MultiPolygon holes)
+        const worldCoords = [
+          [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
+        ]
+        merged.forEach(polygon => {
+          polygon.forEach(ring => {
+            if (ring.length > 0) {
+              const closed = [...ring]
+              const first = closed[0]
+              const last = closed[closed.length - 1]
+              if (first[0] !== last[0] || first[1] !== last[1]) {
+                closed.push([first[0], first[1]])
+              }
+              worldCoords.push(closed)
+            }
+          })
+        })
+
+        nextFog[res] = {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: worldCoords
+          },
+          properties: {}
+        }
+
+        // Build outlines and frontier lines
+        const features: any[] = []
+
+        // Explored hex cell outlines (only at resolutions 10, 8, 6)
+        if (res >= 6) {
+          cellsArray.forEach(cell => {
+            try {
+              const boundary = cellToBoundary(cell, true)
+              if (boundary.length > 0) {
+                const closed = [...boundary]
+                closed.push(closed[0])
+                features.push({
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: closed
+                  },
+                  properties: { type: 'outline' }
+                })
+              }
+            } catch (e) {}
+          })
+        }
+
+        // Frontier glow lines (outer perimeter of explored regions)
+        merged.forEach(polygon => {
+          polygon.forEach(ring => {
+            features.push({
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: ring
+              },
+              properties: { type: 'frontier' }
+            })
+          })
+        })
+
+        nextLines[res] = {
+          type: 'FeatureCollection',
+          features
+        }
+      })
+
+      setFogData(nextFog)
+      setLinesData(nextLines)
+    }, 150) // 150ms debounce to protect main thread during database load/writes
+
+    return () => clearTimeout(timer)
+  }, [revealSet])
 
   // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
   useEffect(() => {
@@ -595,6 +743,9 @@ export function MapPage() {
         maxPitch={0}
         minPitch={0}
         interactiveLayerIds={[]}
+        onIdle={() => {
+          setFirstFogPainted(true)
+        }}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
@@ -607,6 +758,17 @@ export function MapPage() {
                 animate={{ scale: [1, 2], opacity: [0.3, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
                 className="absolute w-12 h-12 bg-blue-500 rounded-full"
+              />
+              {/* Torch Glow Overlay */}
+              <div 
+                className="absolute w-64 h-64 rounded-full pointer-events-none"
+                style={{
+                  background: 'radial-gradient(circle, rgba(238, 108, 31, 0.25) 0%, rgba(238, 108, 31, 0.08) 35%, rgba(238, 108, 31, 0) 70%)',
+                  transform: 'translate(-50%, -50%)',
+                  left: '50%',
+                  top: '50%',
+                  zIndex: -1
+                }}
               />
               {/* Avatar / Person Icon */}
               <div className="w-10 h-10 bg-white rounded-full p-0.5 shadow-lg relative z-10 border-2 border-blue-500">
@@ -766,6 +928,101 @@ export function MapPage() {
             </div>
           </Marker>
         )}
+
+        {/* Render Mapbox GL Fog of War Sources and Layers for each resolution */}
+        {Object.entries(fogData).map(([resStr, data]) => {
+          const res = parseInt(resStr)
+          const lines = linesData[res]
+          if (!data || !lines) return null
+
+          // Set GPU zoom visibility ranges for each resolution LOD
+          let minZoom = 0
+          let maxZoom = 24
+
+          if (res === 10) {
+            minZoom = 14.5
+          } else if (res === 8) {
+            minZoom = 11.5
+            maxZoom = 14.5
+          } else if (res === 6) {
+            minZoom = 8.5
+            maxZoom = 11.5
+          } else if (res === 4) {
+            minZoom = 5.5
+            maxZoom = 8.5
+          } else if (res === 2) {
+            minZoom = 3.5
+            maxZoom = 5.5
+          } else {
+            maxZoom = 3.5
+          }
+
+          return (
+            <React.Fragment key={`fog-res-${res}`}>
+              {/* Fog Fill Layer (World Polygon minus explored holes) */}
+              <Source id={`fog-fill-src-${res}`} type="geojson" data={data}>
+                <Layer
+                  id={`fog-fill-layer-${res}`}
+                  type="fill"
+                  minzoom={minZoom}
+                  maxzoom={maxZoom}
+                  paint={{
+                    'fill-color': '#16100B', // flat cozy warm dark color
+                    'fill-opacity': 0.98
+                  }}
+                />
+              </Source>
+
+              {/* Fog Line Layers (Explored boundaries & Outlines) */}
+              <Source id={`fog-lines-src-${res}`} type="geojson" data={lines}>
+                {/* 1. Explored Hex Outlines (visible at z13+ via GPU expression) */}
+                {res >= 6 && (
+                  <Layer
+                    id={`fog-outlines-layer-${res}`}
+                    type="line"
+                    minzoom={minZoom}
+                    maxzoom={maxZoom}
+                    filter={['==', ['get', 'type'], 'outline']}
+                    paint={{
+                      'line-color': '#EE6C1F',
+                      'line-width': 1.0,
+                      'line-opacity': ['interpolate', ['linear'], ['zoom'], 12.5, 0, 13, 0.22]
+                    }}
+                  />
+                )}
+
+                {/* 2. Frontier Outer Glow */}
+                <Layer
+                  id={`fog-frontier-glow-layer-${res}`}
+                  type="line"
+                  minzoom={minZoom}
+                  maxzoom={maxZoom}
+                  filter={['==', ['get', 'type'], 'frontier']}
+                  paint={{
+                    'line-color': '#EE6C1F',
+                    'line-width': 6,
+                    'line-blur': 6,
+                    'line-opacity': 0.5
+                  }}
+                />
+
+                {/* 3. Frontier Crisp Core */}
+                <Layer
+                  id={`fog-frontier-core-layer-${res}`}
+                  type="line"
+                  minzoom={minZoom}
+                  maxzoom={maxZoom}
+                  filter={['==', ['get', 'type'], 'frontier']}
+                  paint={{
+                    'line-color': '#FF8224',
+                    'line-width': 1.5,
+                    'line-opacity': 1.0
+                  }}
+                />
+              </Source>
+            </React.Fragment>
+          )
+        })}
       </Map>
 
       {/* Canvas Fog-of-War overlay */}
