@@ -37,6 +37,27 @@ const cellToLatLng = (cell: string): [number, number] => {
   return [0, 0]
 }
 
+const originToDirectedEdges = (cell: string): string[] => {
+  if (typeof h3.originToDirectedEdges === 'function') {
+    return h3.originToDirectedEdges(cell)
+  }
+  return []
+}
+
+const getDirectedEdgeDestination = (edge: string): string => {
+  if (typeof h3.getDirectedEdgeDestination === 'function') {
+    return h3.getDirectedEdgeDestination(edge)
+  }
+  return ''
+}
+
+const directedEdgeToBoundary = (edge: string, formatAsGeoJson: boolean): [number, number][] => {
+  if (typeof h3.directedEdgeToBoundary === 'function') {
+    return h3.directedEdgeToBoundary(edge, formatAsGeoJson)
+  }
+  return []
+}
+
 // ─── Utility Math and Color parsing ──────────────────────────────────────────
 function metersToPixels(meters: number, map: MapboxMap): number {
   const center = map.getCenter()
@@ -55,40 +76,16 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function drawCellHexagon(ctx: CanvasRenderingContext2D, cell: string, map: MapboxMap, overlapPx: number) {
-  const boundary = cellToBoundary(cell, true)
-  if (boundary.length === 0) return
 
-  const centerLatLng = cellToLatLng(cell)
-  const centerPx = map.project([centerLatLng[1], centerLatLng[0]])
-
-  ctx.beginPath()
-  boundary.forEach((coord, idx) => {
-    // coord is [lng, lat]
-    const px = map.project([coord[0], coord[1]])
-    const dx = px.x - centerPx.x
-    const dy = px.y - centerPx.y
-    const len = Math.sqrt(dx * dx + dy * dy)
-
-    if (len > 0) {
-      // Scale vertex outward along the ray from the hexagon center to ensure perfect zero-seam coverage
-      const ox = px.x + (dx / len) * overlapPx
-      const oy = px.y + (dy / len) * overlapPx
-      if (idx === 0) {
-        ctx.moveTo(ox, oy)
-      } else {
-        ctx.lineTo(ox, oy)
-      }
-    } else {
-      if (idx === 0) {
-        ctx.moveTo(px.x, px.y)
-      } else {
-        ctx.lineTo(px.x, px.y)
-      }
-    }
-  })
-  ctx.closePath()
-  ctx.fill()
+interface EmberParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  size: number
+  alpha: number
+  pulseSpeed: number
+  pulseOffset: number
 }
 
 export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
@@ -100,6 +97,8 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   // Offscreen pre-rendered components
   const smokeTextureCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const cachedMaskCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const cachedFogCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const emberSpriteCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Caching coordinates & values to scale cached blurred bitmap on pan/zoom
   const cachedCenterRef = useRef<any>(null)
@@ -111,6 +110,12 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   const smokeOffsetYRef = useRef<number>(0)
   const animationFrameIdRef = useRef<number | null>(null)
   const reducedMotionRef = useRef<boolean>(false)
+  
+  // Embers and visibility state
+  const embersRef = useRef<EmberParticle[]>([])
+  const isVisibleRef = useRef<boolean>(true)
+  const isMapMovingRef = useRef<boolean>(false)
+  const cachedFrontierEdgesRef = useRef<string[]>([])
 
   // Keep latest parameters in refs to avoid re-initializing the rendering loop
   const userLocationRef = useRef(userLocation)
@@ -124,10 +129,63 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     needsReblurRef.current = true
   }, [revealSet])
 
+  // Track app visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === 'visible'
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  // Build ember radial gradient sprite
+  const buildEmberSprite = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 32
+    const sctx = canvas.getContext('2d')
+    if (!sctx) return
+    
+    const grad = sctx.createRadialGradient(16, 16, 0, 16, 16, 16)
+    grad.addColorStop(0, 'rgba(238, 108, 31, 0.75)') // Ember color
+    grad.addColorStop(0.3, 'rgba(238, 108, 31, 0.35)')
+    grad.addColorStop(1, 'transparent')
+    
+    sctx.fillStyle = grad
+    sctx.beginPath()
+    sctx.arc(16, 16, 16, 0, Math.PI * 2)
+    sctx.fill()
+    
+    emberSpriteCanvasRef.current = canvas
+  }
+
+  // Initialize ember particles
+  const initEmbers = (w: number, h: number) => {
+    const count = 40
+    const list: EmberParticle[] = []
+    for (let i = 0; i < count; i++) {
+      list.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: -0.05 - Math.random() * 0.1,
+        vy: -0.03 - Math.random() * 0.08,
+        size: 4 + Math.random() * 8,
+        alpha: 0.1 + Math.random() * 0.4,
+        pulseSpeed: 0.001 + Math.random() * 0.002,
+        pulseOffset: Math.random() * Math.PI * 2
+      })
+    }
+    embersRef.current = list
+  }
+
   // Initialize offscreen canvases
   useEffect(() => {
     smokeTextureCanvasRef.current = document.createElement('canvas')
     cachedMaskCanvasRef.current = document.createElement('canvas')
+    cachedFogCanvasRef.current = document.createElement('canvas')
+    buildEmberSprite()
     rebuildSmokeTexture()
   }, [])
 
@@ -197,57 +255,41 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       canvas.width = width
       canvas.height = height
       needsReblurRef.current = true
+      initEmbers(width, height)
     }
 
-    // 1) Re-blur mask canvas if the cache was invalidated (e.g. revealSet changed or move ended)
+    // 1) Rebuild fog cache if it was invalidated (e.g. revealSet changed or move ended)
     if (needsReblurRef.current) {
-      rebuildMaskCache(canvas.width, canvas.height)
+      rebuildFogCache(width, height)
       needsReblurRef.current = false
     }
 
     // 2) Clear screen
     ctx.clearRect(0, 0, width, height)
 
-    // 3) Draw drifting textured smoke
-    const textCanvas = smokeTextureCanvasRef.current
-    if (textCanvas) {
-      const pattern = ctx.createPattern(textCanvas, 'repeat')
-      if (pattern) {
-        ctx.save()
-        ctx.translate(smokeOffsetXRef.current, smokeOffsetYRef.current)
-        ctx.fillStyle = pattern
-        ctx.fillRect(-smokeOffsetXRef.current, -smokeOffsetYRef.current, width, height)
-        ctx.restore()
-      } else {
-        ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-        ctx.fillRect(0, 0, width, height)
-      }
+    // 3) Draw transformed cached fog canvas (includes smoke + carved holes + keyline)
+    const cachedFog = cachedFogCanvasRef.current
+    if (cachedFog && cachedCenterRef.current) {
+      const marginPct = 0.3
+      const cWidth = width * (1 + 2 * marginPct)
+      const cHeight = height * (1 + 2 * marginPct)
+
+      // Project the center where the cache was built onto the current map view
+      const currentPos = map.project(cachedCenterRef.current)
+      const scale = Math.pow(2, map.getZoom() - cachedZoomRef.current)
+      
+      const cw = cWidth * scale
+      const ch = cHeight * scale
+      const cx = currentPos.x - (cWidth / 2) * scale
+      const cy = currentPos.y - (cHeight / 2) * scale
+
+      ctx.drawImage(cachedFog, cx, cy, cw, ch)
     } else {
       ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
       ctx.fillRect(0, 0, width, height)
     }
 
-    // 4) Composite Mask (keeps smoke ONLY in unexplored areas)
-    ctx.globalCompositeOperation = 'destination-in'
-    const cachedMask = cachedMaskCanvasRef.current
-    if (cachedMask) {
-      const cachedCenter = cachedCenterRef.current
-      const cachedZoom = cachedZoomRef.current
-      
-      // Calculate scale & offset between current map view and cached map view
-      const currentPos = map.project(cachedCenter)
-      const scale = Math.pow(2, map.getZoom() - cachedZoom)
-      const cx = currentPos.x - (width / 2) * scale
-      const cy = currentPos.y - (height / 2) * scale
-      const cw = width * scale
-      const ch = height * scale
-
-      // Draw the cached blurred mask stretched/panned via GPU-backed translation
-      ctx.drawImage(cachedMask, cx, cy, cw, ch)
-    }
-    ctx.globalCompositeOperation = 'source-over'
-
-    // 5) Draw Warm Additive Torchlight Glow (around the user)
+    // 4) Draw Warm Additive Torchlight Glow (around the user)
     const userLoc = userLocationRef.current
     if (userLoc && userLoc.lat !== null && userLoc.lng !== null) {
       const userPx = map.project([userLoc.lng, userLoc.lat])
@@ -271,45 +313,87 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       ctx.fill()
       ctx.globalCompositeOperation = 'source-over'
     }
+
+    // 5) Draw drifting embers
+    const emberSprite = emberSpriteCanvasRef.current
+    if (emberSprite && embersRef.current.length > 0) {
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      
+      embersRef.current.forEach(p => {
+        const pulse = Math.sin(Date.now() * p.pulseSpeed + p.pulseOffset) * 0.15
+        const currentAlpha = Math.max(0.05, Math.min(0.8, p.alpha + pulse))
+        
+        ctx.globalAlpha = currentAlpha
+        ctx.drawImage(emberSprite, p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
+      })
+      
+      ctx.restore()
+    }
   }
 
-  // Re-build mask cache by rendering viewport cells on offscreen canvas and applying blur filter ONCE
-  const rebuildMaskCache = (width: number, height: number) => {
+const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>): string[] => {
+  const frontier: string[] = []
+  viewportCells.forEach(cell => {
+    if (currentRevealSet.has(cell)) {
+      const edges = originToDirectedEdges(cell)
+      edges.forEach(edge => {
+        const dest = getDirectedEdgeDestination(edge)
+        if (!dest || !currentRevealSet.has(dest)) {
+          frontier.push(edge)
+        }
+      })
+    }
+  })
+  return frontier
+}
+
+  // Re-build mask and fog cache by rendering viewport cells on offscreen canvas and applying subtractive carve-out and keyline drawing
+  const rebuildFogCache = (width: number, height: number) => {
+    if (!map) return
     const maskCanvas = cachedMaskCanvasRef.current
-    if (!maskCanvas || !map) return
-    maskCanvas.width = width
-    maskCanvas.height = height
+    const fogCanvas = cachedFogCanvasRef.current
+    if (!maskCanvas || !fogCanvas) return
+
+    // 1. Calculate cache dimensions with 30% margin on all sides (total size 1.6x screen)
+    const marginPct = 0.3
+    const cWidth = Math.round(width * (1 + 2 * marginPct))
+    const cHeight = Math.round(height * (1 + 2 * marginPct))
+    const xOffset = width * marginPct
+    const yOffset = height * marginPct
+
+    maskCanvas.width = cWidth
+    maskCanvas.height = cHeight
+    fogCanvas.width = cWidth
+    fogCanvas.height = cHeight
 
     const mctx = maskCanvas.getContext('2d')
-    if (!mctx) return
+    const fctx = fogCanvas.getContext('2d')
+    if (!mctx || !fctx) return
 
     cachedCenterRef.current = map.getCenter()
     cachedZoomRef.current = map.getZoom()
 
-    // Create a temporary canvas to render raw crisp shapes
+    // 2. Build the REVEALED mask offscreen (transparent base)
+    // Explored holes are drawn as white (alpha=1), unexplored remains transparent (alpha=0)
     const tempCanvas = document.createElement('canvas')
-    tempCanvas.width = width
-    tempCanvas.height = height
+    tempCanvas.width = cWidth
+    tempCanvas.height = cHeight
     const tctx = tempCanvas.getContext('2d')
     if (!tctx) return
 
-    // 1) Start with completely opaque white (represents unrevealed fog coverage)
+    tctx.clearRect(0, 0, cWidth, cHeight)
     tctx.fillStyle = '#FFFFFF'
-    tctx.fillRect(0, 0, width, height)
 
-    // 2) Cut out the explored cells using destination-out
-    tctx.globalCompositeOperation = 'destination-out'
-    tctx.fillStyle = '#000000'
-
-    // Retrieve H3 cells within viewport bounds plus a safety border margin
+    // Get bounds with expanded margins to cover the 30% cache boundary
     const bounds = map.getBounds()
     if (!bounds) return
     const north = bounds.getNorth()
     const south = bounds.getSouth()
     const east = bounds.getEast()
     const west = bounds.getWest()
-    const latMargin = (north - south) * 0.15
-    const lngMargin = (east - west) * 0.15
+    const latMargin = (north - south) * 0.35
+    const lngMargin = (east - west) * 0.35
 
     const polygon = [
       [
@@ -333,39 +417,219 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
 
     viewportCells.forEach(cell => {
       if (currentRevealSet.has(cell)) {
-        drawCellHexagon(tctx, cell, map, overlapPx)
+        // Draw the hexagon shifted to the cache canvas space
+        const boundary = cellToBoundary(cell, true)
+        if (boundary.length === 0) return
+
+        const centerLatLng = cellToLatLng(cell)
+        const centerPx = map.project([centerLatLng[1], centerLatLng[0]])
+
+        tctx.beginPath()
+        boundary.forEach((coord, idx) => {
+          const px = map.project([coord[0], coord[1]])
+          const dx = px.x - centerPx.x
+          const dy = px.y - centerPx.y
+          const len = Math.sqrt(dx * dx + dy * dy)
+
+          let ox = px.x
+          let oy = px.y
+          if (len > 0) {
+            ox = px.x + (dx / len) * overlapPx
+            oy = px.y + (dy / len) * overlapPx
+          }
+          
+          // Shift to cache coordinates
+          if (idx === 0) {
+            tctx.moveTo(ox + xOffset, oy + yOffset)
+          } else {
+            tctx.lineTo(ox + xOffset, oy + yOffset)
+          }
+        })
+        tctx.closePath()
+        tctx.fill()
       }
     })
 
-    tctx.globalCompositeOperation = 'source-over'
-
-    // 3) Apply gaussian blur filter and draw raw crisp mask onto cached mask canvas
-    mctx.clearRect(0, 0, width, height)
+    // 3. Apply Gaussian blur to the revealed mask onto maskCanvas
+    mctx.clearRect(0, 0, cWidth, cHeight)
     const blurPx = Math.max(8.0, metersToPixels(FOG_CONFIG.BLUR_RADIUS_METERS, map))
-    
-    // Cap blur pixels to prevent performance issues with huge blur operations
     const finalBlurPx = Math.min(64.0, blurPx)
 
     mctx.filter = `blur(${finalBlurPx}px)`
     mctx.drawImage(tempCanvas, 0, 0)
     mctx.filter = 'none'
+
+    // 4. Fill the fogCanvas with deep smoke texture
+    fctx.clearRect(0, 0, cWidth, cHeight)
+    const textCanvas = smokeTextureCanvasRef.current
+    if (textCanvas) {
+      const pattern = fctx.createPattern(textCanvas, 'repeat')
+      if (pattern) {
+        fctx.fillStyle = pattern
+        fctx.fillRect(0, 0, cWidth, cHeight)
+      } else {
+        fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+        fctx.fillRect(0, 0, cWidth, cHeight)
+      }
+    } else {
+      fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+      fctx.fillRect(0, 0, cWidth, cHeight)
+    }
+
+    // 5. Carve explored holes using destination-out with the blurred mask
+    fctx.globalCompositeOperation = 'destination-out'
+    fctx.drawImage(maskCanvas, 0, 0)
+    fctx.globalCompositeOperation = 'source-over'
+
+    // 6. Draw the Die-Cut Crisp Keyline around the frontier edges
+    const frontierEdges = getFrontierEdges(viewportCells, currentRevealSet)
+    if (frontierEdges.length > 0) {
+      const zoom = map.getZoom()
+      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
+      const creamWidth = 1.6 * zoomScale
+      const underlineWidth = 3.0 * zoomScale
+
+      fctx.lineCap = 'round'
+      fctx.lineJoin = 'round'
+
+      // Pass 1: Dark underline
+      fctx.strokeStyle = '#241608'
+      fctx.lineWidth = underlineWidth
+      fctx.beginPath()
+      frontierEdges.forEach(edge => {
+        const boundary = directedEdgeToBoundary(edge, true)
+        if (boundary.length >= 2) {
+          const px0 = map.project([boundary[0][0], boundary[0][1]])
+          const px1 = map.project([boundary[1][0], boundary[1][1]])
+          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
+        }
+      })
+      fctx.stroke()
+
+      // Pass 2: Cream line
+      fctx.strokeStyle = '#F6EAD4'
+      fctx.lineWidth = creamWidth
+      fctx.beginPath()
+      frontierEdges.forEach(edge => {
+        const boundary = directedEdgeToBoundary(edge, true)
+        if (boundary.length >= 2) {
+          const px0 = map.project([boundary[0][0], boundary[0][1]])
+          const px1 = map.project([boundary[1][0], boundary[1][1]])
+          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
+        }
+      })
+      fctx.stroke()
+    }
+  }
+
+  // Helper to redraw smoke and mask on cached canvas during idle state
+  const updateDriftingSmokeOnCache = () => {
+    if (!map) return
+    const fogCanvas = cachedFogCanvasRef.current
+    const maskCanvas = cachedMaskCanvasRef.current
+    if (!fogCanvas || !maskCanvas) return
+
+    const fctx = fogCanvas.getContext('2d')
+    if (!fctx) return
+
+    const cWidth = fogCanvas.width
+    const cHeight = fogCanvas.height
+    const width = canvasRef.current?.width || 0
+    const height = canvasRef.current?.height || 0
+    const marginPct = 0.3
+    const xOffset = width * marginPct
+    const yOffset = height * marginPct
+
+    fctx.clearRect(0, 0, cWidth, cHeight)
+
+    // 1. Fill fogCanvas with smoke pattern translated by smokeOffsetX/smokeOffsetY
+    const textCanvas = smokeTextureCanvasRef.current
+    if (textCanvas) {
+      const pattern = fctx.createPattern(textCanvas, 'repeat')
+      if (pattern) {
+        fctx.save()
+        fctx.translate(smokeOffsetXRef.current, smokeOffsetYRef.current)
+        fctx.fillStyle = pattern
+        fctx.fillRect(-smokeOffsetXRef.current, -smokeOffsetYRef.current, cWidth + 512, cHeight + 512)
+        fctx.restore()
+      } else {
+        fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+        fctx.fillRect(0, 0, cWidth, cHeight)
+      }
+    } else {
+      fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+      fctx.fillRect(0, 0, cWidth, cHeight)
+    }
+
+    // 2. Carve explored holes using destination-out with the mask
+    fctx.globalCompositeOperation = 'destination-out'
+    fctx.drawImage(maskCanvas, 0, 0)
+    fctx.globalCompositeOperation = 'source-over'
+
+    // 3. Draw the crisp keyline
+    const frontierEdges = cachedFrontierEdgesRef.current
+    if (frontierEdges.length > 0) {
+      const zoom = map.getZoom()
+      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
+      const creamWidth = 1.6 * zoomScale
+      const underlineWidth = 3.0 * zoomScale
+
+      fctx.lineCap = 'round'
+      fctx.lineJoin = 'round'
+
+      // Pass 1: Dark underline
+      fctx.strokeStyle = '#241608'
+      fctx.lineWidth = underlineWidth
+      fctx.beginPath()
+      frontierEdges.forEach(edge => {
+        const boundary = directedEdgeToBoundary(edge, true)
+        if (boundary.length >= 2) {
+          const px0 = map.project([boundary[0][0], boundary[0][1]])
+          const px1 = map.project([boundary[1][0], boundary[1][1]])
+          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
+        }
+      })
+      fctx.stroke()
+
+      // Pass 2: Cream line
+      fctx.strokeStyle = '#F6EAD4'
+      fctx.lineWidth = creamWidth
+      fctx.beginPath()
+      frontierEdges.forEach(edge => {
+        const boundary = directedEdgeToBoundary(edge, true)
+        if (boundary.length >= 2) {
+          const px0 = map.project([boundary[0][0], boundary[0][1]])
+          const px1 = map.project([boundary[1][0], boundary[1][1]])
+          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
+        }
+      })
+      fctx.stroke()
+    }
   }
 
   // Register Mapbox movement listeners to trigger redrawing and cache invalidation
   useEffect(() => {
     if (!map) return
 
+    const onMoveStart = () => {
+      isMapMovingRef.current = true
+    }
+
     const onMove = () => {
-      // Redraw immediately (will draw cached blurred mask with scale/translation)
       drawEverything()
     }
 
     const onMoveEnd = () => {
-      // User finished dragging/zooming: invalidate cache to re-project and re-blur at the new view
+      isMapMovingRef.current = false
       needsReblurRef.current = true
       drawEverything()
     }
 
+    map.on('movestart', onMoveStart)
     map.on('move', onMove)
     map.on('moveend', onMoveEnd)
     map.on('zoom', onMove)
@@ -376,6 +640,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     drawEverything()
 
     return () => {
+      map.off('movestart', onMoveStart)
       map.off('move', onMove)
       map.off('moveend', onMoveEnd)
       map.off('zoom', onMove)
@@ -385,7 +650,6 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
 
   // Setup loop for smoke drift animation
   useEffect(() => {
-    // Media query to respect prefers-reduced-motion OS accessibility
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     reducedMotionRef.current = mediaQuery.matches
     
@@ -399,13 +663,40 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       const delta = now - lastTime
       lastTime = now
 
-      if (!reducedMotionRef.current) {
-        // Increment offset (pixels per frame) and wrap at texture width (512)
-        smokeOffsetXRef.current = (smokeOffsetXRef.current + 0.012 * delta) % 512
-        smokeOffsetYRef.current = (smokeOffsetYRef.current + 0.006 * delta) % 512
+      if (isVisibleRef.current) {
+        let needsDraw = false
+
+        // 1. Update embers
+        if (!reducedMotionRef.current) {
+          const w = canvasRef.current?.width || 0
+          const h = canvasRef.current?.height || 0
+          if (w > 0 && h > 0) {
+            // Initialize embers if not yet done
+            if (embersRef.current.length === 0) {
+              initEmbers(w, h)
+            }
+            embersRef.current.forEach(p => {
+              p.x = (p.x + p.vx * delta + w) % w
+              p.y = (p.y + p.vy * delta + h) % h
+            })
+            needsDraw = true
+          }
+        }
+
+        // 2. Update smoke drift on the cached fog canvas ONLY if map is not moving
+        if (!reducedMotionRef.current && !isMapMovingRef.current) {
+          smokeOffsetXRef.current = (smokeOffsetXRef.current + 0.012 * delta) % 512
+          smokeOffsetYRef.current = (smokeOffsetYRef.current + 0.006 * delta) % 512
+          
+          updateDriftingSmokeOnCache()
+          needsDraw = true
+        }
+
+        if (needsDraw) {
+          drawEverything()
+        }
       }
 
-      drawEverything()
       animationFrameIdRef.current = requestAnimationFrame(animLoop)
     }
 
