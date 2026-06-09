@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import Map, { NavigationControl, MapRef, Marker } from 'react-map-gl'
+import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import { supabase } from '../lib/supabase'
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useFriendPresence } from '../hooks/useFriendPresence'
@@ -536,8 +539,10 @@ export function MapPage() {
           const map = mapRef.current?.getMap()
           if (map) {
             setMapInstance(map)
+            map.resize()
           }
         }}
+        onError={(e) => console.error('MAPBOX ERROR:', e.error)}
         dragRotate={false}
         touchPitch={false}
         pitchWithRotate={false}

@@ -10,8 +10,11 @@ import { useFriends } from '../../hooks/useFriends'
 import { format, isToday } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 import Map, { Marker } from 'react-map-gl'
+import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { supabase } from '../../lib/supabase'
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
 const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
   Food: { bg: 'bg-[#FF6B6B]/15', text: 'text-[#FF6B6B]' },
@@ -263,8 +266,10 @@ export function QuestDetail() {
                   try {
                     map.setLayoutProperty('poi-label', 'visibility', 'none');
                     map.setLayoutProperty('transit-label', 'visibility', 'none');
+                    map.resize();
                   } catch (err) {}
                 }}
+                onError={(e) => console.error('MAPBOX ERROR:', e.error)}
               >
                 <Marker longitude={location.lng} latitude={location.lat}>
                   <div className="w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg" />
