@@ -7,6 +7,17 @@ import { FOG_CONFIG } from './config'
 interface FogLayerProps {
   map: MapboxMap | null
   userLocation: { lat: number; lng: number } | null
+  onFirstFramePaint?: () => void
+}
+
+// ─── H3 Compat wrappers ────────────────────────────────────────────────────────
+const cellToParent = (cell: string, res: number): string => {
+  if (typeof h3.cellToParent === 'function') {
+    return h3.cellToParent(cell, res)
+  } else if (typeof (h3 as any)['h3ToParent'] === 'function') {
+    return (h3 as any)['h3ToParent'](cell, res)
+  }
+  return ''
 }
 
 // ─── H3 Compat wrappers ────────────────────────────────────────────────────────
@@ -88,7 +99,7 @@ interface EmberParticle {
   pulseOffset: number
 }
 
-export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
+export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation, onFirstFramePaint }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   
   // Zustand State
@@ -114,15 +125,58 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   const embersRef = useRef<EmberParticle[]>([])
   const isVisibleRef = useRef<boolean>(true)
 
+  const isFirstPaintRef = useRef<boolean>(true)
+
+  // Cache of explored sets per resolution
+  const exploredSetsRef = useRef<Record<number, Set<string>>>({
+    10: new Set(),
+    8: new Set(),
+    6: new Set(),
+    4: new Set(),
+    2: new Set(),
+    1: new Set()
+  })
+
+  // Resolution crossfading refs
+  const activeResRef = useRef<number>(10)
+  const prevResRef = useRef<number | null>(null)
+  const fadeStartTimeRef = useRef<number>(0)
+
   // Keep latest parameters in refs to avoid re-initializing the rendering loop
   const userLocationRef = useRef(userLocation)
   useEffect(() => {
     userLocationRef.current = userLocation
+    needsReblurRef.current = true // Rebuild cache when user location updates (shifts torch glow)
   }, [userLocation])
 
   const revealSetRef = useRef(revealSet)
   useEffect(() => {
     revealSetRef.current = revealSet
+
+    // Recompute parent explored sets for each resolution
+    const fineCells = Array.from(revealSet)
+    const newSets: Record<number, Set<string>> = {
+      10: new Set(revealSet),
+      8: new Set(),
+      6: new Set(),
+      4: new Set(),
+      2: new Set(),
+      1: new Set()
+    }
+
+    const resolutions = [8, 6, 4, 2, 1]
+    fineCells.forEach(cell => {
+      resolutions.forEach(res => {
+        try {
+          const parent = cellToParent(cell, res)
+          if (parent) {
+            newSets[res].add(parent)
+          }
+        } catch (e) {}
+      })
+    })
+
+    exploredSetsRef.current = newSets
     needsReblurRef.current = true
   }, [revealSet])
 
@@ -238,6 +292,222 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     }
   }
 
+  // Helper function to calculate distance in meters (Haversine)
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3 // Earth radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }
+
+  const parseHex = (hex: string): { r: number; g: number; b: number } => {
+    const clean = hex.replace('#', '')
+    const r = parseInt(clean.substring(0, 2), 16)
+    const g = parseInt(clean.substring(2, 4), 16)
+    const b = parseInt(clean.substring(4, 6), 16)
+    return { r, g, b }
+  }
+
+  const lerpColor = (color1: string, color2: string, factor: number): string => {
+    const c1 = parseHex(color1)
+    const c2 = parseHex(color2)
+    const r = Math.round(c1.r + factor * (c2.r - c1.r))
+    const g = Math.round(c1.g + factor * (c2.g - c1.g))
+    const b = Math.round(c1.b + factor * (c2.b - c1.b))
+    return `rgb(${r}, ${g}, ${b})`
+  }
+
+  const getResForZoom = (zoom: number): number => {
+    if (zoom >= 15) return 10
+    if (zoom >= 12) return 8
+    if (zoom >= 9) return 6
+    if (zoom >= 6) return 4
+    if (zoom >= 4) return 2
+    return 1
+  }
+
+  const getFrontierEdges = (viewportCells: string[], exploredSet: Set<string>): string[] => {
+    const frontier: string[] = []
+    viewportCells.forEach(cell => {
+      if (!exploredSet.has(cell)) {
+        try {
+          const edges = originToDirectedEdges(cell)
+          edges.forEach(edge => {
+            const dest = getDirectedEdgeDestination(edge)
+            if (dest && exploredSet.has(dest)) {
+              frontier.push(edge)
+            }
+          })
+        } catch (e) {}
+      }
+    })
+    return frontier
+  }
+
+  // Draw H3 fog mosaic, outlines, and glowing frontier boundary for a specific resolution
+  const drawFogAtResolution = (
+    ctx: CanvasRenderingContext2D,
+    mapInstance: MapboxMap,
+    res: number,
+    alpha: number,
+    mainWidth: number,
+    mainHeight: number,
+    useCacheShift: boolean = false
+  ) => {
+    const bounds = mapInstance.getBounds()
+    if (!bounds) return
+
+    const north = bounds.getNorth()
+    const south = bounds.getSouth()
+    const east = bounds.getEast()
+    const west = bounds.getWest()
+
+    // Render slightly beyond viewport boundaries
+    const margin = useCacheShift ? 0.35 : 0.15
+    const latMargin = (north - south) * margin
+    const lngMargin = (east - west) * margin
+
+    const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val))
+    const n = clamp(north + latMargin, -85, 85)
+    const s = clamp(south - latMargin, -85, 85)
+    const e = clamp(east + lngMargin, -180, 180)
+    const w = clamp(west - lngMargin, -180, 180)
+
+    const polygon = [
+      [
+        [n, w],
+        [n, e],
+        [s, e],
+        [s, w],
+        [n, w]
+      ]
+    ]
+
+    let viewportCells: string[] = []
+    try {
+      viewportCells = polygonToCells(polygon, res)
+    } catch (e) {
+      return
+    }
+
+    const exploredSet = exploredSetsRef.current[res] || new Set()
+    const userLoc = userLocationRef.current
+    const torchRadius = 250 // meters
+    const litColor = '#6A3A18'
+    const palette = ['#1D130D', '#241A12', '#2B1D13', '#32220F', '#1A110B']
+
+    const hashH3 = (h3Index: string): number => {
+      let hash = 0
+      for (let i = 0; i < h3Index.length; i++) {
+        hash = h3Index.charCodeAt(i) + ((hash << 5) - hash)
+      }
+      return Math.abs(hash)
+    }
+
+    // Shift elements offset to cache coordinate space if pre-rendering
+    const xOffset = useCacheShift ? Math.round(mainWidth * 0.3) : 0
+    const yOffset = useCacheShift ? Math.round(mainHeight * 0.3) : 0
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+
+    // Pass 1: Fill unexplained warm hexes
+    viewportCells.forEach(cell => {
+      if (!exploredSet.has(cell)) {
+        const baseColor = palette[hashH3(cell) % palette.length]
+        let finalColor = baseColor
+
+        // Torch glow cell warming
+        if (userLoc && userLoc.lat !== null && userLoc.lng !== null) {
+          try {
+            const cellLatLng = cellToLatLng(cell)
+            const dist = getDistance(cellLatLng[0], cellLatLng[1], userLoc.lat, userLoc.lng)
+            if (dist < torchRadius) {
+              const t = 1.0 - dist / torchRadius
+              const falloff = Math.pow(t, 1.5)
+              finalColor = lerpColor(baseColor, litColor, falloff)
+            }
+          } catch (e) {}
+        }
+
+        const boundary = cellToBoundary(cell, true)
+        if (boundary.length > 0) {
+          ctx.fillStyle = finalColor
+          ctx.beginPath()
+          boundary.forEach((coord, idx) => {
+            const px = mapInstance.project([coord[0], coord[1]])
+            if (idx === 0) {
+              ctx.moveTo(px.x + xOffset, px.y + yOffset)
+            } else {
+              ctx.lineTo(px.x + xOffset, px.y + yOffset)
+            }
+          })
+          ctx.closePath()
+          ctx.fill()
+        }
+      }
+    })
+
+    // Pass 2: Draw soft warm-charcoal outlines in a single batch stroke
+    ctx.strokeStyle = 'rgba(58, 42, 32, 0.4)' // #3A2A20 at 0.4 opacity
+    ctx.lineWidth = 1
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    viewportCells.forEach(cell => {
+      if (!exploredSet.has(cell)) {
+        const boundary = cellToBoundary(cell, true)
+        if (boundary.length > 0) {
+          const px0 = mapInstance.project([boundary[0][0], boundary[0][1]])
+          ctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+          for (let i = 1; i < boundary.length; i++) {
+            const px = mapInstance.project([boundary[i][0], boundary[i][1]])
+            ctx.lineTo(px.x + xOffset, px.y + yOffset)
+          }
+          ctx.closePath()
+        }
+      }
+    })
+    ctx.stroke()
+
+    // Pass 3: Draw soft frontier glow along the explored boundaries
+    const frontierEdges = getFrontierEdges(viewportCells, exploredSet)
+    if (frontierEdges.length > 0) {
+      const zoom = mapInstance.getZoom()
+      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
+
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.strokeStyle = 'rgba(238, 140, 70, 0.45)'
+      ctx.lineWidth = 3.0 * zoomScale
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.shadowColor = 'rgba(238, 140, 70, 0.6)'
+      ctx.shadowBlur = 4.0 * zoomScale
+
+      ctx.beginPath()
+      frontierEdges.forEach(edge => {
+        try {
+          const boundary = directedEdgeToBoundary(edge, true)
+          if (boundary.length >= 2) {
+            const px0 = mapInstance.project([boundary[0][0], boundary[0][1]])
+            const px1 = mapInstance.project([boundary[1][0], boundary[1][1]])
+            ctx.moveTo(px0.x + xOffset, px0.y + yOffset)
+            ctx.lineTo(px1.x + xOffset, px1.y + yOffset)
+          }
+        } catch (e) {}
+      })
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    ctx.restore()
+  }
+
   // Draw loop
   const drawEverything = () => {
     const canvas = canvasRef.current
@@ -293,144 +563,57 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       return
     }
 
-    // 3) Rebuild fog mask cache if it was invalidated (e.g. revealSet changed or move ended)
-    if (needsReblurRef.current) {
-      const success = rebuildFogCache(width, height)
-      if (success) {
-        needsReblurRef.current = false
+    const zoom = map.getZoom()
+    const targetRes = getResForZoom(zoom)
+
+    // Manage H3 resolution band transitions with crossfade
+    if (targetRes !== activeResRef.current) {
+      prevResRef.current = activeResRef.current
+      activeResRef.current = targetRes
+      fadeStartTimeRef.current = performance.now()
+    }
+
+    let fadeRatio = 1.0
+    if (prevResRef.current !== null) {
+      const elapsed = performance.now() - fadeStartTimeRef.current
+      fadeRatio = Math.min(1.0, elapsed / 150)
+      if (fadeRatio >= 1.0) {
+        prevResRef.current = null
+        needsReblurRef.current = true // rebuild cache for target resolution
       }
     }
 
-    // 3b) Only draw the fog overlay if we have a valid cache and center
-    const cachedMask = cachedMaskCanvasRef.current
-    if (!cachedMask || !cachedCenterRef.current) {
-      return
-    }
-
-    // 4) Composite Mask (carves explored holes out of the smoke)
-    ctx.globalCompositeOperation = 'destination-out'
-    if (cachedMask && cachedCenterRef.current) {
-      const marginPct = 0.3
-      const cWidth = width * (1 + 2 * marginPct)
-      const cHeight = height * (1 + 2 * marginPct)
-
-      // Project the center where the cache was built onto the current map view
-      const currentPos = map.project(cachedCenterRef.current)
-      const scale = Math.pow(2, map.getZoom() - cachedZoomRef.current)
-      
-      const cw = cWidth * scale
-      const ch = cHeight * scale
-      const cx = currentPos.x - (cWidth / 2) * scale
-      const cy = currentPos.y - (cHeight / 2) * scale
-
-      ctx.drawImage(cachedMask, cx, cy, cw, ch)
-    }
-    ctx.globalCompositeOperation = 'source-over'
-
-    // 5) Draw the explored cell outlines and glowing frontier keylines in real-time
-    const bounds = map.getBounds()
-    if (bounds) {
-      const north = bounds.getNorth()
-      const south = bounds.getSouth()
-      const east = bounds.getEast()
-      const west = bounds.getWest()
-      const latMargin = (north - south) * 0.15
-      const lngMargin = (east - west) * 0.15
-
-      const polygon = [
-        [
-          [north + latMargin, west - lngMargin],
-          [north + latMargin, east + lngMargin],
-          [south - latMargin, east + lngMargin],
-          [south - latMargin, west - lngMargin],
-          [north + latMargin, west - lngMargin]
-        ]
-      ]
-
-      let viewportCells: string[] = []
-      try {
-        viewportCells = polygonToCells(polygon, FOG_CONFIG.H3_RESOLUTION)
-      } catch (e) {}
-
-      const currentRevealSet = revealSetRef.current
-      const zoom = map.getZoom()
-      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
-
-      // 5a) Draw soft, dimmed orange outlines for all explored cells in the viewport (zoom >= 13.0)
-      if (zoom >= 13.0) {
-        ctx.strokeStyle = 'rgba(238, 108, 31, 0.22)'
-        ctx.lineWidth = 1.0 * zoomScale
-        ctx.beginPath()
-        viewportCells.forEach(cell => {
-          if (currentRevealSet.has(cell)) {
-            const boundary = cellToBoundary(cell, true)
-            if (boundary.length > 0) {
-              const pStart = map.project([boundary[0][0], boundary[0][1]])
-              ctx.moveTo(pStart.x, pStart.y)
-              for (let i = 1; i < boundary.length; i++) {
-                const p = map.project([boundary[i][0], boundary[i][1]])
-                ctx.lineTo(p.x, p.y)
-              }
-              ctx.closePath()
-            }
-          }
-        })
-        ctx.stroke()
+    // Draw fog layer (either crossfading real-time or using cached translated bitmap)
+    if (prevResRef.current !== null && fadeRatio < 1.0) {
+      // 1. Draw previous resolution fading out
+      drawFogAtResolution(ctx, map, prevResRef.current, 1.0 - fadeRatio, width, height, false)
+      // 2. Draw active resolution fading in
+      drawFogAtResolution(ctx, map, activeResRef.current, fadeRatio, width, height, false)
+    } else {
+      // 3. Normal cached rendering
+      if (needsReblurRef.current) {
+        const success = rebuildFogCache(width, height)
+        if (success) {
+          needsReblurRef.current = false
+        }
       }
 
-      // 5b) Draw the glowing bright orange outer frontier keyline separating explored/unexplored areas
-      const frontierEdges = getFrontierEdges(viewportCells, currentRevealSet)
-      if (frontierEdges.length > 0) {
-        const creamWidth = 1.6 * zoomScale
-        const underlineWidth = 3.0 * zoomScale
+      const cachedMask = cachedMaskCanvasRef.current
+      if (cachedMask && cachedCenterRef.current) {
+        const marginPct = 0.3
+        const cWidth = width * (1 + 2 * marginPct)
+        const cHeight = height * (1 + 2 * marginPct)
 
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
+        // Translate and scale cached bitmap based on camera delta
+        const currentPos = map.project(cachedCenterRef.current)
+        const scale = Math.pow(2, map.getZoom() - cachedZoomRef.current)
+        
+        const cw = cWidth * scale
+        const ch = cHeight * scale
+        const cx = currentPos.x - (cWidth / 2) * scale
+        const cy = currentPos.y - (cHeight / 2) * scale
 
-        // Pass 1: Outer Orange Glow (wide, semi-transparent)
-        ctx.strokeStyle = 'rgba(238, 108, 31, 0.45)'
-        ctx.lineWidth = underlineWidth * 2.0
-        ctx.beginPath()
-        frontierEdges.forEach(edge => {
-          const boundary = directedEdgeToBoundary(edge, true)
-          if (boundary.length >= 2) {
-            const px0 = map.project([boundary[0][0], boundary[0][1]])
-            const px1 = map.project([boundary[1][0], boundary[1][1]])
-            ctx.moveTo(px0.x, px0.y)
-            ctx.lineTo(px1.x, px1.y)
-          }
-        })
-        ctx.stroke()
-
-        // Pass 2: Dark Burnt Orange Base
-        ctx.strokeStyle = '#873003'
-        ctx.lineWidth = underlineWidth
-        ctx.beginPath()
-        frontierEdges.forEach(edge => {
-          const boundary = directedEdgeToBoundary(edge, true)
-          if (boundary.length >= 2) {
-            const px0 = map.project([boundary[0][0], boundary[0][1]])
-            const px1 = map.project([boundary[1][0], boundary[1][1]])
-            ctx.moveTo(px0.x, px0.y)
-            ctx.lineTo(px1.x, px1.y)
-          }
-        })
-        ctx.stroke()
-
-        // Pass 3: Bright Vibrant Orange Core (Glowing keyline)
-        ctx.strokeStyle = '#FF8224'
-        ctx.lineWidth = creamWidth
-        ctx.beginPath()
-        frontierEdges.forEach(edge => {
-          const boundary = directedEdgeToBoundary(edge, true)
-          if (boundary.length >= 2) {
-            const px0 = map.project([boundary[0][0], boundary[0][1]])
-            const px1 = map.project([boundary[1][0], boundary[1][1]])
-            ctx.moveTo(px0.x, px0.y)
-            ctx.lineTo(px1.x, px1.y)
-          }
-        })
-        ctx.stroke()
+        ctx.drawImage(cachedMask, cx, cy, cw, ch)
       }
     }
 
@@ -440,6 +623,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       const userPx = map.project([userLoc.lng, userLoc.lat])
       const torchGlowPx = Math.max(30.0, metersToPixels(FOG_CONFIG.TORCH_GLOW_METERS, map))
       
+      ctx.save()
       ctx.globalCompositeOperation = 'lighter'
       
       // Introduce subtle torch flickering animation (if reduced-motion is disabled)
@@ -456,7 +640,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       ctx.beginPath()
       ctx.arc(userPx.x, userPx.y, torchGlowPx, 0, Math.PI * 2)
       ctx.fill()
-      ctx.globalCompositeOperation = 'source-over'
+      ctx.restore()
     }
 
     // 7) Draw drifting embers
@@ -475,36 +659,25 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       
       ctx.restore()
     }
+
+    // Signal first frame painted once loaded
+    if (isFirstPaintRef.current && map) {
+      isFirstPaintRef.current = false
+      setTimeout(() => {
+        onFirstFramePaint?.()
+      }, 0)
+    }
   }
 
-const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>): string[] => {
-  const frontier: string[] = []
-  viewportCells.forEach(cell => {
-    if (currentRevealSet.has(cell)) {
-      const edges = originToDirectedEdges(cell)
-      edges.forEach(edge => {
-        const dest = getDirectedEdgeDestination(edge)
-        if (!dest || !currentRevealSet.has(dest)) {
-          frontier.push(edge)
-        }
-      })
-    }
-  })
-  return frontier
-}
-
-  // Re-build mask cache by rendering viewport cells on offscreen canvas and applying Gaussian blur ONCE
+  // Pre-render unexplored hex fog, outlines and frontier onto offscreen cachedMaskCanvas
   const rebuildFogCache = (width: number, height: number): boolean => {
     if (!map) return false
     const maskCanvas = cachedMaskCanvasRef.current
     if (!maskCanvas) return false
 
-    // Calculate cache dimensions with 30% margin on all sides (total size 1.6x screen)
     const marginPct = 0.3
     const cWidth = Math.round(width * (1 + 2 * marginPct))
     const cHeight = Math.round(height * (1 + 2 * marginPct))
-    const xOffset = width * marginPct
-    const yOffset = height * marginPct
 
     maskCanvas.width = cWidth
     maskCanvas.height = cHeight
@@ -512,93 +685,14 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     const mctx = maskCanvas.getContext('2d')
     if (!mctx) return false
 
+    mctx.clearRect(0, 0, cWidth, cHeight)
+
     cachedCenterRef.current = map.getCenter()
     cachedZoomRef.current = map.getZoom()
 
-    // Build the REVEALED mask offscreen (transparent base)
-    // Explored holes are drawn as white (alpha=1), unexplored remains transparent (alpha=0)
-    const tempCanvas = document.createElement('canvas')
-    tempCanvas.width = cWidth
-    tempCanvas.height = cHeight
-    const tctx = tempCanvas.getContext('2d')
-    if (!tctx) return false
+    // Draw the active resolution fog onto the cache canvas
+    drawFogAtResolution(mctx, map, activeResRef.current, 1.0, width, height, true)
 
-    tctx.clearRect(0, 0, cWidth, cHeight)
-    tctx.fillStyle = '#FFFFFF'
-
-    // Get bounds with expanded margins to cover the 30% cache boundary
-    const bounds = map.getBounds()
-    if (!bounds) return false
-    const north = bounds.getNorth()
-    const south = bounds.getSouth()
-    const east = bounds.getEast()
-    const west = bounds.getWest()
-    const latMargin = (north - south) * 0.35
-    const lngMargin = (east - west) * 0.35
-
-    const polygon = [
-      [
-        [north + latMargin, west - lngMargin],
-        [north + latMargin, east + lngMargin],
-        [south - latMargin, east + lngMargin],
-        [south - latMargin, west - lngMargin],
-        [north + latMargin, west - lngMargin]
-      ]
-    ]
-
-    let viewportCells: string[] = []
-    try {
-      viewportCells = polygonToCells(polygon, FOG_CONFIG.H3_RESOLUTION)
-    } catch (e) {
-      console.warn('[FogLayer] H3 viewport generation failed:', e)
-    }
-
-    const overlapPx = Math.max(1.5, metersToPixels(FOG_CONFIG.HEX_OVERLAP_METERS, map))
-    const currentRevealSet = revealSetRef.current
-
-    viewportCells.forEach(cell => {
-      if (currentRevealSet.has(cell)) {
-        // Draw the hexagon shifted to the cache canvas space
-        const boundary = cellToBoundary(cell, true)
-        if (boundary.length === 0) return
-
-        const centerLatLng = cellToLatLng(cell)
-        const centerPx = map.project([centerLatLng[1], centerLatLng[0]])
-
-        tctx.beginPath()
-        boundary.forEach((coord, idx) => {
-          const px = map.project([coord[0], coord[1]])
-          const dx = px.x - centerPx.x
-          const dy = px.y - centerPx.y
-          const len = Math.sqrt(dx * dx + dy * dy)
-
-          let ox = px.x
-          let oy = px.y
-          if (len > 0) {
-            ox = px.x + (dx / len) * overlapPx
-            oy = px.y + (dy / len) * overlapPx
-          }
-          
-          // Shift to cache coordinates
-          if (idx === 0) {
-            tctx.moveTo(ox + xOffset, oy + yOffset)
-          } else {
-            tctx.lineTo(ox + xOffset, oy + yOffset)
-          }
-        })
-        tctx.closePath()
-        tctx.fill()
-      }
-    })
-
-    // Apply Gaussian blur to the revealed mask onto maskCanvas
-    mctx.clearRect(0, 0, cWidth, cHeight)
-    const blurPx = Math.max(8.0, metersToPixels(FOG_CONFIG.BLUR_RADIUS_METERS, map))
-    const finalBlurPx = Math.min(64.0, blurPx)
-
-    mctx.filter = `blur(${finalBlurPx}px)`
-    mctx.drawImage(tempCanvas, 0, 0)
-    mctx.filter = 'none'
     return true
   }
 

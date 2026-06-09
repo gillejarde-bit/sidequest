@@ -25,6 +25,7 @@ import { Clock, MapPin, AlertCircle, Diamond, Locate, X } from 'lucide-react'
 
 // Fog-of-war imports
 import { FogLayer } from '../components/map/fog/FogLayer'
+import { FireLoadingScreen } from '../components/map/FireLoadingScreen'
 import { useCoverage } from '../hooks/useCoverage'
 import { FOG_CONFIG } from '../components/map/fog/config'
 import * as h3 from 'h3-js'
@@ -129,6 +130,10 @@ export function MapPage() {
   const [mapLoaded, setMapLoaded] = useState(false)
   const [showEmptyState, setShowEmptyState] = useState(true)
   const [mapInstance, setMapInstance] = useState<any>(null)
+  const [firstFogPainted, setFirstFogPainted] = useState(false)
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true)
+
+  const isAppReady = mapLoaded && firstFogPainted
 
   const hasCenteredOnUserRef = useRef(false)
 
@@ -594,7 +599,7 @@ export function MapPage() {
         <NavigationControl position="bottom-right" showCompass={false} />
 
         {/* User Location Marker (styled above/on top of the fog canvas layer) */}
-        {activeUserLat !== null && activeUserLng !== null && (
+        {isAppReady && activeUserLat !== null && activeUserLng !== null && (
           <Marker longitude={activeUserLng} latitude={activeUserLat} anchor="center">
             <div className="relative flex items-center justify-center" style={{ zIndex: 10 }}>
               {/* Pulse ring */}
@@ -618,7 +623,7 @@ export function MapPage() {
         )}
 
         {/* Quests Markers (rendered ONLY in explored cells) */}
-        {visibleQuests.map((q: any) => {
+        {isAppReady && visibleQuests.map((q: any) => {
           if (!q.location_lng || !q.location_lat) return null
           
           const avatars = getQuestPartyAvatars(q.id, q.creator_username, q.creator_avatar)
@@ -678,7 +683,7 @@ export function MapPage() {
         })}
 
         {/* Gems Markers (rendered ONLY in explored cells) */}
-        {visibleGems.map((g: any) => {
+        {isAppReady && visibleGems.map((g: any) => {
           const isPending = g.gem_status === 'pending'
           return (
             <Marker
@@ -715,7 +720,7 @@ export function MapPage() {
         })}
 
         {/* Friends Markers (rendered ONLY in explored cells) */}
-        {visibleFriends.map((f) => (
+        {isAppReady && visibleFriends.map((f) => (
           <Marker 
             key={`friend-${f.user_id}`} 
             longitude={f.lng!} 
@@ -751,7 +756,7 @@ export function MapPage() {
         ))}
 
         {/* Search Result Pin Marker (rendered ABOVE the fog) */}
-        {searchResultPin && (
+        {isAppReady && searchResultPin && (
           <Marker longitude={searchResultPin.lng} latitude={searchResultPin.lat} anchor="center">
             <div 
               className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-xl flex items-center justify-center animate-bounce cursor-pointer"
@@ -764,7 +769,11 @@ export function MapPage() {
       </Map>
 
       {/* Canvas Fog-of-War overlay */}
-      <FogLayer map={mapInstance} userLocation={fogUserLocation} />
+      <FogLayer 
+        map={mapInstance} 
+        userLocation={fogUserLocation} 
+        onFirstFramePaint={() => setFirstFogPainted(true)}
+      />
 
       {/* Breathing vignette overlay */}
       <motion.div
@@ -855,6 +864,13 @@ export function MapPage() {
           }
         }}
       />
+
+      {showLoadingScreen && (
+        <FireLoadingScreen
+          isReady={isAppReady}
+          onExitComplete={() => setShowLoadingScreen(false)}
+        />
+      )}
     </div>
   )
 }
