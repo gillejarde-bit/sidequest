@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
+import cozyStyle from '../components/map/fog/sidequest-cozy-style.json'
+
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useFriendPresence } from '../hooks/useFriendPresence'
 import { useFriends } from '../hooks/useFriends'
@@ -127,7 +129,7 @@ export function MapPage() {
 
   // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
   useEffect(() => {
-    if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded) {
+    if (userLoc.lat !== null && userLoc.lng !== null) {
       const cell = latLngToCell(userLoc.lat, userLoc.lng, FOG_CONFIG.H3_RESOLUTION)
       if (cell) {
         const ringCells = gridDisk(cell, FOG_CONFIG.TORCH_RING_K)
@@ -143,7 +145,7 @@ export function MapPage() {
         }
       }
     }
-  }, [userLoc.lat, userLoc.lng, mapLoaded, revealSet, addRevealedCells, addCoverage])
+  }, [userLoc.lat, userLoc.lng, revealSet, addRevealedCells, addCoverage])
 
   useEffect(() => {
     if (quests.length === 0) return
@@ -522,7 +524,7 @@ export function MapPage() {
           pitch: 0,
           bearing: 0,
         }}
-        mapStyle="mapbox://styles/gillejarde/sidequest-cozy"
+        mapStyle={cozyStyle as any}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={false}
         preserveDrawingBuffer={true}

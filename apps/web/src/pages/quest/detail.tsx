@@ -16,6 +16,8 @@ import { supabase } from '../../lib/supabase'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
+import cozyStyle from '../../components/map/fog/sidequest-cozy-style.json'
+
 const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
   Food: { bg: 'bg-[#FF6B6B]/15', text: 'text-[#FF6B6B]' },
   Outdoors: { bg: 'bg-[#58CC02]/15', text: 'text-[#58CC02]' },
@@ -256,7 +258,7 @@ export function QuestDetail() {
                   latitude: location.lat,
                   zoom: 15
                 }}
-                mapStyle="mapbox://styles/gillejarde/sidequest-cozy"
+                mapStyle={cozyStyle as any}
                 pitch={0}
                 bearing={0}
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
