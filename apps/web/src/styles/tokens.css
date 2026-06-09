@@ -37,6 +37,8 @@
   /* Sticker keyline + ink */
   --sq-keyline: #FFFFFF;
   --sq-ink: #3A2A20;
+  --sq-stats-text: var(--sq-ink);
+  --sq-stats-text-muted: rgba(58, 42, 32, 0.6);
   
   /* Radii — cozy = generous */
   --sq-r-sm: 10px;

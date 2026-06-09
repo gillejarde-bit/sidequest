@@ -289,6 +289,7 @@ import { LevelUpModal } from '../components/xp/LevelUpModal'
 function RootLayout() {
   const { theme } = useSettingsStore()
   const { user } = useAuthStore()
+  const { pathname } = useLocation()
   const [activeToast, setActiveToast] = useState<{ questId: string; questName: string; creatorName: string } | null>(null)
 
   // Auto-dismiss toast
@@ -382,12 +383,12 @@ function RootLayout() {
       document.documentElement.classList.remove('dark')
     }
 
-    if (theme === 'ember') {
+    if (theme === 'ember' && pathname !== '/login') {
       document.documentElement.setAttribute('data-theme', 'ember')
     } else {
       document.documentElement.removeAttribute('data-theme')
     }
-  }, [theme])
+  }, [theme, pathname])
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300">

@@ -143,24 +143,24 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             {/* Stats list */}
             <div className="space-y-2.5 bg-[var(--sq-surface)]/5 rounded-2xl p-4 border border-[var(--sq-ink)]/10">
               <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-[var(--sq-ink)]/60">Quests Completed</span>
-                <span className="text-[var(--sq-ink)]">{stamps.length}</span>
+                <span className="text-[var(--sq-stats-text-muted)]">Quests Completed</span>
+                <span className="text-[var(--sq-stats-text)]">{stamps.length}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-[var(--sq-ink)]/60">Pioneer Mints</span>
-                <span className="text-[var(--sq-ink)]">
+                <span className="text-[var(--sq-stats-text-muted)]">Pioneer Mints</span>
+                <span className="text-[var(--sq-stats-text)]">
                   {stamps.filter(s => s.is_pioneer).length}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-[var(--sq-ink)]/60">Foil Crowns</span>
-                <span className="text-[var(--sq-ink)]">
+                <span className="text-[var(--sq-stats-text-muted)]">Foil Crowns</span>
+                <span className="text-[var(--sq-stats-text)]">
                   {stamps.filter(s => s.is_foil).length}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-[var(--sq-ink)]/60">Member Since</span>
-                <span className="text-[var(--sq-ink)]">
+                <span className="text-[var(--sq-stats-text-muted)]">Member Since</span>
+                <span className="text-[var(--sq-stats-text)]">
                   {profile?.created_at ? format(new Date(profile.created_at), 'MMM yyyy') : 'Recently'}
                 </span>
               </div>
@@ -401,36 +401,36 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
           {isWide ? (
             // DUAL PAGE (WIDE SCREEN) SPREAD WITH 3D PAGE-FLIP
             <div className="w-full h-full flex relative" style={{ transformStyle: "preserve-3d" }}>
-              {isAnimating ? (
-                // Animating state: base background pages + 3D rotating overlay leaf
-                <>
-                  {/* Left Background Page (Target page if going backward, else previous page) */}
-                  <div 
-                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
-                    style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
-                  >
-                    {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
-                    <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                      {(direction === 'forward' ? prevPageIndex : currentPageIndex) + 1}
-                    </div>
-                  </div>
+              {/* Left Page Container (Always mounted, index changes dynamically) */}
+              <div 
+                className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
+              >
+                {renderPageContent(isAnimating ? (direction === 'forward' ? prevPageIndex : currentPageIndex) : currentPageIndex)}
+                <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                  {(isAnimating ? (direction === 'forward' ? prevPageIndex : currentPageIndex) : currentPageIndex) + 1}
+                </div>
+              </div>
 
-                  {/* Right Background Page (Target page if going forward, else previous page) */}
-                  <div 
-                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
-                    style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
-                  >
-                    {renderPageContent(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1)}
-                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                      {(direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) + 1}
-                    </div>
-                  </div>
+              {/* Right Page Container (Always mounted, index changes dynamically) */}
+              <div 
+                className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
+              >
+                {renderPageContent(isAnimating ? (direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) : currentPageIndex + 1)}
+                <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                  {(isAnimating ? (direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) : currentPageIndex + 1) + 1}
+                </div>
+              </div>
 
-                  {/* Flipping Page Container */}
+              {/* Flipping Page Container (Only rendered during transition) */}
+              <AnimatePresence>
+                {isAnimating && (
                   <motion.div
                     key={`flip-${prevPageIndex}-${currentPageIndex}`}
-                    initial={{ rotateY: 0 }}
-                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 180 }}
+                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
+                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
+                    exit={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
                     transition={{ duration: 0.55, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       transformOrigin: direction === 'forward' ? 'left center' : 'right center',
@@ -474,31 +474,8 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       </div>
                     </div>
                   </motion.div>
-                </>
-              ) : (
-                // Static state: show static open spreads
-                <>
-                  <div 
-                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
-                    style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
-                  >
-                    {renderPageContent(currentPageIndex)}
-                    <div className="absolute bottom-4 left-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                      {currentPageIndex + 1}
-                    </div>
-                  </div>
-
-                  <div 
-                    className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
-                    style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
-                  >
-                    {renderPageContent(currentPageIndex + 1)}
-                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                      {currentPageIndex + 2}
-                    </div>
-                  </div>
-                </>
-              )}
+                )}
+              </AnimatePresence>
 
               {/* Absolute Center Creased gutter (sitting above everything including the flipping page) */}
               <div 
@@ -512,21 +489,22 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
           ) : (
             // SINGLE PAGE (MOBILE VIEWPORT) WITH 3D PAGE-FLIP
             <div className="w-full h-full relative" style={{ transformStyle: "preserve-3d" }}>
-              {isAnimating ? (
-                <>
-                  {/* Background target page (shows old page if going backward, new page if going forward) */}
-                  <div className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden">
-                    {renderPageContent(currentPageIndex)}
-                    <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                      {currentPageIndex + 1}
-                    </div>
-                  </div>
+              {/* Static Page Container (Always mounted, preloads target page) */}
+              <div className="w-full h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+                {renderPageContent(currentPageIndex)}
+                <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
+                  {currentPageIndex + 1}
+                </div>
+              </div>
 
-                  {/* Flipping page */}
+              {/* Flipping page (Only rendered during transition) */}
+              <AnimatePresence>
+                {isAnimating && (
                   <motion.div
                     key={`flip-single-${prevPageIndex}-${currentPageIndex}`}
                     initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
                     animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
+                    exit={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
                     transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       transformOrigin: 'left center',
@@ -567,15 +545,8 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       </div>
                     </div>
                   </motion.div>
-                </>
-              ) : (
-                <div className="w-full h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
-                  {renderPageContent(currentPageIndex)}
-                  <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
-                    {currentPageIndex + 1}
-                  </div>
-                </div>
-              )}
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>

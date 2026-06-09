@@ -79,6 +79,9 @@
   --color-dark: var(--forge-black);
   --color-muted: var(--faded-ink);
   
+  --sq-stats-text: var(--parchment);
+  --sq-stats-text-muted: var(--faded-ink);
+  
   font-family: "SideQuest Sans", system-ui, sans-serif;
   background-color: var(--forge-black) !important;
   color: var(--parchment) !important;
@@ -153,7 +156,7 @@
   background-color: var(--hearth-brown) !important;
   border: 2px solid var(--seam-brown) !important;
   border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
-  filter: url(#clean-wobble-md) !important;
+  filter: none !important;
   transform: translate3d(0, 0, 0) !important;
   pointer-events: none !important;
 }
@@ -419,7 +422,7 @@
   background-color: var(--sq-card, var(--hearth-brown)) !important;
   border: 2px solid var(--seam-brown) !important;
   border-radius: 13px 18px 15px 20px / 16px 14px 20px 15px !important;
-  filter: url(#clean-wobble-md) !important;
+  filter: none !important;
   transform: translate3d(0, 0, 0) !important;
   pointer-events: none !important;
 }
@@ -445,7 +448,7 @@
   background-color: var(--sq-card, var(--hearth-brown)) !important;
   border: 2px solid var(--seam-brown) !important;
   border-radius: 17px 24px 22px 26px / 22px 18px 26px 20px !important;
-  filter: url(#clean-wobble-lg) !important;
+  filter: none !important;
   transform: translate3d(0, 0, 0) !important;
   pointer-events: none !important;
 }

@@ -68,6 +68,14 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
       ease: 'power1.out'
     }, 0)
 
+    // Hero card background & blur fade-out with scroll (0.0 -> 0.35)
+    tl.to('#hero-card', {
+      backgroundColor: 'rgba(18, 11, 6, 0)',
+      backdropFilter: 'blur(0px)',
+      webkitBackdropFilter: 'blur(0px)',
+      ease: 'power1.out'
+    }, 0)
+
     // Scroll instruction fade-out (0.0 -> 0.2)
     tl.to('#scroll-instruction', {
       opacity: 0,
@@ -75,11 +83,32 @@ export function ScrollController({ progressRef }: ScrollControllerProps) {
       ease: 'power1.out'
     }, 0)
 
-    // Onboarding Auth Form card fade-in (0.65 -> 1.0)
+    // Onboarding Auth Form wrapper layout show (0.65 -> 1.0)
     tl.fromTo('#auth-card-wrapper', 
-      { opacity: 0, y: 80, scale: 0.96, display: 'none' },
-      { opacity: 1, y: 0, scale: 1, display: 'flex', ease: 'power2.out' },
+      { display: 'none' },
+      { display: 'flex' },
       0.65
+    )
+
+    tl.fromTo('#auth-card',
+      { y: 80, scale: 0.96 },
+      { y: 0, scale: 1, ease: 'power2.out' },
+      0.65
+    )
+
+    // Smoothly interpolate the blur and background alpha channel with scroll (0.65 -> 1.0)
+    tl.to('#auth-card', {
+      backgroundColor: 'rgba(18, 11, 6, 0.65)',
+      backdropFilter: 'blur(32px)',
+      webkitBackdropFilter: 'blur(32px)',
+      ease: 'power2.out'
+    }, 0.65)
+
+    // Clean fade-in for form content & text
+    tl.fromTo('#auth-card-content',
+      { opacity: 0 },
+      { opacity: 1, ease: 'power2.out' },
+      0.68
     )
 
     // Clean up

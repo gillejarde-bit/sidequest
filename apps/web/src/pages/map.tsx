@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Map, { NavigationControl, MapRef, Source, Layer, MapLayerMouseEvent, Marker } from 'react-map-gl'
+import Map, { NavigationControl, MapRef, Marker } from 'react-map-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
-import { useSettingsStore } from '../stores/settingsStore'
 import { supabase } from '../lib/supabase'
 
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -17,21 +16,34 @@ import { useMapGroupsStore } from '../stores/mapGroupsStore'
 import { useAuthStore } from '../stores/auth'
 import { getAvatarUrl } from '../lib/avatar'
 import { Z_INDEX } from '../lib/zIndex'
-import { Clock, MapPin, AlertCircle, Diamond, Locate, Map as MapIcon, Layers, X } from 'lucide-react'
-import { PixelOverlay } from '../map/pixelOverlay'
+import { Clock, MapPin, AlertCircle, Diamond, Locate, X } from 'lucide-react'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Fog-of-war imports
+import { FogLayer } from '../components/map/fog/FogLayer'
+import { useCoverage } from '../hooks/useCoverage'
+import { FOG_CONFIG } from '../components/map/fog/config'
+import * as h3 from 'h3-js'
 
-interface QuestRow {
-  id: string
-  name: string
-  category: string | null
-  description?: string | null
-  status: string
-  max_party_size?: number | null
-  locations?: { lat: number | null; lng: number | null } | null
+// ─── H3 compat wrappers ────────────────────────────────────────────────────────
+const latLngToCell = (lat: number, lng: number, res: number): string => {
+  if (typeof h3.latLngToCell === 'function') {
+    return h3.latLngToCell(lat, lng, res)
+  } else if (typeof (h3 as any)['geoToH3'] === 'function') {
+    return (h3 as any)['geoToH3'](lat, lng, res)
+  }
+  return ''
 }
 
+const gridDisk = (cell: string, k: number): string[] => {
+  if (typeof h3.gridDisk === 'function') {
+    return h3.gridDisk(cell, k)
+  } else if (typeof (h3 as any)['kRing'] === 'function') {
+    return (h3 as any)['kRing'](cell, k)
+  }
+  return []
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface SelectedLocation {
   id: string
   name: string
@@ -42,10 +54,7 @@ interface SelectedLocation {
   placeDetails?: any // Google Place object
 }
 
-// ─── Category Colors ──────────────────────────────────────────────────────────
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
+// ─── Component helpers ────────────────────────────────────────────────────────
 function getTimeUntil(dateStr: string) {
   const diffMs = new Date(dateStr).getTime() - Date.now()
   if (diffMs < 0) return 'Started'
@@ -71,18 +80,67 @@ export function MapPage() {
   const navigate = useNavigate()
   const { profile } = useAuthStore()
 
+  // Geolocation tracking hook
   const userLoc = useGeolocation()
+  
+  // Friend presence hook
   const friendsMap = useFriendPresence({
     lat: userLoc.lat,
     lng: userLoc.lng,
     heading: userLoc.heading,
   })
 
+  // Fog-of-war coverage hooks & Zustand state
+  const { coverage, addCoverage } = useCoverage()
+  const revealSet = useMapStore(s => s.revealSet)
+  const setRevealSet = useMapStore(s => s.setRevealSet)
+  const addRevealedCells = useMapStore(s => s.addRevealedCells)
+  const followMode = useMapStore(s => s.followMode)
+  const setFollowMode = useMapStore(s => s.setFollowMode)
+
   const { hiddenGroupIds } = useMapGroupsStore()
   const [groupMembers, setGroupMembers] = useState<{ group_id: string; user_id: string }[]>([])
 
-  const [quests, setQuests] = useState<QuestRow[]>([])
+  const [quests, setQuests] = useState<any[]>([])
   const [questAttendees, setQuestAttendees] = useState<Record<string, { username: string; avatar_url: string | null }[]>>({})
+
+  const [gems, setGems] = useState<any[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
+  const [selectedQuest, setSelectedQuest] = useState<any | null>(null)
+  const [selectedGem, setSelectedGem] = useState<any | null>(null)
+  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [showEmptyState, setShowEmptyState] = useState(true)
+  const [mapInstance, setMapInstance] = useState<any>(null)
+
+  const hasCenteredOnUserRef = useRef(false)
+
+  // Populate revealSet from Supabase database coverage rows on load
+  useEffect(() => {
+    if (coverage && coverage.length > 0) {
+      setRevealSet(coverage)
+    }
+  }, [coverage, setRevealSet])
+
+  // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
+  useEffect(() => {
+    if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded) {
+      const cell = latLngToCell(userLoc.lat, userLoc.lng, FOG_CONFIG.H3_RESOLUTION)
+      if (cell) {
+        const ringCells = gridDisk(cell, FOG_CONFIG.TORCH_RING_K)
+        const newCells = ringCells.filter(c => !revealSet.has(c))
+        
+        if (newCells.length > 0) {
+          // Instantly reveal in Zustand store for visual 60fps responsiveness
+          addRevealedCells(newCells)
+          // Persist coarse cells asynchronously in the database
+          addCoverage(newCells).catch(err => {
+            console.error('[Map] Failed to save newly explored cells:', err)
+          })
+        }
+      }
+    }
+  }, [userLoc.lat, userLoc.lng, mapLoaded, revealSet, addRevealedCells, addCoverage])
 
   useEffect(() => {
     if (quests.length === 0) return
@@ -144,40 +202,26 @@ export function MapPage() {
     return list
   }, [questAttendees])
 
-  const [gems, setGems] = useState<any[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
-  const [selectedQuest, setSelectedQuest] = useState<QuestRow | null>(null)
-  const [selectedGem, setSelectedGem] = useState<any | null>(null)
-  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d')
-  const [showEmptyState, setShowEmptyState] = useState(true)
-
-  // Retro Pixel Overlay States
-  const [pixelModeEnabled] = useState(false)
-  const [pixelSize] = useState<number>(5)
-  const [pixelPalette] = useState<'stardew' | 'sidequest'>('stardew')
-  const [pixelTime] = useState<'dawn' | 'day' | 'dusk' | 'night'>('day')
-  const [mapInstance, setMapInstance] = useState<any>(null)
-
-  const hasCenteredOnUserRef = useRef(false)
-
+  // Camera initial centering and active camera auto-centering follow mode
   useEffect(() => {
-    if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded && !hasCenteredOnUserRef.current) {
-      hasCenteredOnUserRef.current = true
-      mapRef.current?.flyTo({
-        center: [userLoc.lng, userLoc.lat],
-        zoom: 14,
-        duration: 1500
-      })
+    if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded) {
+      if (!hasCenteredOnUserRef.current) {
+        hasCenteredOnUserRef.current = true
+        mapRef.current?.flyTo({
+          center: [userLoc.lng, userLoc.lat],
+          zoom: 15,
+          duration: 1500
+        })
+      } else if (followMode) {
+        mapRef.current?.easeTo({
+          center: [userLoc.lng, userLoc.lat],
+          duration: 1000
+        })
+      }
     }
-  }, [userLoc.lat, userLoc.lng, mapLoaded])
+  }, [userLoc.lat, userLoc.lng, mapLoaded, followMode])
 
   const { activeFilters } = useMapStore()
-  const { theme } = useSettingsStore()
-
-  // Track if map style is ready to accept config properties
-  const [styleLoaded, setStyleLoaded] = useState(false)
 
   const [isSoonPanelCollapsed, setIsSoonPanelCollapsed] = useState(false)
 
@@ -217,31 +261,11 @@ export function MapPage() {
         zoom: 16,
         duration: 1500
       })
+      setFollowMode(true) // Re-enable camera follow mode on manual re-center
     }
-  }, [userLoc.lat, userLoc.lng])
-
-  const handleToggleViewMode = useCallback(() => {
-    const map = mapRef.current?.getMap()
-    if (!map) return
-
-    if (viewMode === '3d') {
-      map.easeTo({
-        pitch: 0,
-        bearing: 0,
-        duration: 1000
-      })
-      setViewMode('2d')
-    } else {
-      map.easeTo({
-        pitch: 60,
-        duration: 1000
-      })
-      setViewMode('3d')
-    }
-  }, [viewMode])
+  }, [userLoc.lat, userLoc.lng, setFollowMode])
 
   // ── Data fetching ──────────────────────────────────────────────────────────
-
   useEffect(() => {
     async function fetchData() {
       const { data: questData, error: questError } = await supabase.rpc('get_my_quests' as any, { filter_status: null })
@@ -271,75 +295,6 @@ export function MapPage() {
     fetchData()
   }, [])
 
-  // TODO: Render custom pixel-font HTML markers/labels on top of the pixel overlay instead of native Mapbox symbol layers
-  const updateLabelLayersVisibility = (map: any, hide: boolean) => {
-    if (!map) return
-    try {
-      const style = map.getStyle()
-      if (style && style.layers) {
-        for (const layer of style.layers) {
-          if (layer.type === 'symbol') {
-            map.setLayoutProperty(layer.id, 'visibility', hide ? 'none' : 'visible')
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to toggle symbol layer visibility:', e)
-    }
-  }
-
-  // Synchronize label layer visibility with the pixel overlay state
-  useEffect(() => {
-    if (mapInstance) {
-      updateLabelLayersVisibility(mapInstance, pixelModeEnabled)
-    }
-  }, [mapInstance, pixelModeEnabled])
-
-  // ── ISSUE 5 FIX: Sync filter state to Mapbox layer visibility ─────────────
-
-  useEffect(() => {
-    const map = mapRef.current?.getMap()
-    if (!map || !mapLoaded) return
-
-    const simpleLayerToggles: Array<{ filter: string; layerId: string }> = [
-      { filter: 'Quests', layerId: 'quests-layer' },
-      { filter: 'Friends', layerId: 'friends-layer' },
-    ]
-
-    simpleLayerToggles.forEach(({ filter, layerId }) => {
-      if (map.getLayer(layerId)) {
-        // If no filters active at all = show everything
-        const visible = activeFilters.length === 0 || activeFilters.includes(filter)
-        map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
-      }
-    })
-
-    if (map.getLayer('gems-layer')) {
-      const gemsVisible = activeFilters.length === 0 || activeFilters.includes('Gems')
-      map.setLayoutProperty('gems-layer', 'visibility', gemsVisible ? 'visible' : 'none')
-      map.setLayoutProperty('gems-glow', 'visibility', gemsVisible ? 'visible' : 'none')
-    }
-  }, [activeFilters, mapLoaded])
-
-  // Sine wave animation for gem glow
-  useEffect(() => {
-    let animationId: number;
-    const animate = () => {
-      const map = mapRef.current?.getMap();
-      if (map && mapLoaded && map.getLayer('gems-glow')) {
-        const time = performance.now();
-        const baseRadius = 25;
-        const radius = baseRadius + Math.sin(time / 200) * 10;
-        map.setPaintProperty('gems-glow', 'circle-radius', radius);
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => cancelAnimationFrame(animationId);
-  }, [mapLoaded]);
-
-
-
   const { data: friendshipsList = [] } = useFriends()
 
   // Helper to calculate Haversine distance in meters
@@ -355,6 +310,7 @@ export function MapPage() {
     return R * c
   }, [])
 
+  // ── Friends list filtering ───────────────────────────────────────────────
   const friendsList = useMemo(() => {
     return Array.from(friendsMap.values()).filter(f => {
       // 0. Must have valid coordinates to render on the map
@@ -388,42 +344,46 @@ export function MapPage() {
     })
   }, [friendsMap, groupMembers, hiddenGroupIds, friendshipsList, userLoc.lat, userLoc.lng, profile?.id, calculateDistance])
 
+  // Helper check: Is coordinate inside the revealed area?
+  const isRevealed = useCallback((lng: number, lat: number) => {
+    const cell = latLngToCell(lat, lng, FOG_CONFIG.H3_RESOLUTION)
+    return cell ? revealSet.has(cell) : false
+  }, [revealSet])
 
+  // Filter markers based on active filters and whether they have been revealed by the fog
+  const visibleQuests = useMemo(() => {
+    const questsVisible = activeFilters.length === 0 || activeFilters.includes('Quests')
+    if (!questsVisible) return []
+    return quests.filter(q => q.location_lng && q.location_lat && isRevealed(q.location_lng, q.location_lat))
+  }, [quests, activeFilters, isRevealed])
 
-  // ── ISSUE 4 FIX: Map click handler ────────────────────────────────────────
+  const visibleGems = useMemo(() => {
+    const gemsVisible = activeFilters.length === 0 || activeFilters.includes('Gems')
+    if (!gemsVisible) return []
+    return gems.filter(g => g.lng && g.lat && isRevealed(g.lng, g.lat))
+  }, [gems, activeFilters, isRevealed])
 
-  const handleMapClick = useCallback((event: MapLayerMouseEvent) => {
-    const features = event.features
-    if (!features || features.length === 0) {
-      setSelectedLocation(null)
-      setSelectedQuest(null)
-      setSelectedGem(null)
-      setSearchResultPin(null)
-      return
-    }
+  const visibleFriends = useMemo(() => {
+    const friendsVisible = activeFilters.length === 0 || activeFilters.includes('Friends')
+    if (!friendsVisible) return []
+    return friendsList.filter(f => f.lng && f.lat && isRevealed(f.lng, f.lat))
+  }, [friendsList, activeFilters, isRevealed])
 
-    const feature = features[0]
-    const layerId = feature.layer?.id
-
-    if (layerId === 'search-pin-layer') {
-      // already handled
-    }
+  const handleMapClick = useCallback(() => {
+    setSelectedLocation(null)
+    setSelectedQuest(null)
+    setSelectedGem(null)
+    setSearchResultPin(null)
   }, [])
 
-  const handleMapMouseEnter = useCallback(() => {
-    if (mapRef.current) {
-      mapRef.current.getCanvas().style.cursor = 'pointer'
-    }
-  }, [])
-
-  const handleMapMouseLeave = useCallback(() => {
-    if (mapRef.current) {
-      mapRef.current.getCanvas().style.cursor = ''
-    }
-  }, [])
+  // Map coordinates types safely to FogLayer
+  const fogUserLocation = useMemo(() => {
+    return (userLoc.lat !== null && userLoc.lng !== null) 
+      ? { lat: userLoc.lat, lng: userLoc.lng } 
+      : null
+  }, [userLoc.lat, userLoc.lng])
 
   // ── Derived bottom sheet state ─────────────────────────────────────────────
-
   const sheetMode = selectedLocation ? 'location' : selectedQuest ? 'quest' : selectedGem ? 'gem' : null
   const sheetData = selectedLocation ?? selectedQuest ?? selectedGem ?? null
 
@@ -549,26 +509,26 @@ export function MapPage() {
         </motion.div>
       )}
 
+      {/* Mapbox Canvas */}
       <Map
         ref={mapRef}
         initialViewState={{
           longitude: -115.1398,
           latitude: 36.1699,
           zoom: 12,
-          pitch: 0, // Top-down flat view by default
+          pitch: 0,
+          bearing: 0,
         }}
-        mapStyle={theme === 'dark' || theme === 'ember' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
+        mapStyle="mapbox://styles/gillejarde/sidequest-cozy"
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={false}
         preserveDrawingBuffer={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
-        onMove={() => {
-          const map = mapRef.current?.getMap()
-          if (map) {
-            const pitch = map.getPitch()
-            const mode = pitch < 15 ? '2d' : '3d'
-            setViewMode(mode)
+        onMoveStart={(e) => {
+          if (e.originalEvent) {
+            // Disable followMode if move was initiated by user drag interaction
+            setFollowMode(false)
           }
         }}
         onLoad={() => {
@@ -576,60 +536,21 @@ export function MapPage() {
           const map = mapRef.current?.getMap()
           if (map) {
             setMapInstance(map)
-            updateLabelLayersVisibility(map, pixelModeEnabled)
-            try {
-              map.setLayoutProperty('poi-label', 'visibility', 'none')
-              map.setLayoutProperty('transit-label', 'visibility', 'none')
-            } catch(e) {}
           }
         }}
-        onStyleData={() => {
-          const map = mapRef.current?.getMap()
-          if (map && map.isStyleLoaded() && !styleLoaded) {
-            setStyleLoaded(true)
-            setMapInstance(map)
-            updateLabelLayersVisibility(map, pixelModeEnabled)
-            try {
-              map.setLayoutProperty('poi-label', 'visibility', 'none')
-              map.setLayoutProperty('transit-label', 'visibility', 'none')
-            } catch(e) {}
-          }
-        }}
-        onMouseEnter={handleMapMouseEnter}
-        onMouseLeave={handleMapMouseLeave}
+        dragRotate={false}
+        touchPitch={false}
+        pitchWithRotate={false}
+        maxPitch={0}
+        minPitch={0}
         interactiveLayerIds={[]}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
-        {pixelModeEnabled && (
-          <PixelOverlay
-            map={mapInstance}
-            pixelSize={pixelSize}
-            palette={pixelPalette}
-            time={pixelTime}
-          />
-        )}
-
-        {/* 3D Buildings */}
-        <Layer
-          id="3d-buildings"
-          source="composite"
-          source-layer="building"
-          filter={['==', 'extrude', 'true']}
-          type="fill-extrusion"
-          minzoom={15}
-          paint={{
-            'fill-extrusion-color': theme === 'ember' ? '#29201A' : (theme === 'dark' ? '#1f2937' : '#f3f4f6'),
-            'fill-extrusion-height': ['get', 'height'],
-            'fill-extrusion-base': ['get', 'min_height'],
-            'fill-extrusion-opacity': 0.8
-          }}
-        />
-
-        {/* User Location Marker */}
+        {/* User Location Marker (styled above/on top of the fog canvas layer) */}
         {userLoc.lat !== null && userLoc.lng !== null && (
           <Marker longitude={userLoc.lng} latitude={userLoc.lat} anchor="center">
-            <div className="relative flex items-center justify-center">
+            <div className="relative flex items-center justify-center" style={{ zIndex: 10 }}>
               {/* Pulse ring */}
               <motion.div 
                 animate={{ scale: [1, 2], opacity: [0.3, 0] }}
@@ -650,8 +571,8 @@ export function MapPage() {
           </Marker>
         )}
 
-        {/* Quests Markers */}
-        {quests.map((q: any) => {
+        {/* Quests Markers (rendered ONLY in explored cells) */}
+        {visibleQuests.map((q: any) => {
           if (!q.location_lng || !q.location_lat) return null
           
           const avatars = getQuestPartyAvatars(q.id, q.creator_username, q.creator_avatar)
@@ -680,7 +601,7 @@ export function MapPage() {
                 setSelectedGem(null)
               }}
             >
-              <div className="flex flex-col items-center group cursor-pointer">
+              <div className="flex flex-col items-center group cursor-pointer" style={{ zIndex: 8 }}>
                 {/* Star Pin */}
                 <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,166,35,0.6)] border-2 border-white transition-transform group-hover:scale-110">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
@@ -710,8 +631,8 @@ export function MapPage() {
           )
         })}
 
-        {/* Gems Markers */}
-        {(activeFilters.length === 0 || activeFilters.includes('Gems')) && gems.map((g: any) => {
+        {/* Gems Markers (rendered ONLY in explored cells) */}
+        {visibleGems.map((g: any) => {
           const isPending = g.gem_status === 'pending'
           return (
             <Marker
@@ -726,36 +647,36 @@ export function MapPage() {
                 setSelectedQuest(null)
               }}
             >
-              {isPending ? (
-                /* Pending nominated gem: flashing amber warning icon */
-                <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
-                  <div className="absolute w-9 h-9 bg-amber-500 rounded-full animate-ping opacity-45" />
-                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.7)] border-2 border-amber-200 z-10 animate-pulse">
-                    <AlertCircle className="w-5 h-5 text-white stroke-[3.5]" />
-                  </div>
-                </div>
-              ) : (
-                /* Completed/Approved nominated gem: blue diamond icon */
-                <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
-                  <div className="absolute w-9 h-9 bg-blue-500 rounded-full animate-ping opacity-40" />
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.7)] border-2 border-blue-200 z-10">
-                    <Diamond className="w-4.5 h-4.5 text-white fill-white" />
-                  </div>
-                </div>
-              )}
+              <div className="relative flex items-center justify-center cursor-pointer hover:scale-110 transition-transform" style={{ zIndex: 7 }}>
+                {isPending ? (
+                  <>
+                    <div className="absolute w-9 h-9 bg-amber-500 rounded-full animate-ping opacity-45" />
+                    <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.7)] border-2 border-amber-200 z-10 animate-pulse">
+                      <AlertCircle className="w-5 h-5 text-white stroke-[3.5]" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute w-9 h-9 bg-blue-500 rounded-full animate-ping opacity-40" />
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(37,99,235,0.7)] border-2 border-blue-200 z-10">
+                      <Diamond className="w-4.5 h-4.5 text-white fill-white" />
+                    </div>
+                  </>
+                )}
+              </div>
             </Marker>
           )
         })}
 
-        {/* Friends */}
-        {(activeFilters.length === 0 || activeFilters.includes('Friends')) && friendsList.map((f) => (
+        {/* Friends Markers (rendered ONLY in explored cells) */}
+        {visibleFriends.map((f) => (
           <Marker 
             key={`friend-${f.user_id}`} 
             longitude={f.lng!} 
             latitude={f.lat!} 
             anchor="center"
           >
-            <div className="relative flex items-center justify-center group cursor-pointer">
+            <div className="relative flex items-center justify-center group cursor-pointer" style={{ zIndex: 6 }}>
               {/* Green pulsing presence ring */}
               <motion.div 
                 animate={{ scale: [1, 1.25], opacity: [0.4, 0] }}
@@ -783,60 +704,28 @@ export function MapPage() {
           </Marker>
         ))}
 
-        {/* Search Result Pin */}
+        {/* Search Result Pin Marker (rendered ABOVE the fog) */}
         {searchResultPin && (
-          <Source id="search-pin" type="geojson" data={{
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [searchResultPin.lng, searchResultPin.lat] },
-              properties: {}
-            }]
-          }}>
-            <Layer
-              id="search-pin-layer"
-              type="circle"
-              paint={{
-                'circle-radius': 10,
-                'circle-color': '#EF4444', // Google Red
-                'circle-stroke-width': 3,
-                'circle-stroke-color': '#FFFFFF',
-              }}
-            />
-          </Source>
+          <Marker longitude={searchResultPin.lng} latitude={searchResultPin.lat} anchor="center">
+            <div 
+              className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-xl flex items-center justify-center animate-bounce cursor-pointer"
+              style={{ zIndex: 9 }}
+            >
+              <div className="w-2.5 h-2.5 bg-white rounded-full" />
+            </div>
+          </Marker>
         )}
       </Map>
 
+      {/* Canvas Fog-of-War overlay */}
+      <FogLayer map={mapInstance} userLocation={fogUserLocation} />
+
       {/* Breathing vignette overlay */}
       <motion.div
-        className="pointer-events-none absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] z-0"
+        className="pointer-events-none absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] z-[2]"
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
-
-      {/* 2D/3D View toggle floating button */}
-      <motion.button
-        type="button"
-        onClick={handleToggleViewMode}
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ 
-          scale: 1, 
-          opacity: 1
-        }}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.92 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="absolute right-4 bottom-44 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900"
-        style={{ zIndex: Z_INDEX.map_ui }}
-        title={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
-      >
-        {viewMode === '3d' ? (
-          <MapIcon className="w-5 h-5 text-primary" />
-        ) : (
-          <Layers className="w-5 h-5 text-primary" />
-        )}
-      </motion.button>
-
 
       {/* Re-center floating button */}
       <motion.button
@@ -861,7 +750,7 @@ export function MapPage() {
         />
       </motion.button>
 
-      {/* Empty state */}
+      {/* Empty state overlay */}
       {quests.length === 0 && gems.length === 0 && showEmptyState && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -883,9 +772,7 @@ export function MapPage() {
         </motion.div>
       )}
 
-
-
-      {/* ISSUE 4 FIX: BottomSheet with real action handler */}
+      {/* Bottom Sheet details */}
       <BottomSheet
         mode={sheetMode}
         data={sheetData}
@@ -893,8 +780,6 @@ export function MapPage() {
           setSelectedLocation(null)
           setSelectedQuest(null)
           setSelectedGem(null)
-          // Also clear the search pin if they dismiss the bottom sheet,
-          // so it doesn't leave a dead pin on the map.
           if (searchResultPin) {
             setSearchResultPin(null)
           }
@@ -908,7 +793,7 @@ export function MapPage() {
                 lng: selectedLocation.lng,
                 name: selectedLocation.name,
                 category: selectedLocation.category,
-                place_id: selectedLocation.id, // we saved place_id in selectedLocation.id for search results
+                place_id: selectedLocation.id,
               } as any,
             })
           } else if (selectedQuest) {

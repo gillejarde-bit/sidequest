@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
 import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart, Check, Plus } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
-import { useSettingsStore } from '../../stores/settingsStore'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
 import { RSVPButton } from '../../components/quest/RSVPButton'
 import { CheckInButton } from '../../components/quest/CheckInButton'
@@ -27,7 +26,6 @@ const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
 export function QuestDetail() {
   const { id } = useParams({ from: '/quest/$id' })
   const { profile } = useAuthStore()
-  const { theme } = useSettingsStore()
   const { data, isLoading, refetch } = useQuestDetail(id)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [placeDetails, setPlaceDetails] = useState<any>(null)
@@ -255,7 +253,9 @@ export function QuestDetail() {
                   latitude: location.lat,
                   zoom: 15
                 }}
-                mapStyle={theme === 'dark' || theme === 'ember' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
+                mapStyle="mapbox://styles/gillejarde/sidequest-cozy"
+                pitch={0}
+                bearing={0}
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
                 interactive={false}
                 onLoad={(e) => {
