@@ -151,20 +151,6 @@
       }
     },
     {
-      "id": "contour",
-      "type": "line",
-      "source": "composite",
-      "source-layer": "contour",
-      "filter": ["!=", ["get", "index"], -1],
-      "minzoom": 11,
-      "layout": { "line-join": "round" },
-      "paint": {
-        "line-color": "#C9A06A",
-        "line-width": ["match", ["get", "index"], [5, 10], 1, 0.5],
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 13, 0.3]
-      }
-    },
-    {
       "id": "building",
       "type": "fill",
       "source": "composite",

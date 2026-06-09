@@ -97,7 +97,6 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   // Offscreen pre-rendered components
   const smokeTextureCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const cachedMaskCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const cachedFogCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const emberSpriteCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Caching coordinates & values to scale cached blurred bitmap on pan/zoom
@@ -114,8 +113,6 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   // Embers and visibility state
   const embersRef = useRef<EmberParticle[]>([])
   const isVisibleRef = useRef<boolean>(true)
-  const isMapMovingRef = useRef<boolean>(false)
-  const cachedFrontierEdgesRef = useRef<string[]>([])
 
   // Keep latest parameters in refs to avoid re-initializing the rendering loop
   const userLocationRef = useRef(userLocation)
@@ -184,7 +181,6 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   useEffect(() => {
     smokeTextureCanvasRef.current = document.createElement('canvas')
     cachedMaskCanvasRef.current = document.createElement('canvas')
-    cachedFogCanvasRef.current = document.createElement('canvas')
     buildEmberSprite()
     rebuildSmokeTexture()
   }, [])
@@ -258,7 +254,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       initEmbers(width, height)
     }
 
-    // 1) Rebuild fog cache if it was invalidated (e.g. revealSet changed or move ended)
+    // 1) Rebuild fog mask cache if it was invalidated (e.g. revealSet changed or move ended)
     if (needsReblurRef.current) {
       rebuildFogCache(width, height)
       needsReblurRef.current = false
@@ -267,9 +263,29 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     // 2) Clear screen
     ctx.clearRect(0, 0, width, height)
 
-    // 3) Draw transformed cached fog canvas (includes smoke + carved holes + keyline)
-    const cachedFog = cachedFogCanvasRef.current
-    if (cachedFog && cachedCenterRef.current) {
+    // 3) Draw drifting textured smoke over the ENTIRE canvas
+    const textCanvas = smokeTextureCanvasRef.current
+    if (textCanvas) {
+      const pattern = ctx.createPattern(textCanvas, 'repeat')
+      if (pattern) {
+        ctx.save()
+        ctx.translate(smokeOffsetXRef.current, smokeOffsetYRef.current)
+        ctx.fillStyle = pattern
+        ctx.fillRect(-smokeOffsetXRef.current, -smokeOffsetYRef.current, width + 512, height + 512)
+        ctx.restore()
+      } else {
+        ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+        ctx.fillRect(0, 0, width, height)
+      }
+    } else {
+      ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    // 4) Composite Mask (carves explored holes out of the smoke)
+    ctx.globalCompositeOperation = 'destination-out'
+    const cachedMask = cachedMaskCanvasRef.current
+    if (cachedMask && cachedCenterRef.current) {
       const marginPct = 0.3
       const cWidth = width * (1 + 2 * marginPct)
       const cHeight = height * (1 + 2 * marginPct)
@@ -283,13 +299,79 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       const cx = currentPos.x - (cWidth / 2) * scale
       const cy = currentPos.y - (cHeight / 2) * scale
 
-      ctx.drawImage(cachedFog, cx, cy, cw, ch)
-    } else {
-      ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-      ctx.fillRect(0, 0, width, height)
+      ctx.drawImage(cachedMask, cx, cy, cw, ch)
+    }
+    ctx.globalCompositeOperation = 'source-over'
+
+    // 5) Draw the Die-Cut Crisp Keyline in real-time (frontier only, stays crisp on zoom)
+    const bounds = map.getBounds()
+    if (bounds) {
+      const north = bounds.getNorth()
+      const south = bounds.getSouth()
+      const east = bounds.getEast()
+      const west = bounds.getWest()
+      const latMargin = (north - south) * 0.15
+      const lngMargin = (east - west) * 0.15
+
+      const polygon = [
+        [
+          [north + latMargin, west - lngMargin],
+          [north + latMargin, east + lngMargin],
+          [south - latMargin, east + lngMargin],
+          [south - latMargin, west - lngMargin],
+          [north + latMargin, west - lngMargin]
+        ]
+      ]
+
+      let viewportCells: string[] = []
+      try {
+        viewportCells = polygonToCells(polygon, FOG_CONFIG.H3_RESOLUTION)
+      } catch (e) {}
+
+      const currentRevealSet = revealSetRef.current
+      const frontierEdges = getFrontierEdges(viewportCells, currentRevealSet)
+      if (frontierEdges.length > 0) {
+        const zoom = map.getZoom()
+        const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
+        const creamWidth = 1.6 * zoomScale
+        const underlineWidth = 3.0 * zoomScale
+
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+
+        // Pass 1: Dark underline
+        ctx.strokeStyle = '#241608'
+        ctx.lineWidth = underlineWidth
+        ctx.beginPath()
+        frontierEdges.forEach(edge => {
+          const boundary = directedEdgeToBoundary(edge, true)
+          if (boundary.length >= 2) {
+            const px0 = map.project([boundary[0][0], boundary[0][1]])
+            const px1 = map.project([boundary[1][0], boundary[1][1]])
+            ctx.moveTo(px0.x, px0.y)
+            ctx.lineTo(px1.x, px1.y)
+          }
+        })
+        ctx.stroke()
+
+        // Pass 2: Cream line
+        ctx.strokeStyle = '#F6EAD4'
+        ctx.lineWidth = creamWidth
+        ctx.beginPath()
+        frontierEdges.forEach(edge => {
+          const boundary = directedEdgeToBoundary(edge, true)
+          if (boundary.length >= 2) {
+            const px0 = map.project([boundary[0][0], boundary[0][1]])
+            const px1 = map.project([boundary[1][0], boundary[1][1]])
+            ctx.moveTo(px0.x, px0.y)
+            ctx.lineTo(px1.x, px1.y)
+          }
+        })
+        ctx.stroke()
+      }
     }
 
-    // 4) Draw Warm Additive Torchlight Glow (around the user)
+    // 6) Draw Warm Additive Torchlight Glow (around the user)
     const userLoc = userLocationRef.current
     if (userLoc && userLoc.lat !== null && userLoc.lng !== null) {
       const userPx = map.project([userLoc.lng, userLoc.lat])
@@ -314,7 +396,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       ctx.globalCompositeOperation = 'source-over'
     }
 
-    // 5) Draw drifting embers
+    // 7) Draw drifting embers
     const emberSprite = emberSpriteCanvasRef.current
     if (emberSprite && embersRef.current.length > 0) {
       ctx.save()
@@ -348,14 +430,13 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
   return frontier
 }
 
-  // Re-build mask and fog cache by rendering viewport cells on offscreen canvas and applying subtractive carve-out and keyline drawing
+  // Re-build mask cache by rendering viewport cells on offscreen canvas and applying Gaussian blur ONCE
   const rebuildFogCache = (width: number, height: number) => {
     if (!map) return
     const maskCanvas = cachedMaskCanvasRef.current
-    const fogCanvas = cachedFogCanvasRef.current
-    if (!maskCanvas || !fogCanvas) return
+    if (!maskCanvas) return
 
-    // 1. Calculate cache dimensions with 30% margin on all sides (total size 1.6x screen)
+    // Calculate cache dimensions with 30% margin on all sides (total size 1.6x screen)
     const marginPct = 0.3
     const cWidth = Math.round(width * (1 + 2 * marginPct))
     const cHeight = Math.round(height * (1 + 2 * marginPct))
@@ -364,17 +445,14 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
 
     maskCanvas.width = cWidth
     maskCanvas.height = cHeight
-    fogCanvas.width = cWidth
-    fogCanvas.height = cHeight
 
     const mctx = maskCanvas.getContext('2d')
-    const fctx = fogCanvas.getContext('2d')
-    if (!mctx || !fctx) return
+    if (!mctx) return
 
     cachedCenterRef.current = map.getCenter()
     cachedZoomRef.current = map.getZoom()
 
-    // 2. Build the REVEALED mask offscreen (transparent base)
+    // Build the REVEALED mask offscreen (transparent base)
     // Explored holes are drawn as white (alpha=1), unexplored remains transparent (alpha=0)
     const tempCanvas = document.createElement('canvas')
     tempCanvas.width = cWidth
@@ -450,7 +528,7 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
       }
     })
 
-    // 3. Apply Gaussian blur to the revealed mask onto maskCanvas
+    // Apply Gaussian blur to the revealed mask onto maskCanvas
     mctx.clearRect(0, 0, cWidth, cHeight)
     const blurPx = Math.max(8.0, metersToPixels(FOG_CONFIG.BLUR_RADIUS_METERS, map))
     const finalBlurPx = Math.min(64.0, blurPx)
@@ -458,178 +536,21 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     mctx.filter = `blur(${finalBlurPx}px)`
     mctx.drawImage(tempCanvas, 0, 0)
     mctx.filter = 'none'
-
-    // 4. Fill the fogCanvas with deep smoke texture
-    fctx.clearRect(0, 0, cWidth, cHeight)
-    const textCanvas = smokeTextureCanvasRef.current
-    if (textCanvas) {
-      const pattern = fctx.createPattern(textCanvas, 'repeat')
-      if (pattern) {
-        fctx.fillStyle = pattern
-        fctx.fillRect(0, 0, cWidth, cHeight)
-      } else {
-        fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-        fctx.fillRect(0, 0, cWidth, cHeight)
-      }
-    } else {
-      fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-      fctx.fillRect(0, 0, cWidth, cHeight)
-    }
-
-    // 5. Carve explored holes using destination-out with the blurred mask
-    fctx.globalCompositeOperation = 'destination-out'
-    fctx.drawImage(maskCanvas, 0, 0)
-    fctx.globalCompositeOperation = 'source-over'
-
-    // 6. Draw the Die-Cut Crisp Keyline around the frontier edges
-    const frontierEdges = getFrontierEdges(viewportCells, currentRevealSet)
-    if (frontierEdges.length > 0) {
-      const zoom = map.getZoom()
-      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
-      const creamWidth = 1.6 * zoomScale
-      const underlineWidth = 3.0 * zoomScale
-
-      fctx.lineCap = 'round'
-      fctx.lineJoin = 'round'
-
-      // Pass 1: Dark underline
-      fctx.strokeStyle = '#241608'
-      fctx.lineWidth = underlineWidth
-      fctx.beginPath()
-      frontierEdges.forEach(edge => {
-        const boundary = directedEdgeToBoundary(edge, true)
-        if (boundary.length >= 2) {
-          const px0 = map.project([boundary[0][0], boundary[0][1]])
-          const px1 = map.project([boundary[1][0], boundary[1][1]])
-          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
-          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
-        }
-      })
-      fctx.stroke()
-
-      // Pass 2: Cream line
-      fctx.strokeStyle = '#F6EAD4'
-      fctx.lineWidth = creamWidth
-      fctx.beginPath()
-      frontierEdges.forEach(edge => {
-        const boundary = directedEdgeToBoundary(edge, true)
-        if (boundary.length >= 2) {
-          const px0 = map.project([boundary[0][0], boundary[0][1]])
-          const px1 = map.project([boundary[1][0], boundary[1][1]])
-          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
-          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
-        }
-      })
-      fctx.stroke()
-    }
-  }
-
-  // Helper to redraw smoke and mask on cached canvas during idle state
-  const updateDriftingSmokeOnCache = () => {
-    if (!map) return
-    const fogCanvas = cachedFogCanvasRef.current
-    const maskCanvas = cachedMaskCanvasRef.current
-    if (!fogCanvas || !maskCanvas) return
-
-    const fctx = fogCanvas.getContext('2d')
-    if (!fctx) return
-
-    const cWidth = fogCanvas.width
-    const cHeight = fogCanvas.height
-    const width = canvasRef.current?.width || 0
-    const height = canvasRef.current?.height || 0
-    const marginPct = 0.3
-    const xOffset = width * marginPct
-    const yOffset = height * marginPct
-
-    fctx.clearRect(0, 0, cWidth, cHeight)
-
-    // 1. Fill fogCanvas with smoke pattern translated by smokeOffsetX/smokeOffsetY
-    const textCanvas = smokeTextureCanvasRef.current
-    if (textCanvas) {
-      const pattern = fctx.createPattern(textCanvas, 'repeat')
-      if (pattern) {
-        fctx.save()
-        fctx.translate(smokeOffsetXRef.current, smokeOffsetYRef.current)
-        fctx.fillStyle = pattern
-        fctx.fillRect(-smokeOffsetXRef.current, -smokeOffsetYRef.current, cWidth + 512, cHeight + 512)
-        fctx.restore()
-      } else {
-        fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-        fctx.fillRect(0, 0, cWidth, cHeight)
-      }
-    } else {
-      fctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
-      fctx.fillRect(0, 0, cWidth, cHeight)
-    }
-
-    // 2. Carve explored holes using destination-out with the mask
-    fctx.globalCompositeOperation = 'destination-out'
-    fctx.drawImage(maskCanvas, 0, 0)
-    fctx.globalCompositeOperation = 'source-over'
-
-    // 3. Draw the crisp keyline
-    const frontierEdges = cachedFrontierEdgesRef.current
-    if (frontierEdges.length > 0) {
-      const zoom = map.getZoom()
-      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
-      const creamWidth = 1.6 * zoomScale
-      const underlineWidth = 3.0 * zoomScale
-
-      fctx.lineCap = 'round'
-      fctx.lineJoin = 'round'
-
-      // Pass 1: Dark underline
-      fctx.strokeStyle = '#241608'
-      fctx.lineWidth = underlineWidth
-      fctx.beginPath()
-      frontierEdges.forEach(edge => {
-        const boundary = directedEdgeToBoundary(edge, true)
-        if (boundary.length >= 2) {
-          const px0 = map.project([boundary[0][0], boundary[0][1]])
-          const px1 = map.project([boundary[1][0], boundary[1][1]])
-          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
-          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
-        }
-      })
-      fctx.stroke()
-
-      // Pass 2: Cream line
-      fctx.strokeStyle = '#F6EAD4'
-      fctx.lineWidth = creamWidth
-      fctx.beginPath()
-      frontierEdges.forEach(edge => {
-        const boundary = directedEdgeToBoundary(edge, true)
-        if (boundary.length >= 2) {
-          const px0 = map.project([boundary[0][0], boundary[0][1]])
-          const px1 = map.project([boundary[1][0], boundary[1][1]])
-          fctx.moveTo(px0.x + xOffset, px0.y + yOffset)
-          fctx.lineTo(px1.x + xOffset, px1.y + yOffset)
-        }
-      })
-      fctx.stroke()
-    }
   }
 
   // Register Mapbox movement listeners to trigger redrawing and cache invalidation
   useEffect(() => {
     if (!map) return
 
-    const onMoveStart = () => {
-      isMapMovingRef.current = true
-    }
-
     const onMove = () => {
       drawEverything()
     }
 
     const onMoveEnd = () => {
-      isMapMovingRef.current = false
       needsReblurRef.current = true
       drawEverything()
     }
 
-    map.on('movestart', onMoveStart)
     map.on('move', onMove)
     map.on('moveend', onMoveEnd)
     map.on('zoom', onMove)
@@ -640,7 +561,6 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     drawEverything()
 
     return () => {
-      map.off('movestart', onMoveStart)
       map.off('move', onMove)
       map.off('moveend', onMoveEnd)
       map.off('zoom', onMove)
@@ -683,12 +603,10 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
           }
         }
 
-        // 2. Update smoke drift on the cached fog canvas ONLY if map is not moving
-        if (!reducedMotionRef.current && !isMapMovingRef.current) {
+        // 2. Update smoke drift offsets
+        if (!reducedMotionRef.current) {
           smokeOffsetXRef.current = (smokeOffsetXRef.current + 0.012 * delta) % 512
           smokeOffsetYRef.current = (smokeOffsetYRef.current + 0.006 * delta) % 512
-          
-          updateDriftingSmokeOnCache()
           needsDraw = true
         }
 
