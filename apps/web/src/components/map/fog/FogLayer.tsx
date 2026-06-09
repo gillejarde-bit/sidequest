@@ -256,8 +256,16 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
 
     // 1) Rebuild fog mask cache if it was invalidated (e.g. revealSet changed or move ended)
     if (needsReblurRef.current) {
-      rebuildFogCache(width, height)
-      needsReblurRef.current = false
+      const success = rebuildFogCache(width, height)
+      if (success) {
+        needsReblurRef.current = false
+      }
+    }
+
+    // 1b) Only draw the fog overlay if we have a valid cache and center
+    const cachedMask = cachedMaskCanvasRef.current
+    if (!cachedMask || !cachedCenterRef.current) {
+      return
     }
 
     // 2) Clear screen
@@ -284,7 +292,6 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
 
     // 4) Composite Mask (carves explored holes out of the smoke)
     ctx.globalCompositeOperation = 'destination-out'
-    const cachedMask = cachedMaskCanvasRef.current
     if (cachedMask && cachedCenterRef.current) {
       const marginPct = 0.3
       const cWidth = width * (1 + 2 * marginPct)
@@ -431,10 +438,10 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
 }
 
   // Re-build mask cache by rendering viewport cells on offscreen canvas and applying Gaussian blur ONCE
-  const rebuildFogCache = (width: number, height: number) => {
-    if (!map) return
+  const rebuildFogCache = (width: number, height: number): boolean => {
+    if (!map) return false
     const maskCanvas = cachedMaskCanvasRef.current
-    if (!maskCanvas) return
+    if (!maskCanvas) return false
 
     // Calculate cache dimensions with 30% margin on all sides (total size 1.6x screen)
     const marginPct = 0.3
@@ -447,7 +454,7 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     maskCanvas.height = cHeight
 
     const mctx = maskCanvas.getContext('2d')
-    if (!mctx) return
+    if (!mctx) return false
 
     cachedCenterRef.current = map.getCenter()
     cachedZoomRef.current = map.getZoom()
@@ -458,14 +465,14 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     tempCanvas.width = cWidth
     tempCanvas.height = cHeight
     const tctx = tempCanvas.getContext('2d')
-    if (!tctx) return
+    if (!tctx) return false
 
     tctx.clearRect(0, 0, cWidth, cHeight)
     tctx.fillStyle = '#FFFFFF'
 
     // Get bounds with expanded margins to cover the 30% cache boundary
     const bounds = map.getBounds()
-    if (!bounds) return
+    if (!bounds) return false
     const north = bounds.getNorth()
     const south = bounds.getSouth()
     const east = bounds.getEast()
@@ -536,6 +543,7 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     mctx.filter = `blur(${finalBlurPx}px)`
     mctx.drawImage(tempCanvas, 0, 0)
     mctx.filter = 'none'
+    return true
   }
 
   // Register Mapbox movement listeners to trigger redrawing and cache invalidation
@@ -543,6 +551,10 @@ const getFrontierEdges = (viewportCells: string[], currentRevealSet: Set<string>
     if (!map) return
 
     const onMove = () => {
+      const currentZoom = map.getZoom()
+      if (Math.abs(currentZoom - cachedZoomRef.current) > 0.3) {
+        needsReblurRef.current = true
+      }
       drawEverything()
     }
 
