@@ -47,6 +47,11 @@
   display: none !important;
 }
 
+.mapboxgl-ctrl-bottom-right {
+  bottom: 170px !important;
+  right: 16px !important;
+}
+
 .mapboxgl-canvas {
   filter: sepia(0.35) saturate(0.85) hue-rotate(345deg) brightness(0.9) contrast(1.05) !important;
 }

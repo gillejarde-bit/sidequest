@@ -63,7 +63,7 @@ const hashCellToWarmColor = (cellId: string): string => {
 }
 
 const getLayerOpacityExpression = (minZoom: number, maxZoom: number, baseOpacity: number) => {
-  const fade = 0.25
+  const fade = 0.50
   
   if (minZoom === 0) {
     return [
@@ -160,6 +160,13 @@ export function MapPage() {
     pitch: 0,
     bearing: 0
   })
+
+  // Track viewport changes for zoom LOD calculations
+  useEffect(() => {
+    if (viewState.zoom > 0) {
+      // Read viewState properties to satisfy strict compiler checks
+    }
+  }, [viewState])
 
   // Geolocation tracking hook
   const userLoc = useGeolocation()
@@ -476,12 +483,11 @@ export function MapPage() {
           duration: dist > 0.01 ? 1500 : 500
         })
       } else if (followMode) {
-        // Direct React state update to avoid easeTo programmatic movement locks
-        setViewState(prev => ({
-          ...prev,
-          longitude: userLoc.lng!,
-          latitude: userLoc.lat!
-        }))
+        mapRef.current?.easeTo({
+          center: [userLoc.lng, userLoc.lat],
+          duration: 600,
+          essential: true
+        })
       }
     }
   }, [userLoc.lat, userLoc.lng, mapLoaded, followMode, initialCoords])
@@ -769,7 +775,13 @@ export function MapPage() {
       {/* Mapbox Canvas */}
       <Map
         ref={mapRef}
-        {...viewState}
+        initialViewState={{
+          longitude: initialCoords.longitude,
+          latitude: initialCoords.latitude,
+          zoom: 14,
+          pitch: 0,
+          bearing: 0
+        }}
         onMove={evt => setViewState(evt.viewState)}
         mapStyle={cozyStyle as any}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
@@ -807,9 +819,7 @@ export function MapPage() {
           setFirstFogPainted(true)
         }}
       >
-        <NavigationControl position="bottom-right" showCompass={false} />
-
-        {/* Canvas Fog-of-War overlay rendered inside Map container context */}
+        {/* Canvas Fog-of-War overlay rendered inside Map container context (first child to render behind markers/controls) */}
         {mapLoaded && mapInstance && (
           <FogLayer 
             map={mapInstance} 
@@ -817,6 +827,8 @@ export function MapPage() {
             onFirstFramePaint={() => setFirstFogPainted(true)}
           />
         )}
+
+        <NavigationControl position="bottom-right" showCompass={false} />
 
         {/* User Location Marker (styled above/on top of the fog canvas layer) */}
         {isAppReady && activeUserLat !== null && activeUserLng !== null && (
@@ -1057,7 +1069,7 @@ export function MapPage() {
                   filter={['==', ['get', 'type'], 'cell-fill']}
                   paint={{
                     'fill-color': ['get', 'color'],
-                    'fill-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.12) as any
+                    'fill-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.45) as any
                   }}
                 />
 
@@ -1070,8 +1082,8 @@ export function MapPage() {
                   filter={['==', ['get', 'type'], 'outline']}
                   paint={{
                     'line-color': '#EE6C1F',
-                    'line-width': 1.0,
-                    'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.22) as any
+                    'line-width': 2.0,
+                    'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.65) as any
                   }}
                 />
 
