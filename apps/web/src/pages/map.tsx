@@ -715,16 +715,20 @@ export function MapPage() {
         }}
         mapStyle={cozyStyle as any}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-        minZoom={11.5}
         antialias={false}
         preserveDrawingBuffer={true}
         style={{ width: '100%', height: '100%' }}
         onClick={handleMapClick}
         onMoveStart={(e) => {
           if (e.originalEvent) {
-            // Disable followMode if move was initiated by user drag interaction
             setFollowMode(false)
           }
+        }}
+        onDragStart={() => {
+          setFollowMode(false)
+        }}
+        onZoomStart={() => {
+          setFollowMode(false)
         }}
         onLoad={() => {
           setMapLoaded(true)
@@ -732,8 +736,6 @@ export function MapPage() {
           if (map) {
             setMapInstance(map)
             map.resize()
-            // Set scroll zoom rate to make zooming smoother and slower
-            map.scrollZoom.setWheelZoomRate(1 / 2000)
           }
         }}
         onError={(e) => console.error('MAPBOX ERROR:', e.error)}
