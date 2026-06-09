@@ -606,30 +606,24 @@ export function MapPage() {
     })
   }, [friendsMap, groupMembers, hiddenGroupIds, friendshipsList, userLoc.lat, userLoc.lng, profile?.id, calculateDistance])
 
-  // Helper check: Is coordinate inside the revealed area?
-  const isRevealed = useCallback((lng: number, lat: number) => {
-    const cell = latLngToCell(lat, lng, FOG_CONFIG.H3_RESOLUTION)
-    return cell ? revealSet.has(cell) : false
-  }, [revealSet])
-
-  // Filter markers based on active filters and whether they have been revealed by the fog
+  // Filter markers based on active filters (rendered even if inside unexplored/foggy areas)
   const visibleQuests = useMemo(() => {
     const questsVisible = activeFilters.length === 0 || activeFilters.includes('Quests')
     if (!questsVisible) return []
-    return quests.filter(q => q.location_lng && q.location_lat && isRevealed(q.location_lng, q.location_lat))
-  }, [quests, activeFilters, isRevealed])
+    return quests.filter(q => q.location_lng && q.location_lat)
+  }, [quests, activeFilters])
 
   const visibleGems = useMemo(() => {
     const gemsVisible = activeFilters.length === 0 || activeFilters.includes('Gems')
     if (!gemsVisible) return []
-    return gems.filter(g => g.lng && g.lat && isRevealed(g.lng, g.lat))
-  }, [gems, activeFilters, isRevealed])
+    return gems.filter(g => g.lng && g.lat)
+  }, [gems, activeFilters])
 
   const visibleFriends = useMemo(() => {
     const friendsVisible = activeFilters.length === 0 || activeFilters.includes('Friends')
     if (!friendsVisible) return []
-    return friendsList.filter(f => f.lng && f.lat && isRevealed(f.lng, f.lat))
-  }, [friendsList, activeFilters, isRevealed])
+    return friendsList.filter(f => f.lng && f.lat)
+  }, [friendsList, activeFilters])
 
   const handleMapClick = useCallback(() => {
     setSelectedLocation(null)
