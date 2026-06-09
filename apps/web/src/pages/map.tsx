@@ -153,8 +153,18 @@ export function MapPage() {
 
   const initialCoords = useMemo(() => getLastKnownLocation(), [])
 
+  const [viewState, setViewState] = useState({
+    longitude: initialCoords.longitude,
+    latitude: initialCoords.latitude,
+    zoom: 14,
+    pitch: 0,
+    bearing: 0
+  })
+
   // Geolocation tracking hook
   const userLoc = useGeolocation()
+  const activeUserLat = userLoc.lat !== null ? userLoc.lat : initialCoords.latitude
+  const activeUserLng = userLoc.lng !== null ? userLoc.lng : initialCoords.longitude
   
   // Friend presence hook
   const friendsMap = useFriendPresence({
@@ -456,29 +466,22 @@ export function MapPage() {
     if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded) {
       if (!hasCenteredOnUserRef.current) {
         hasCenteredOnUserRef.current = true
-        // If we are far from the initialCoords, flyTo. Otherwise, easeTo.
         const dist = Math.sqrt(
           Math.pow(userLoc.lng - initialCoords.longitude, 2) + 
           Math.pow(userLoc.lat - initialCoords.latitude, 2)
         )
-        if (dist > 0.01) { // ~1km
-          mapRef.current?.flyTo({
-            center: [userLoc.lng, userLoc.lat],
-            zoom: 15,
-            duration: 1500
-          })
-        } else {
-          mapRef.current?.easeTo({
-            center: [userLoc.lng, userLoc.lat],
-            zoom: 15,
-            duration: 500
-          })
-        }
-      } else if (followMode) {
-        mapRef.current?.easeTo({
+        mapRef.current?.flyTo({
           center: [userLoc.lng, userLoc.lat],
-          duration: 1000
+          zoom: 15,
+          duration: dist > 0.01 ? 1500 : 500
         })
+      } else if (followMode) {
+        // Direct React state update to avoid easeTo programmatic movement locks
+        setViewState(prev => ({
+          ...prev,
+          longitude: userLoc.lng!,
+          latitude: userLoc.lat!
+        }))
       }
     }
   }, [userLoc.lat, userLoc.lng, mapLoaded, followMode, initialCoords])
@@ -517,15 +520,13 @@ export function MapPage() {
   }
 
   const handleRecenter = useCallback(() => {
-    if (userLoc.lat !== null && userLoc.lng !== null) {
-      mapRef.current?.flyTo({
-        center: [userLoc.lng, userLoc.lat],
-        zoom: 16,
-        duration: 1500
-      })
-      setFollowMode(true) // Re-enable camera follow mode on manual re-center
-    }
-  }, [userLoc.lat, userLoc.lng, setFollowMode])
+    setFollowMode(true)
+    mapRef.current?.flyTo({
+      center: [activeUserLng, activeUserLat],
+      zoom: 16,
+      duration: 1500
+    })
+  }, [activeUserLng, activeUserLat, setFollowMode])
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -632,8 +633,7 @@ export function MapPage() {
     setSearchResultPin(null)
   }, [])
 
-  const activeUserLat = userLoc.lat !== null ? userLoc.lat : initialCoords.latitude
-  const activeUserLng = userLoc.lng !== null ? userLoc.lng : initialCoords.longitude
+
 
   // Map coordinates types safely to FogLayer
   const fogUserLocation = useMemo(() => {
@@ -769,13 +769,8 @@ export function MapPage() {
       {/* Mapbox Canvas */}
       <Map
         ref={mapRef}
-        initialViewState={{
-          longitude: initialCoords.longitude,
-          latitude: initialCoords.latitude,
-          zoom: 14,
-          pitch: 0,
-          bearing: 0,
-        }}
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
         mapStyle={cozyStyle as any}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={false}
@@ -813,6 +808,15 @@ export function MapPage() {
         }}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
+
+        {/* Canvas Fog-of-War overlay rendered inside Map container context */}
+        {mapLoaded && mapInstance && (
+          <FogLayer 
+            map={mapInstance} 
+            userLocation={fogUserLocation} 
+            onFirstFramePaint={() => setFirstFogPainted(true)}
+          />
+        )}
 
         {/* User Location Marker (styled above/on top of the fog canvas layer) */}
         {isAppReady && activeUserLat !== null && activeUserLng !== null && (
@@ -1005,16 +1009,16 @@ export function MapPage() {
           let maxZoom = 24
 
           if (res === 10) {
-            minZoom = 14.5
+            minZoom = 13.0
           } else if (res === 8) {
-            minZoom = 11.5
-            maxZoom = 14.5
+            minZoom = 10.5
+            maxZoom = 13.0
           } else if (res === 6) {
-            minZoom = 8.5
-            maxZoom = 11.5
+            minZoom = 8.0
+            maxZoom = 10.5
           } else if (res === 4) {
             minZoom = 5.5
-            maxZoom = 8.5
+            maxZoom = 8.0
           } else if (res === 2) {
             minZoom = 3.5
             maxZoom = 5.5
@@ -1104,13 +1108,6 @@ export function MapPage() {
           )
         })}
       </Map>
-
-      {/* Canvas Fog-of-War overlay */}
-      <FogLayer 
-        map={mapInstance} 
-        userLocation={fogUserLocation} 
-        onFirstFramePaint={() => setFirstFogPainted(true)}
-      />
 
       {/* Breathing vignette overlay */}
       <motion.div
