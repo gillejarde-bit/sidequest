@@ -51,6 +51,59 @@ const cellsToMultiPolygon = (cells: string[], formatAsGeoJson: boolean): number[
   return h3.cellsToMultiPolygon(cells, formatAsGeoJson)
 }
 
+const hashCellToWarmColor = (cellId: string): string => {
+  let hash = 0
+  for (let i = 0; i < cellId.length; i++) {
+    hash = cellId.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const h = 15 + Math.abs(hash % 30) // Hues 15 to 45 (warm golden/orange/amber tones)
+  const s = 60 + Math.abs((hash >> 8) % 15) // Saturation 60% to 75%
+  const l = 42 + Math.abs((hash >> 16) % 12) // Lightness 42% to 54%
+  return `hsl(${h}, ${s}%, ${l}%)`
+}
+
+const getLayerOpacityExpression = (minZoom: number, maxZoom: number, baseOpacity: number) => {
+  const fade = 0.25
+  
+  if (minZoom === 0) {
+    return [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      maxZoom - fade,
+      baseOpacity,
+      maxZoom + fade,
+      0
+    ]
+  }
+  
+  if (maxZoom === 24) {
+    return [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      minZoom - fade,
+      0,
+      minZoom + fade,
+      baseOpacity
+    ]
+  }
+  
+  return [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    minZoom - fade,
+    0,
+    minZoom + fade,
+    baseOpacity,
+    maxZoom - fade,
+    baseOpacity,
+    maxZoom + fade,
+    0
+  ]
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SelectedLocation {
   id: string
@@ -244,14 +297,16 @@ export function MapPage() {
         // Build outlines and frontier lines
         const features: any[] = []
 
-        // Explored hex cell outlines (only at resolutions 10, 8, 6)
-        if (res >= 6) {
+        // Explored hex cell outlines and fills (at all resolutions)
+        if (res >= 1) {
           cellsArray.forEach(cell => {
             try {
               const boundary = cellToBoundary(cell, true)
               if (boundary.length > 0) {
                 const closed = [...boundary]
                 closed.push(closed[0])
+                
+                // Add outline
                 features.push({
                   type: 'Feature',
                   geometry: {
@@ -259,6 +314,20 @@ export function MapPage() {
                     coordinates: closed
                   },
                   properties: { type: 'outline' }
+                })
+
+                // Add fill
+                const color = hashCellToWarmColor(cell)
+                features.push({
+                  type: 'Feature',
+                  geometry: {
+                    type: 'Polygon',
+                    coordinates: [closed]
+                  },
+                  properties: { 
+                    type: 'cell-fill',
+                    color: color
+                  }
                 })
               }
             } catch (e) {}
@@ -959,6 +1028,10 @@ export function MapPage() {
             maxZoom = 3.5
           }
 
+          // Extended bounds for smooth crossfade overlap
+          const layerMinZoom = minZoom === 0 ? 0 : minZoom - 0.5
+          const layerMaxZoom = maxZoom === 24 ? 24 : maxZoom + 0.5
+
           return (
             <React.Fragment key={`fog-res-${res}`}>
               {/* Fog Fill Layer (World Polygon minus explored holes) */}
@@ -966,59 +1039,70 @@ export function MapPage() {
                 <Layer
                   id={`fog-fill-layer-${res}`}
                   type="fill"
-                  minzoom={minZoom}
-                  maxzoom={maxZoom}
+                  minzoom={layerMinZoom}
+                  maxzoom={layerMaxZoom}
                   paint={{
                     'fill-color': '#16100B', // flat cozy warm dark color
-                    'fill-opacity': 0.98
+                    'fill-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.98) as any
                   }}
                 />
               </Source>
 
               {/* Fog Line Layers (Explored boundaries & Outlines) */}
               <Source id={`fog-lines-src-${res}`} type="geojson" data={lines}>
-                {/* 1. Explored Hex Outlines (visible at z13+ via GPU expression) */}
-                {res >= 6 && (
-                  <Layer
-                    id={`fog-outlines-layer-${res}`}
-                    type="line"
-                    minzoom={minZoom}
-                    maxzoom={maxZoom}
-                    filter={['==', ['get', 'type'], 'outline']}
-                    paint={{
-                      'line-color': '#EE6C1F',
-                      'line-width': 1.0,
-                      'line-opacity': ['interpolate', ['linear'], ['zoom'], 12.5, 0, 13, 0.22]
-                    }}
-                  />
-                )}
+                {/* 1. Explored Hex Fills (deterministic cozy warm patchworks) */}
+                <Layer
+                  id={`fog-cells-fill-layer-${res}`}
+                  type="fill"
+                  minzoom={layerMinZoom}
+                  maxzoom={layerMaxZoom}
+                  filter={['==', ['get', 'type'], 'cell-fill']}
+                  paint={{
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.12) as any
+                  }}
+                />
 
-                {/* 2. Frontier Outer Glow */}
+                {/* 2. Explored Hex Outlines */}
+                <Layer
+                  id={`fog-outlines-layer-${res}`}
+                  type="line"
+                  minzoom={layerMinZoom}
+                  maxzoom={layerMaxZoom}
+                  filter={['==', ['get', 'type'], 'outline']}
+                  paint={{
+                    'line-color': '#EE6C1F',
+                    'line-width': 1.0,
+                    'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.22) as any
+                  }}
+                />
+
+                {/* 3. Frontier Outer Glow */}
                 <Layer
                   id={`fog-frontier-glow-layer-${res}`}
                   type="line"
-                  minzoom={minZoom}
-                  maxzoom={maxZoom}
+                  minzoom={layerMinZoom}
+                  maxzoom={layerMaxZoom}
                   filter={['==', ['get', 'type'], 'frontier']}
                   paint={{
                     'line-color': '#EE6C1F',
                     'line-width': 6,
                     'line-blur': 6,
-                    'line-opacity': 0.5
+                    'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.5) as any
                   }}
                 />
 
-                {/* 3. Frontier Crisp Core */}
+                {/* 4. Frontier Crisp Core */}
                 <Layer
                   id={`fog-frontier-core-layer-${res}`}
                   type="line"
-                  minzoom={minZoom}
-                  maxzoom={maxZoom}
+                  minzoom={layerMinZoom}
+                  maxzoom={layerMaxZoom}
                   filter={['==', ['get', 'type'], 'frontier']}
                   paint={{
                     'line-color': '#FF8224',
                     'line-width': 1.5,
-                    'line-opacity': 1.0
+                    'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 1.0) as any
                   }}
                 />
               </Source>
