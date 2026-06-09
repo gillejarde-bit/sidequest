@@ -32,16 +32,23 @@ export const FireLoadingScreen: React.FC<FireLoadingScreenProps> = ({
     }
   }, [phase])
 
+  // Start bloom phase when ready
   useEffect(() => {
     if (isReady && (phase === 'idle' || phase === 'spark')) {
       setPhase('bloom')
+    }
+  }, [isReady, phase])
+
+  // Complete bloom phase and hide loading screen after duration
+  useEffect(() => {
+    if (phase === 'bloom') {
       const timer = setTimeout(() => {
         setPhase('done')
         onExitComplete()
       }, 700) // bloom sequence duration
       return () => clearTimeout(timer)
     }
-  }, [isReady, phase, onExitComplete])
+  }, [phase, onExitComplete])
 
   if (phase === 'done') return null
 

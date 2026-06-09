@@ -62,6 +62,15 @@ const hashCellToWarmColor = (cellId: string): string => {
   return `hsl(${h}, ${s}%, ${l}%)`
 }
 
+const getResForZoom = (zoom: number): number => {
+  if (zoom >= 13.0) return 10
+  if (zoom >= 10.5) return 8
+  if (zoom >= 8.0) return 6
+  if (zoom >= 5.5) return 4
+  if (zoom >= 3.5) return 2
+  return 1
+}
+
 const getLayerOpacityExpression = (minZoom: number, maxZoom: number, baseOpacity: number) => {
   const fade = 0.50
   
@@ -209,6 +218,10 @@ export function MapPage() {
 
   const [fogData, setFogData] = useState<Record<number, any>>({})
   const [linesData, setLinesData] = useState<Record<number, any>>({})
+  const [gridGeoJson, setGridGeoJson] = useState<any>({
+    type: 'FeatureCollection',
+    features: []
+  })
 
   const hasCenteredOnUserRef = useRef(false)
 
@@ -377,6 +390,50 @@ export function MapPage() {
 
     return () => clearTimeout(timer)
   }, [revealSet])
+
+  // Ambient hexagon grid viewport computation (100ms debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const lat = viewState.latitude
+      const lng = viewState.longitude
+      const zoom = viewState.zoom
+      
+      const res = getResForZoom(zoom)
+      
+      try {
+        const centerCell = latLngToCell(lat, lng, res)
+        if (centerCell) {
+          const cells = gridDisk(centerCell, 12) // k=12 covers the screen
+          
+          const features = cells.map(cell => {
+            const boundary = cellToBoundary(cell, true)
+            if (boundary.length > 0) {
+              const closed = [...boundary]
+              closed.push(closed[0])
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'LineString',
+                  coordinates: closed
+                },
+                properties: { cell }
+              }
+            }
+            return null
+          }).filter(Boolean)
+
+          setGridGeoJson({
+            type: 'FeatureCollection',
+            features
+          })
+        }
+      } catch (e) {
+        console.error('[Map] Ambient grid generation failed:', e)
+      }
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [viewState.latitude, viewState.longitude, viewState.zoom])
 
   // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
   useEffect(() => {
@@ -840,15 +897,24 @@ export function MapPage() {
                 transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
                 className="absolute w-12 h-12 bg-blue-500 rounded-full"
               />
-              {/* Torch Glow Overlay */}
-              <div 
-                className="absolute w-64 h-64 rounded-full pointer-events-none"
+              {/* Torch Glow Overlay (animated warm firelight flicker) */}
+              <motion.div 
+                className="absolute w-72 h-72 rounded-full pointer-events-none"
                 style={{
-                  background: 'radial-gradient(circle, rgba(238, 108, 31, 0.25) 0%, rgba(238, 108, 31, 0.08) 35%, rgba(238, 108, 31, 0) 70%)',
+                  background: 'radial-gradient(circle, rgba(255, 130, 36, 0.38) 0%, rgba(238, 108, 31, 0.16) 45%, rgba(238, 108, 31, 0) 70%)',
                   transform: 'translate(-50%, -50%)',
                   left: '50%',
                   top: '50%',
                   zIndex: -1
+                }}
+                animate={{
+                  scale: [1.0, 1.05, 0.98, 1.03, 1.0],
+                  opacity: [0.9, 1.0, 0.85, 0.95, 0.9]
+                }}
+                transition={{
+                  duration: 3.5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
                 }}
               />
               {/* Avatar / Person Icon */}
@@ -1119,6 +1185,33 @@ export function MapPage() {
             </React.Fragment>
           )
         })}
+
+        {/* Ambient background hexagon grid with soft orange glow */}
+        {gridGeoJson && (
+          <Source id="ambient-grid-src" type="geojson" data={gridGeoJson}>
+            {/* Soft Glow Layer */}
+            <Layer
+              id="ambient-grid-glow-layer"
+              type="line"
+              paint={{
+                'line-color': '#EE6C1F',
+                'line-width': 4.5,
+                'line-blur': 4.0,
+                'line-opacity': 0.12
+              }}
+            />
+            {/* Crisp Core Layer */}
+            <Layer
+              id="ambient-grid-core-layer"
+              type="line"
+              paint={{
+                'line-color': '#FF8224',
+                'line-width': 1.0,
+                'line-opacity': 0.18
+              }}
+            />
+          </Source>
+        )}
       </Map>
 
       {/* Breathing vignette overlay */}
