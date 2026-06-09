@@ -241,7 +241,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
   // Draw loop
   const drawEverything = () => {
     const canvas = canvasRef.current
-    if (!canvas || !map) return
+    if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
@@ -254,24 +254,10 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       initEmbers(width, height)
     }
 
-    // 1) Rebuild fog mask cache if it was invalidated (e.g. revealSet changed or move ended)
-    if (needsReblurRef.current) {
-      const success = rebuildFogCache(width, height)
-      if (success) {
-        needsReblurRef.current = false
-      }
-    }
-
-    // 1b) Only draw the fog overlay if we have a valid cache and center
-    const cachedMask = cachedMaskCanvasRef.current
-    if (!cachedMask || !cachedCenterRef.current) {
-      return
-    }
-
-    // 2) Clear screen
+    // 1) Clear screen
     ctx.clearRect(0, 0, width, height)
 
-    // 3) Draw drifting textured smoke over the ENTIRE canvas
+    // 2) Draw drifting textured smoke over the ENTIRE canvas
     const textCanvas = smokeTextureCanvasRef.current
     if (textCanvas) {
       const pattern = ctx.createPattern(textCanvas, 'repeat')
@@ -288,6 +274,37 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     } else {
       ctx.fillStyle = FOG_CONFIG.COLORS.FORGE_BLACK
       ctx.fillRect(0, 0, width, height)
+    }
+
+    // If map is not initialized yet, just draw the drifting embers and return (covers raw style load)
+    if (!map) {
+      const emberSprite = emberSpriteCanvasRef.current
+      if (emberSprite && embersRef.current.length > 0) {
+        ctx.save()
+        ctx.globalCompositeOperation = 'lighter'
+        embersRef.current.forEach(p => {
+          const pulse = Math.sin(Date.now() * p.pulseSpeed + p.pulseOffset) * 0.15
+          const currentAlpha = Math.max(0.05, Math.min(0.8, p.alpha + pulse))
+          ctx.globalAlpha = currentAlpha
+          ctx.drawImage(emberSprite, p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
+        })
+        ctx.restore()
+      }
+      return
+    }
+
+    // 3) Rebuild fog mask cache if it was invalidated (e.g. revealSet changed or move ended)
+    if (needsReblurRef.current) {
+      const success = rebuildFogCache(width, height)
+      if (success) {
+        needsReblurRef.current = false
+      }
+    }
+
+    // 3b) Only draw the fog overlay if we have a valid cache and center
+    const cachedMask = cachedMaskCanvasRef.current
+    if (!cachedMask || !cachedCenterRef.current) {
+      return
     }
 
     // 4) Composite Mask (carves explored holes out of the smoke)
@@ -310,7 +327,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
     }
     ctx.globalCompositeOperation = 'source-over'
 
-    // 5) Draw the Die-Cut Crisp Keyline in real-time (frontier only, stays crisp on zoom)
+    // 5) Draw the explored cell outlines and glowing frontier keylines in real-time
     const bounds = map.getBounds()
     if (bounds) {
       const north = bounds.getNorth()
@@ -336,18 +353,57 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
       } catch (e) {}
 
       const currentRevealSet = revealSetRef.current
+      const zoom = map.getZoom()
+      const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
+
+      // 5a) Draw soft, dimmed orange outlines for all explored cells in the viewport (zoom >= 13.0)
+      if (zoom >= 13.0) {
+        ctx.strokeStyle = 'rgba(238, 108, 31, 0.22)'
+        ctx.lineWidth = 1.0 * zoomScale
+        ctx.beginPath()
+        viewportCells.forEach(cell => {
+          if (currentRevealSet.has(cell)) {
+            const boundary = cellToBoundary(cell, true)
+            if (boundary.length > 0) {
+              const pStart = map.project([boundary[0][0], boundary[0][1]])
+              ctx.moveTo(pStart.x, pStart.y)
+              for (let i = 1; i < boundary.length; i++) {
+                const p = map.project([boundary[i][0], boundary[i][1]])
+                ctx.lineTo(p.x, p.y)
+              }
+              ctx.closePath()
+            }
+          }
+        })
+        ctx.stroke()
+      }
+
+      // 5b) Draw the glowing bright orange outer frontier keyline separating explored/unexplored areas
       const frontierEdges = getFrontierEdges(viewportCells, currentRevealSet)
       if (frontierEdges.length > 0) {
-        const zoom = map.getZoom()
-        const zoomScale = Math.max(0.5, Math.min(2.0, Math.pow(1.15, zoom - 15)))
         const creamWidth = 1.6 * zoomScale
         const underlineWidth = 3.0 * zoomScale
 
         ctx.lineCap = 'round'
         ctx.lineJoin = 'round'
 
-        // Pass 1: Dark underline
-        ctx.strokeStyle = '#241608'
+        // Pass 1: Outer Orange Glow (wide, semi-transparent)
+        ctx.strokeStyle = 'rgba(238, 108, 31, 0.45)'
+        ctx.lineWidth = underlineWidth * 2.0
+        ctx.beginPath()
+        frontierEdges.forEach(edge => {
+          const boundary = directedEdgeToBoundary(edge, true)
+          if (boundary.length >= 2) {
+            const px0 = map.project([boundary[0][0], boundary[0][1]])
+            const px1 = map.project([boundary[1][0], boundary[1][1]])
+            ctx.moveTo(px0.x, px0.y)
+            ctx.lineTo(px1.x, px1.y)
+          }
+        })
+        ctx.stroke()
+
+        // Pass 2: Dark Burnt Orange Base
+        ctx.strokeStyle = '#873003'
         ctx.lineWidth = underlineWidth
         ctx.beginPath()
         frontierEdges.forEach(edge => {
@@ -361,8 +417,8 @@ export const FogLayer: React.FC<FogLayerProps> = ({ map, userLocation }) => {
         })
         ctx.stroke()
 
-        // Pass 2: Cream line
-        ctx.strokeStyle = '#F6EAD4'
+        // Pass 3: Bright Vibrant Orange Core (Glowing keyline)
+        ctx.strokeStyle = '#FF8224'
         ctx.lineWidth = creamWidth
         ctx.beginPath()
         frontierEdges.forEach(edge => {

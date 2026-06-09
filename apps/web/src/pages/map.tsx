@@ -79,11 +79,23 @@ function getTimeUntil(dateStr: string) {
   return startsDate.toLocaleDateString(undefined, { weekday: 'short', hour: 'numeric' })
 }
 
+const getLastKnownLocation = () => {
+  try {
+    const saved = localStorage.getItem('sq_last_location')
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (e) {}
+  return { longitude: -115.1398, latitude: 36.1699 } // Default to Las Vegas
+}
+
 export function MapPage() {
   const mapRef = useRef<MapRef>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { profile } = useAuthStore()
+
+  const initialCoords = useMemo(() => getLastKnownLocation(), [])
 
   // Geolocation tracking hook
   const userLoc = useGeolocation()
@@ -146,6 +158,16 @@ export function MapPage() {
       }
     }
   }, [userLoc.lat, userLoc.lng, revealSet, addRevealedCells, addCoverage])
+
+  // Save last known location to localStorage for instant loading next time
+  useEffect(() => {
+    if (userLoc.lat !== null && userLoc.lng !== null) {
+      localStorage.setItem('sq_last_location', JSON.stringify({
+        longitude: userLoc.lng,
+        latitude: userLoc.lat
+      }))
+    }
+  }, [userLoc.lat, userLoc.lng])
 
   useEffect(() => {
     if (quests.length === 0) return
@@ -212,11 +234,24 @@ export function MapPage() {
     if (userLoc.lat !== null && userLoc.lng !== null && mapLoaded) {
       if (!hasCenteredOnUserRef.current) {
         hasCenteredOnUserRef.current = true
-        mapRef.current?.flyTo({
-          center: [userLoc.lng, userLoc.lat],
-          zoom: 15,
-          duration: 1500
-        })
+        // If we are far from the initialCoords, flyTo. Otherwise, easeTo.
+        const dist = Math.sqrt(
+          Math.pow(userLoc.lng - initialCoords.longitude, 2) + 
+          Math.pow(userLoc.lat - initialCoords.latitude, 2)
+        )
+        if (dist > 0.01) { // ~1km
+          mapRef.current?.flyTo({
+            center: [userLoc.lng, userLoc.lat],
+            zoom: 15,
+            duration: 1500
+          })
+        } else {
+          mapRef.current?.easeTo({
+            center: [userLoc.lng, userLoc.lat],
+            zoom: 15,
+            duration: 500
+          })
+        }
       } else if (followMode) {
         mapRef.current?.easeTo({
           center: [userLoc.lng, userLoc.lat],
@@ -224,7 +259,7 @@ export function MapPage() {
         })
       }
     }
-  }, [userLoc.lat, userLoc.lng, mapLoaded, followMode])
+  }, [userLoc.lat, userLoc.lng, mapLoaded, followMode, initialCoords])
 
   const { activeFilters } = useMapStore()
 
@@ -381,12 +416,13 @@ export function MapPage() {
     setSearchResultPin(null)
   }, [])
 
+  const activeUserLat = userLoc.lat !== null ? userLoc.lat : initialCoords.latitude
+  const activeUserLng = userLoc.lng !== null ? userLoc.lng : initialCoords.longitude
+
   // Map coordinates types safely to FogLayer
   const fogUserLocation = useMemo(() => {
-    return (userLoc.lat !== null && userLoc.lng !== null) 
-      ? { lat: userLoc.lat, lng: userLoc.lng } 
-      : null
-  }, [userLoc.lat, userLoc.lng])
+    return { lat: activeUserLat, lng: activeUserLng }
+  }, [activeUserLat, activeUserLng])
 
   // ── Derived bottom sheet state ─────────────────────────────────────────────
   const sheetMode = selectedLocation ? 'location' : selectedQuest ? 'quest' : selectedGem ? 'gem' : null
@@ -518,9 +554,9 @@ export function MapPage() {
       <Map
         ref={mapRef}
         initialViewState={{
-          longitude: -115.1398,
-          latitude: 36.1699,
-          zoom: 12,
+          longitude: initialCoords.longitude,
+          latitude: initialCoords.latitude,
+          zoom: 14,
           pitch: 0,
           bearing: 0,
         }}
@@ -558,8 +594,8 @@ export function MapPage() {
         <NavigationControl position="bottom-right" showCompass={false} />
 
         {/* User Location Marker (styled above/on top of the fog canvas layer) */}
-        {userLoc.lat !== null && userLoc.lng !== null && (
-          <Marker longitude={userLoc.lng} latitude={userLoc.lat} anchor="center">
+        {activeUserLat !== null && activeUserLng !== null && (
+          <Marker longitude={activeUserLng} latitude={activeUserLat} anchor="center">
             <div className="relative flex items-center justify-center" style={{ zIndex: 10 }}>
               {/* Pulse ring */}
               <motion.div 
@@ -728,9 +764,7 @@ export function MapPage() {
       </Map>
 
       {/* Canvas Fog-of-War overlay */}
-      {mapLoaded && mapInstance && (
-        <FogLayer map={mapInstance} userLocation={fogUserLocation} />
-      )}
+      <FogLayer map={mapInstance} userLocation={fogUserLocation} />
 
       {/* Breathing vignette overlay */}
       <motion.div
