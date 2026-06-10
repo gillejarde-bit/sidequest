@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Feature, FeatureCollection } from 'geojson'
 import type { FogResultMessage } from '../workers/fogWorker'
 
 /**
@@ -10,11 +11,11 @@ import type { FogResultMessage } from '../workers/fogWorker'
  * thousands of cells. Input changes are debounced 150ms.
  */
 export function useFogGeometry(revealSet: Set<string>): {
-  fogData: Record<number, GeoJSON.Feature>
-  linesData: Record<number, GeoJSON.FeatureCollection>
+  fogData: Record<number, Feature>
+  linesData: Record<number, FeatureCollection>
 } {
-  const [fogData, setFogData] = useState<Record<number, GeoJSON.Feature>>({})
-  const [linesData, setLinesData] = useState<Record<number, GeoJSON.FeatureCollection>>({})
+  const [fogData, setFogData] = useState<Record<number, Feature>>({})
+  const [linesData, setLinesData] = useState<Record<number, FeatureCollection>>({})
   const workerRef = useRef<Worker | null>(null)
 
   // Create the worker once; terminate on unmount

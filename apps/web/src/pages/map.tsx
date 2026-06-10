@@ -35,6 +35,7 @@ import * as h3 from 'h3-js'
 import { categoryPursuitMap, pursuits } from '../features/pursuits/pursuits.config'
 
 import type { Database } from '../types/database.types'
+import type { Feature, FeatureCollection } from 'geojson'
 
 const getResForZoom = (zoom: number): number => {
   if (zoom >= 13.0) return 10
@@ -96,7 +97,7 @@ interface GooglePlaceResult {
 }
 
 type QuestRpcRow = Database['public']['Functions']['get_my_quests']['Returns'][number]
-interface QuestMapItem extends QuestRpcRow {
+type QuestMapItem = QuestRpcRow & {
   description?: string | null
 }
 
@@ -217,7 +218,7 @@ export function MapPage() {
   // Fog GeoJSON is computed off the main thread in a Web Worker (see useFogGeometry)
   const { fogData, linesData } = useFogGeometry(revealSet)
 
-  const [gridGeoJson, setGridGeoJson] = useState<GeoJSON.FeatureCollection>({
+  const [gridGeoJson, setGridGeoJson] = useState<FeatureCollection>({
     type: 'FeatureCollection',
     features: []
   })
@@ -245,7 +246,7 @@ export function MapPage() {
         if (centerCell) {
           const cells = h3.gridDisk(centerCell, 12) // k=12 covers the screen
 
-          const features = cells.map((cell): GeoJSON.Feature | null => {
+          const features = cells.map((cell): Feature | null => {
             const boundary = h3.cellToBoundary(cell, true)
             if (boundary.length > 0) {
               const closed = [...boundary]
@@ -260,7 +261,7 @@ export function MapPage() {
               }
             }
             return null
-          }).filter((f): f is GeoJSON.Feature => f !== null)
+          }).filter((f): f is Feature => f !== null)
 
           setGridGeoJson({
             type: 'FeatureCollection',
@@ -327,7 +328,7 @@ export function MapPage() {
         data.forEach((row: { quest_id: string | null; profiles: { username: string; avatar_url: string | null } | { username: string; avatar_url: string | null }[] | null }) => {
           const questId = row.quest_id
           const profile = row.profiles
-          if (profile) {
+          if (questId && profile) {
             const prof = Array.isArray(profile) ? profile[0] : profile
             if (prof) {
               if (!mapping[questId]) mapping[questId] = []

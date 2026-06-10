@@ -1,9 +1,9 @@
-/// <reference lib="webworker" />
 // Fog-of-war geometry worker.
 // Receives the revealed H3 cells and computes, off the main thread, the fog
 // polygon (world minus explored holes) and the line/fill features for every
 // resolution LOD. Pure computation only — no React, no DOM.
 import * as h3 from 'h3-js'
+import type { Feature, FeatureCollection } from 'geojson'
 
 interface ComputeMessage {
   type: 'COMPUTE'
@@ -12,8 +12,15 @@ interface ComputeMessage {
 
 export interface FogResultMessage {
   type: 'RESULT'
-  fogData: Record<number, GeoJSON.Feature>
-  linesData: Record<number, GeoJSON.FeatureCollection>
+  fogData: Record<number, Feature>
+  linesData: Record<number, FeatureCollection>
+}
+
+// Typed view of the worker global scope (tsconfig uses the DOM lib, so we
+// avoid referencing the webworker lib to prevent global type conflicts)
+const ctx = self as unknown as {
+  onmessage: ((event: MessageEvent<ComputeMessage>) => void) | null
+  postMessage: (message: FogResultMessage) => void
 }
 
 const WORLD_RING: number[][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
@@ -31,9 +38,9 @@ const hashCellToWarmColor = (cellId: string): string => {
   return `hsl(${h}, ${s}%, ${l}%)`
 }
 
-function computeFog(fineCells: string[]): { fogData: Record<number, GeoJSON.Feature>; linesData: Record<number, GeoJSON.FeatureCollection> } {
-  const fogData: Record<number, GeoJSON.Feature> = {}
-  const linesData: Record<number, GeoJSON.FeatureCollection> = {}
+function computeFog(fineCells: string[]): { fogData: Record<number, Feature>; linesData: Record<number, FeatureCollection> } {
+  const fogData: Record<number, Feature> = {}
+  const linesData: Record<number, FeatureCollection> = {}
 
   if (fineCells.length === 0) {
     ALL_RESOLUTIONS.forEach(res => {
@@ -69,7 +76,9 @@ function computeFog(fineCells: string[]): { fogData: Record<number, GeoJSON.Feat
       try {
         const parent = h3.cellToParent(cell, res)
         if (parent) exploredSets[res].add(parent)
-      } catch (e) { /* skip invalid cell */ }
+      } catch {
+        /* skip invalid cell */
+      }
     })
   })
 
@@ -110,7 +119,7 @@ function computeFog(fineCells: string[]): { fogData: Record<number, GeoJSON.Feat
     }
 
     // Build outlines and frontier lines
-    const features: GeoJSON.Feature[] = []
+    const features: Feature[] = []
 
     // Explored hex cell outlines and fills (at all resolutions)
     cellsArray.forEach(cell => {
@@ -143,7 +152,9 @@ function computeFog(fineCells: string[]): { fogData: Record<number, GeoJSON.Feat
             }
           })
         }
-      } catch (e) { /* skip invalid cell */ }
+      } catch {
+        /* skip invalid cell */
+      }
     })
 
     // Frontier glow lines (outer perimeter of explored regions)
@@ -169,11 +180,10 @@ function computeFog(fineCells: string[]): { fogData: Record<number, GeoJSON.Feat
   return { fogData, linesData }
 }
 
-self.onmessage = (event: MessageEvent<ComputeMessage>) => {
+ctx.onmessage = (event: MessageEvent<ComputeMessage>) => {
   const msg = event.data
   if (!msg || msg.type !== 'COMPUTE') return
 
   const { fogData, linesData } = computeFog(msg.cells)
-  const result: FogResultMessage = { type: 'RESULT', fogData, linesData }
-  self.postMessage(result)
+  ctx.postMessage({ type: 'RESULT', fogData, linesData })
 }
