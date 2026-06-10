@@ -25,8 +25,8 @@ export function XPPopup() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
-            className="bg-[#1A1A2E] text-white px-5 py-3 rounded-full flex items-center shadow-lg"
-            style={{ 
+            className="bg-[var(--sq-surface)] text-[var(--sq-text)] px-5 py-3 rounded-full flex items-center shadow-lg"
+            style={{
               marginBottom: index < pendingXP.length - 1 ? '60px' : '0px',
               position: 'relative'
             }}

@@ -14,7 +14,7 @@ export function ToastContainer() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="pointer-events-auto flex items-center gap-3 bg-[#1A1A2E] text-white px-4 py-3 rounded-full shadow-lg max-w-[90%] w-max border border-gray-800"
+            className="pointer-events-auto flex items-center gap-3 bg-[var(--sq-surface)] text-[var(--sq-text)] px-4 py-3 rounded-full shadow-lg max-w-[90%] w-max border border-[var(--sq-hairline-strong)]"
             onClick={() => removeToast(toast.id)}
           >
             {toast.avatarUrl ? (

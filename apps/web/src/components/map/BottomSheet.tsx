@@ -24,12 +24,12 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
     const initPlaces = () => {
       if (window.google?.maps?.places) {
         if (intervalId) clearInterval(intervalId)
-        
+
         const service = new window.google.maps.places.PlacesService(document.createElement('div'))
-        
+
         // Use Google Place ID if available, otherwise search by name
         const placeId = detailData?.location?.google_place_id || detailData?.location?.osm_id
-        
+
         if (placeId && placeId.startsWith('ChI')) {
           service.getDetails({
             placeId: placeId,
@@ -51,13 +51,13 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
       const locationName = detailData?.location?.name
       const lat = detailData?.location?.lat
       const lng = detailData?.location?.lng
-      
+
       if (!locationName) return
 
       const request: any = {
         query: locationName,
       }
-      
+
       if (lat !== undefined && lng !== undefined) {
         request.location = new window.google.maps.LatLng(lat, lng)
         request.radius = 1000
@@ -102,9 +102,9 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
     <div className="space-y-4">
       <div className="w-full h-32 rounded-2xl overflow-hidden mb-3 relative shadow-sm">
         {placeDetails?.photos?.[0] ? (
-          <img 
-            src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })} 
-            alt={locationName || data.title} 
+          <img
+            src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })}
+            alt={locationName || data.title}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -126,7 +126,7 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
                 <rect width="100%" height="100%" fill="url(#pattern-circles-quest)" />
               </svg>
             </div>
-            
+
             <span className="text-white font-extrabold text-2xl uppercase tracking-wider relative z-10 drop-shadow-md">
               {data.category || 'Adventure'}
             </span>
@@ -141,7 +141,7 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
       <div className="flex items-start justify-between pr-8">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{data.title || data.name}</h2>
-          
+
           {locationName && (
             <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1 mb-2 font-medium">
               <MapPin size={14} className="text-primary" />
@@ -171,11 +171,11 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
         <div className="flex items-center gap-2 mt-2">
           <div className="flex -space-x-2 overflow-hidden">
             {detailData.attendees.slice(0, 5).map((att: any) => (
-              <img 
-                key={att.user_id} 
-                src={getAvatarUrl(att.avatar_url, att.username)} 
-                alt={att.username} 
-                className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-[#1A1A2E] bg-gray-200 dark:bg-gray-700 object-cover"
+              <img
+                key={att.user_id}
+                src={getAvatarUrl(att.avatar_url, att.username)}
+                alt={att.username}
+                className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-[var(--sq-surface)] bg-gray-200 dark:bg-gray-700 object-cover"
               />
             ))}
           </div>
@@ -194,17 +194,17 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
       )}
 
       <div className="grid grid-cols-2 gap-3 mt-6">
-        <button 
+        <button
           onClick={onAction}
           className="col-span-2 bg-secondary text-white font-bold py-3.5 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
           View Quest
         </button>
-        
+
         {locationLat && locationLng && (
-          <a 
-            href={`https://maps.google.com/?q=${locationLat},${locationLng}`} 
-            target="_blank" 
+          <a
+            href={`https://maps.google.com/?q=${locationLat},${locationLng}`}
+            target="_blank"
             rel="noreferrer"
             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
@@ -212,8 +212,8 @@ function QuestBottomSheetContent({ data, onAction }: { data: any, onAction: () =
             Directions
           </a>
         )}
-        
-        <button 
+
+        <button
           onClick={handleShare}
           className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
@@ -243,10 +243,10 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="absolute bottom-[100px] left-4 right-4 mx-auto w-[calc(100%-32px)] max-w-[380px] bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl shadow-2xl z-20 pb-safe touch-none"
+        className="absolute bottom-[100px] left-4 right-4 mx-auto w-[calc(100%-32px)] max-w-[380px] bg-white/95 dark:bg-[var(--sq-overlay-heavy)] backdrop-blur-xl border border-gray-150 dark:border-[var(--sq-hairline-strong)] rounded-3xl shadow-2xl z-20 pb-safe touch-none"
       >
         <div className="p-6 relative">
-          <button 
+          <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
           >
@@ -259,9 +259,9 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
             <div className="space-y-4">
               <div className="w-full h-32 rounded-2xl overflow-hidden mb-3 relative shadow-sm">
                 {data.placeDetails?.photos?.[0] ? (
-                  <img 
-                    src={data.placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })} 
-                    alt={data.name} 
+                  <img
+                    src={data.placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })}
+                    alt={data.name}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -283,7 +283,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                         <rect width="100%" height="100%" fill="url(#pattern-circles-loc)" />
                       </svg>
                     </div>
-                    
+
                     <span className="text-white font-extrabold text-2xl uppercase tracking-wider relative z-10 drop-shadow-md">
                       {data.category || 'Adventure'}
                     </span>
@@ -300,11 +300,11 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
                     <span className="flex items-center gap-1">
                       <MapPin size={16} />
-                      {data.placeDetails?.types?.[0] 
-                        ? data.placeDetails.types[0].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) 
+                      {data.placeDetails?.types?.[0]
+                        ? data.placeDetails.types[0].replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
                         : data.category || 'Point of Interest'}
                     </span>
-                    
+
                     {data.placeDetails?.rating && (
                       <span className="flex items-center gap-1 text-yellow-500 font-medium">
                         <Star size={16} className="fill-current" />
@@ -314,7 +314,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                   </div>
                 </div>
               </div>
-              
+
               {data.description && (
                 <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
                   {data.description}
@@ -322,9 +322,9 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
               )}
 
               {data.placeDetails?.website && (
-                <a 
-                  href={data.placeDetails.website} 
-                  target="_blank" 
+                <a
+                  href={data.placeDetails.website}
+                  target="_blank"
                   rel="noreferrer"
                   className="inline-block mt-2 text-primary hover:underline text-sm font-medium"
                 >
@@ -332,7 +332,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                 </a>
               )}
 
-              <button 
+              <button
                 onClick={onAction}
                 className="w-full mt-6 bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-hover active:scale-[0.98] transition-all"
               >
@@ -352,7 +352,7 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
                   </p>
                 </div>
               </div>
-              
+
               {data.description && (
                 <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
                   {data.description}
@@ -360,13 +360,13 @@ export function BottomSheet({ mode, data, onClose, onAction }: BottomSheetProps)
               )}
 
               <div className="flex gap-3 mt-6">
-                <button 
+                <button
                   onClick={() => window.location.href = `/quest/create?lat=${data.lat}&lng=${data.lng}&name=${encodeURIComponent(data.name)}&category=${encodeURIComponent(data.category)}`}
-                  className="flex-1 bg-white dark:bg-[#1A1A2E] border-2 border-primary text-primary font-bold py-3 rounded-xl hover:bg-primary/10 active:scale-[0.98] transition-all"
+                  className="flex-1 bg-white dark:bg-[var(--sq-surface)] border-2 border-primary text-primary font-bold py-3 rounded-xl hover:bg-primary/10 active:scale-[0.98] transition-all"
                 >
                   Quest this spot
                 </button>
-                <button 
+                <button
                   onClick={onAction}
                   className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover active:scale-[0.98] transition-all"
                 >

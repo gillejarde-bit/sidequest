@@ -28,39 +28,13 @@ import { FogLayer } from '../components/map/fog/FogLayer'
 import { FireLoadingScreen } from '../components/map/FireLoadingScreen'
 import { useCoverage } from '../hooks/useCoverage'
 import { FOG_CONFIG } from '../components/map/fog/config'
+import { useFogGeometry } from '../hooks/useFogGeometry'
 import * as h3 from 'h3-js'
 
-// ─── H3 compat wrappers ────────────────────────────────────────────────────────
-const latLngToCell = (lat: number, lng: number, res: number): string => {
-  return h3.latLngToCell(lat, lng, res)
-}
+// Pursuit system imports (quest markers show the pursuit pip)
+import { categoryPursuitMap, pursuits } from '../features/pursuits/pursuits.config'
 
-const gridDisk = (cell: string, k: number): string[] => {
-  return h3.gridDisk(cell, k)
-}
-
-const cellToParent = (cell: string, res: number): string => {
-  return h3.cellToParent(cell, res)
-}
-
-const cellToBoundary = (cell: string, formatAsGeoJson: boolean): [number, number][] => {
-  return h3.cellToBoundary(cell, formatAsGeoJson)
-}
-
-const cellsToMultiPolygon = (cells: string[], formatAsGeoJson: boolean): number[][][][] => {
-  return h3.cellsToMultiPolygon(cells, formatAsGeoJson)
-}
-
-const hashCellToWarmColor = (cellId: string): string => {
-  let hash = 0
-  for (let i = 0; i < cellId.length; i++) {
-    hash = cellId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const h = 15 + Math.abs(hash % 30) // Hues 15 to 45 (warm golden/orange/amber tones)
-  const s = 60 + Math.abs((hash >> 8) % 15) // Saturation 60% to 75%
-  const l = 42 + Math.abs((hash >> 16) % 12) // Lightness 42% to 54%
-  return `hsl(${h}, ${s}%, ${l}%)`
-}
+import type { Database } from '../types/database.types'
 
 const getResForZoom = (zoom: number): number => {
   if (zoom >= 13.0) return 10
@@ -114,6 +88,30 @@ const getLayerOpacityExpression = (minZoom: number, maxZoom: number, baseOpacity
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface GooglePlaceResult {
+  place_id?: string
+  name?: string
+  formatted_address?: string
+  [key: string]: unknown
+}
+
+type QuestRpcRow = Database['public']['Functions']['get_my_quests']['Returns'][number]
+interface QuestMapItem extends QuestRpcRow {
+  description?: string | null
+}
+
+type GemMapItem = Database['public']['Functions']['get_hidden_gems']['Returns'][number]
+
+interface QuestMapPin {
+  id: string
+  title: string
+  name: string
+  category: string | null
+  time: string
+  description?: string | null
+  joined_count: number
+}
+
 interface SelectedLocation {
   id: string
   name: string
@@ -121,7 +119,7 @@ interface SelectedLocation {
   description?: string
   lat: number
   lng: number
-  placeDetails?: any // Google Place object
+  placeDetails?: GooglePlaceResult // Google Place object
 }
 
 // ─── Component helpers ────────────────────────────────────────────────────────
@@ -200,25 +198,26 @@ export function MapPage() {
   const { hiddenGroupIds } = useMapGroupsStore()
   const [groupMembers, setGroupMembers] = useState<{ group_id: string; user_id: string }[]>([])
 
-  const [quests, setQuests] = useState<any[]>([])
+  const [quests, setQuests] = useState<QuestMapItem[]>([])
   const [questAttendees, setQuestAttendees] = useState<Record<string, { username: string; avatar_url: string | null }[]>>({})
 
-  const [gems, setGems] = useState<any[]>([])
+  const [gems, setGems] = useState<GemMapItem[]>([])
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
-  const [selectedQuest, setSelectedQuest] = useState<any | null>(null)
-  const [selectedGem, setSelectedGem] = useState<any | null>(null)
-  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: any} | null>(null)
+  const [selectedQuest, setSelectedQuest] = useState<QuestMapPin | null>(null)
+  const [selectedGem, setSelectedGem] = useState<GemMapItem | null>(null)
+  const [searchResultPin, setSearchResultPin] = useState<{lat: number, lng: number, place?: GooglePlaceResult} | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [showEmptyState, setShowEmptyState] = useState(true)
-  const [mapInstance, setMapInstance] = useState<any>(null)
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null)
   const [firstFogPainted, setFirstFogPainted] = useState(false)
   const [showLoadingScreen, setShowLoadingScreen] = useState(true)
 
   const isAppReady = mapLoaded && firstFogPainted
 
-  const [fogData, setFogData] = useState<Record<number, any>>({})
-  const [linesData, setLinesData] = useState<Record<number, any>>({})
-  const [gridGeoJson, setGridGeoJson] = useState<any>({
+  // Fog GeoJSON is computed off the main thread in a Web Worker (see useFogGeometry)
+  const { fogData, linesData } = useFogGeometry(revealSet)
+
+  const [gridGeoJson, setGridGeoJson] = useState<GeoJSON.FeatureCollection>({
     type: 'FeatureCollection',
     features: []
   })
@@ -232,165 +231,6 @@ export function MapPage() {
     }
   }, [coverage, setRevealSet])
 
-  // Precompute explored parent resolutions and build GeoJSON layers for native rendering
-  useEffect(() => {
-    if (!revealSet) return
-
-    const timer = setTimeout(() => {
-      const fineCells = Array.from(revealSet)
-      if (fineCells.length === 0) {
-        const emptyFog: Record<number, any> = {}
-        const emptyLines: Record<number, any> = {}
-        const resolutions = [10, 8, 6, 4, 2, 1]
-        resolutions.forEach(res => {
-          emptyFog[res] = {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]]
-            },
-            properties: {}
-          }
-          emptyLines[res] = {
-            type: 'FeatureCollection',
-            features: []
-          }
-        })
-        setFogData(emptyFog)
-        setLinesData(emptyLines)
-        return
-      }
-
-      // 1. Group explored fine cells into their respective resolution parents
-      const exploredSets: Record<number, Set<string>> = {
-        10: new Set(revealSet),
-        8: new Set(),
-        6: new Set(),
-        4: new Set(),
-        2: new Set(),
-        1: new Set()
-      }
-
-      const resolutions = [8, 6, 4, 2, 1]
-      fineCells.forEach(cell => {
-        resolutions.forEach(res => {
-          try {
-            const parent = cellToParent(cell, res)
-            if (parent) exploredSets[res].add(parent)
-          } catch (e) {}
-        })
-      })
-
-      // 2. Generate GeoJSON for each resolution (Polygon with holes + outlines/frontier)
-      const nextFog: Record<number, any> = {}
-      const nextLines: Record<number, any> = {}
-
-      const allRes = [10, 8, 6, 4, 2, 1]
-      allRes.forEach(res => {
-        const setForRes = exploredSets[res]
-        const cellsArray = Array.from(setForRes)
-
-        let merged: number[][][][] = []
-        try {
-          merged = cellsToMultiPolygon(cellsArray, true)
-        } catch (e) {
-          console.error('[Map] cellsToMultiPolygon failed for res', res, e)
-        }
-
-        // Build fog polygon (World bounding box with explored MultiPolygon holes)
-        const worldCoords = [
-          [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
-        ]
-        merged.forEach(polygon => {
-          polygon.forEach(ring => {
-            if (ring.length > 0) {
-              const closed = [...ring]
-              const first = closed[0]
-              const last = closed[closed.length - 1]
-              if (first[0] !== last[0] || first[1] !== last[1]) {
-                closed.push([first[0], first[1]])
-              }
-              worldCoords.push(closed)
-            }
-          })
-        })
-
-        nextFog[res] = {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: worldCoords
-          },
-          properties: {}
-        }
-
-        // Build outlines and frontier lines
-        const features: any[] = []
-
-        // Explored hex cell outlines and fills (at all resolutions)
-        if (res >= 1) {
-          cellsArray.forEach(cell => {
-            try {
-              const boundary = cellToBoundary(cell, true)
-              if (boundary.length > 0) {
-                const closed = [...boundary]
-                closed.push(closed[0])
-                
-                // Add outline
-                features.push({
-                  type: 'Feature',
-                  geometry: {
-                    type: 'LineString',
-                    coordinates: closed
-                  },
-                  properties: { type: 'outline' }
-                })
-
-                // Add fill
-                const color = hashCellToWarmColor(cell)
-                features.push({
-                  type: 'Feature',
-                  geometry: {
-                    type: 'Polygon',
-                    coordinates: [closed]
-                  },
-                  properties: { 
-                    type: 'cell-fill',
-                    color: color
-                  }
-                })
-              }
-            } catch (e) {}
-          })
-        }
-
-        // Frontier glow lines (outer perimeter of explored regions)
-        merged.forEach(polygon => {
-          polygon.forEach(ring => {
-            features.push({
-              type: 'Feature',
-              geometry: {
-                type: 'LineString',
-                coordinates: ring
-              },
-              properties: { type: 'frontier' }
-            })
-          })
-        })
-
-        nextLines[res] = {
-          type: 'FeatureCollection',
-          features
-        }
-      })
-
-      setFogData(nextFog)
-      setLinesData(nextLines)
-    }, 150) // 150ms debounce to protect main thread during database load/writes
-
-    return () => clearTimeout(timer)
-  }, [revealSet])
-
   // Ambient hexagon grid viewport computation (100ms debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -401,12 +241,12 @@ export function MapPage() {
       const res = getResForZoom(zoom)
       
       try {
-        const centerCell = latLngToCell(lat, lng, res)
+        const centerCell = h3.latLngToCell(lat, lng, res)
         if (centerCell) {
-          const cells = gridDisk(centerCell, 12) // k=12 covers the screen
-          
-          const features = cells.map(cell => {
-            const boundary = cellToBoundary(cell, true)
+          const cells = h3.gridDisk(centerCell, 12) // k=12 covers the screen
+
+          const features = cells.map((cell): GeoJSON.Feature | null => {
+            const boundary = h3.cellToBoundary(cell, true)
             if (boundary.length > 0) {
               const closed = [...boundary]
               closed.push(closed[0])
@@ -420,7 +260,7 @@ export function MapPage() {
               }
             }
             return null
-          }).filter(Boolean)
+          }).filter((f): f is GeoJSON.Feature => f !== null)
 
           setGridGeoJson({
             type: 'FeatureCollection',
@@ -438,9 +278,9 @@ export function MapPage() {
   // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
   useEffect(() => {
     if (userLoc.lat !== null && userLoc.lng !== null) {
-      const cell = latLngToCell(userLoc.lat, userLoc.lng, FOG_CONFIG.H3_RESOLUTION)
+      const cell = h3.latLngToCell(userLoc.lat, userLoc.lng, FOG_CONFIG.H3_RESOLUTION)
       if (cell) {
-        const ringCells = gridDisk(cell, FOG_CONFIG.TORCH_RING_K)
+        const ringCells = h3.gridDisk(cell, FOG_CONFIG.TORCH_RING_K)
         const newCells = ringCells.filter(c => !revealSet.has(c))
         
         if (newCells.length > 0) {
@@ -484,7 +324,7 @@ export function MapPage() {
 
       if (!error && data) {
         const mapping: Record<string, { username: string; avatar_url: string | null }[]> = {}
-        data.forEach((row: any) => {
+        data.forEach((row: { quest_id: string | null; profiles: { username: string; avatar_url: string | null } | { username: string; avatar_url: string | null }[] | null }) => {
           const questId = row.quest_id
           const profile = row.profiles
           if (profile) {
@@ -556,14 +396,14 @@ export function MapPage() {
   const happeningSoonQuests = useMemo(() => {
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
-    return quests.filter((q: any) => {
+    return quests.filter((q) => {
       const qTime = new Date(q.starts_at).getTime()
       const timeDiff = qTime - now
       return timeDiff > 0 && timeDiff <= oneDay && (q.my_status === 'accepted' || q.my_status === 'creator')
-    }).sort((a: any, b: any) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+    }).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
   }, [quests])
 
-  const handleSoonQuestTap = (q: any) => {
+  const handleSoonQuestTap = (q: QuestMapItem) => {
     if (q.location_lng && q.location_lat) {
       mapRef.current?.flyTo({
         center: [q.location_lng, q.location_lat],
@@ -578,7 +418,7 @@ export function MapPage() {
         time: `Starts ${getTimeUntil(q.starts_at)}`,
         description: q.description,
         joined_count: q.attendee_count,
-      } as any)
+      })
     }
   }
 
@@ -594,11 +434,11 @@ export function MapPage() {
   // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function fetchData() {
-      const { data: questData, error: questError } = await supabase.rpc('get_my_quests' as any, { filter_status: null })
+      const { data: questData, error: questError } = await supabase.rpc('get_my_quests', { filter_status: undefined })
       if (questError) {
         console.error('[Map] quests fetch error:', questError)
       } else {
-        setQuests((questData as any[]) ?? [])
+        setQuests((questData as QuestMapItem[]) ?? [])
       }
 
       const { data: gemsData, error: gemsError } = await supabase.rpc('get_hidden_gems', { p_status: 'all' })
@@ -751,7 +591,7 @@ export function MapPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="pointer-events-auto self-start bg-white/90 dark:bg-[#1A1A2E]/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-150 dark:border-gray-800 shadow-md flex items-center gap-2"
+            className="pointer-events-auto self-start bg-white/90 dark:bg-[var(--sq-overlay-mid)] backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-150 dark:border-[var(--sq-hairline-strong)] shadow-md flex items-center gap-2"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-650 animate-pulse" />
             <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -768,7 +608,7 @@ export function MapPage() {
           dragConstraints={mapContainerRef}
           dragMomentum={false}
           dragElastic={0.1}
-          className="absolute top-4 right-4 pointer-events-auto bg-white/95 dark:bg-[#1A1A2E]/95 backdrop-blur-xl border border-gray-150 dark:border-gray-800 rounded-3xl p-3 shadow-xl w-full max-w-[280px] md:max-w-[320px] cursor-grab active:cursor-grabbing"
+          className="absolute top-4 right-4 pointer-events-auto bg-white/95 dark:bg-[var(--sq-overlay-heavy)] backdrop-blur-xl border border-gray-150 dark:border-[var(--sq-hairline-strong)] rounded-3xl p-3 shadow-xl w-full max-w-[280px] md:max-w-[320px] cursor-grab active:cursor-grabbing"
           style={{ zIndex: Z_INDEX.map_ui }}
         >
           <div className="flex items-center justify-between mb-2">
@@ -795,7 +635,7 @@ export function MapPage() {
                 className="overflow-hidden"
               >
                 <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto no-scrollbar py-1">
-                  {happeningSoonQuests.map((q: any) => {
+                  {happeningSoonQuests.map((q) => {
                     const diffMs = new Date(q.starts_at).getTime() - Date.now()
                     const startsSoon = diffMs > 0 && diffMs < 60 * 60 * 1000 // < 1 hour
                     const timeUntilStr = getTimeUntil(q.starts_at)
@@ -932,19 +772,23 @@ export function MapPage() {
         )}
 
         {/* Quests Markers (rendered ONLY in explored cells) */}
-        {isAppReady && visibleQuests.map((q: any) => {
+        {isAppReady && visibleQuests.map((q) => {
           if (!q.location_lng || !q.location_lat) return null
-          
+
           const avatars = getQuestPartyAvatars(q.id, q.creator_username, q.creator_avatar)
           const totalPeople = avatars.length
           const displayAvatars = totalPeople >= 5 ? avatars.slice(0, 4) : avatars
           const extraCount = totalPeople >= 5 ? totalPeople - 4 : 0
 
+          // Pursuit pip: resolve the quest's category to its pursuit color
+          const pursuitKey = q.category ? categoryPursuitMap[q.category.toLowerCase()] : undefined
+          const pursuit = pursuitKey ? pursuits[pursuitKey] : undefined
+
           return (
-            <Marker 
-              key={`quest-${q.id}`} 
-              longitude={q.location_lng} 
-              latitude={q.location_lat} 
+            <Marker
+              key={`quest-${q.id}`}
+              longitude={q.location_lng}
+              latitude={q.location_lat}
               anchor="bottom"
               onClick={(e) => {
                 e.originalEvent.stopPropagation()
@@ -956,12 +800,19 @@ export function MapPage() {
                   time: `Starts at ${new Date(q.starts_at).toLocaleString()}`,
                   description: q.description,
                   joined_count: q.attendee_count,
-                } as any)
+                })
                 setSelectedLocation(null)
                 setSelectedGem(null)
               }}
             >
               <div className="flex flex-col items-center group cursor-pointer" style={{ zIndex: 8 }}>
+                {/* Pursuit pip (colored by the quest category's pursuit) */}
+                {pursuit && (
+                  <span
+                    className="w-1 h-1 rounded-full mb-0.5 shrink-0"
+                    style={{ backgroundColor: pursuit.color, boxShadow: `0 0 4px ${pursuit.color}` }}
+                  />
+                )}
                 {/* Star Pin */}
                 <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,166,35,0.6)] border-2 border-white transition-transform group-hover:scale-110">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
@@ -992,7 +843,7 @@ export function MapPage() {
         })}
 
         {/* Gems Markers (rendered ONLY in explored cells) */}
-        {isAppReady && visibleGems.map((g: any) => {
+        {isAppReady && visibleGems.map((g) => {
           const isPending = g.gem_status === 'pending'
           return (
             <Marker
@@ -1233,7 +1084,7 @@ export function MapPage() {
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="absolute right-4 bottom-28 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[#1A1A2E] dark:border-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900"
+        className="absolute right-4 bottom-28 w-12 h-12 rounded-full shadow-lg flex items-center justify-center border cursor-pointer pointer-events-auto transition-all bg-white border-gray-150 text-gray-800 dark:bg-[var(--sq-surface)] dark:border-[var(--sq-hairline-strong)] dark:text-white hover:bg-gray-50 dark:hover:bg-[var(--sq-card-hover)]"
         style={{ zIndex: Z_INDEX.map_ui }}
         title="Re-center map"
       >
@@ -1252,7 +1103,7 @@ export function MapPage() {
           transition={{ delay: 1.5 }}
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center z-0"
         >
-          <div className="bg-white/90 dark:bg-[#1A1A2E]/85 backdrop-blur-md px-6 py-4 pr-10 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl relative pointer-events-auto">
+          <div className="bg-white/90 dark:bg-[var(--sq-overlay-soft)] backdrop-blur-md px-6 py-4 pr-10 rounded-2xl border border-gray-200 dark:border-[var(--sq-hairline-strong)] shadow-xl relative pointer-events-auto">
             <button 
               onClick={() => setShowEmptyState(false)}
               className="absolute top-2.5 right-2.5 p-1 rounded-full text-gray-450 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-all cursor-pointer"

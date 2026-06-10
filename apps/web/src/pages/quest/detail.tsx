@@ -13,6 +13,7 @@ import Map, { Marker } from 'react-map-gl'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { supabase } from '../../lib/supabase'
+import { categoryPursuitMap, pursuits, vibePursuitNudge, XP_REWARDS } from '../../features/pursuits/pursuits.config'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -77,6 +78,13 @@ export function QuestDetail() {
   const isParticipant = my_status === 'accepted' || is_creator
   const showCheckIn = isParticipant && isToday(new Date(quest.starts_at))
 
+  // XP Preview: what checking in to this quest will earn (uses data already loaded — no extra queries)
+  const primaryPursuitKey = quest.category ? categoryPursuitMap[String(quest.category).toLowerCase()] : undefined
+  const primaryPursuit = primaryPursuitKey ? pursuits[primaryPursuitKey] : undefined
+  const secondaryPursuitKey = quest.vibe ? vibePursuitNudge[String(quest.vibe).toLowerCase()] : undefined
+  const secondaryPursuit = secondaryPursuitKey && secondaryPursuitKey !== primaryPursuitKey ? pursuits[secondaryPursuitKey] : undefined
+  const discoveryPursuit = pursuits.discovery
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-[100px] transition-colors duration-300">
       {/* 1. HERO IMAGE (Google Places Photo or Mapbox Fallback) */}
@@ -84,9 +92,9 @@ export function QuestDetail() {
         <button onClick={() => window.history.back()} className="absolute top-safe-4 left-4 z-10 w-10 h-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-colors">
           <ChevronLeft className="w-6 h-6 text-gray-900 dark:text-white pr-1" />
         </button>
-        
+
         {placeDetails?.photos?.[0] ? (
-          <img 
+          <img
             src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })}
             alt={data?.location?.name}
             className="w-full h-full object-cover"
@@ -186,11 +194,11 @@ export function QuestDetail() {
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">The Party</h3>
             <span className="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{data.attendee_count} going</span>
           </div>
-          
+
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
               {attendees && attendees.map((att: any, i: number) => (
-                <motion.div 
+                <motion.div
                   key={att.user_id}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -210,8 +218,8 @@ export function QuestDetail() {
                       </div>
                       {/* RSVP going / check-in attendance indicator badges */}
                       <div className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border border-white dark:border-gray-800 flex items-center justify-center shadow-sm ${
-                        att.has_attended 
-                          ? 'bg-amber-500 text-white border-yellow-300 animate-pulse' 
+                        att.has_attended
+                          ? 'bg-amber-500 text-white border-yellow-300 animate-pulse'
                           : 'bg-green-500 text-white'
                       }`}>
                         <Check className="w-3.5 h-3.5 stroke-[3.5]" />
@@ -228,7 +236,7 @@ export function QuestDetail() {
               {/* Special Invite button (plus symbol) at the end of the Party list */}
               {is_creator && (
                 <div className="snap-start shrink-0 text-center w-16">
-                  <button 
+                  <button
                     onClick={() => setShowInvitePopup(true)}
                     className="w-14 h-14 mx-auto mb-1 rounded-full border-2 border-dashed border-primary text-primary hover:bg-primary/10 active:scale-95 flex items-center justify-center transition-all cursor-pointer bg-gray-50/50 dark:bg-gray-800/10"
                   >
@@ -278,9 +286,9 @@ export function QuestDetail() {
                 </Marker>
               </Map>
             </div>
-            <a 
-              href={`https://maps.google.com/?q=${location.lat},${location.lng}`} 
-              target="_blank" 
+            <a
+              href={`https://maps.google.com/?q=${location.lat},${location.lng}`}
+              target="_blank"
               rel="noreferrer"
               className="flex items-center justify-center gap-2 w-full py-4 bg-white dark:bg-gray-800 text-primary font-bold hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700 transition-colors"
             >
@@ -353,7 +361,7 @@ export function QuestDetail() {
       {/* STREAK RECOVERY ALERT BANNER (Floating above bottom bar if streak broken) */}
       <AnimatePresence>
         {profile && (profile as any).current_streak === 0 && (profile as any).previous_streak > 0 && (profile as any).lives > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
@@ -387,28 +395,50 @@ export function QuestDetail() {
       </AnimatePresence>
 
       {/* BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex gap-3 transition-colors">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex flex-col gap-3 transition-colors">
+        {/* XP Preview — shown before check-in, understated like a fitness app breakdown */}
+        {showCheckIn && !user_attended && primaryPursuit && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Check in to earn:</span>
+            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: primaryPursuit.color }}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: primaryPursuit.color }} />
+              {primaryPursuit.noun} +{XP_REWARDS.checkinPrimary} XP
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: discoveryPursuit.color }}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: discoveryPursuit.color }} />
+              {discoveryPursuit.noun} +{XP_REWARDS.pioneerBonus} XP <span className="font-medium text-gray-400 dark:text-gray-500">(if first visit)</span>
+            </span>
+            {secondaryPursuit && (
+              <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: secondaryPursuit.color }}>
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: secondaryPursuit.color }} />
+                {secondaryPursuit.noun} +{XP_REWARDS.checkinSecondary} XP
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex gap-3">
         {showCheckIn && (
-          <CheckInButton 
+          <CheckInButton
             questId={quest.id}
             initialCheckedIn={user_attended}
             category={quest.category}
             vibe={quest.vibe}
             creatorId={creator.id}
             isFellowshipEligible={
-              quest.privacy === 'group' || 
-              quest.is_group_quest || 
-              quest.max_party_size >= 3 || 
+              quest.privacy === 'group' ||
+              quest.is_group_quest ||
+              quest.max_party_size >= 3 ||
               (attendees && attendees.length >= 3)
             }
             locationName={location?.name}
             questName={quest?.name}
             onSuccess={() => {
               refetch()
-            }} 
+            }}
           />
         )}
         <RSVPButton questId={quest.id} currentStatus={my_status} isCreator={is_creator} />
+        </div>
       </div>
 
       {/* Invite Friends Modal Popup */}
@@ -431,7 +461,7 @@ export function QuestDetail() {
             >
               <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6 shrink-0" />
               <h3 className="text-xl font-black text-center mb-6 text-gray-900 dark:text-white shrink-0">Invite Friends</h3>
-              
+
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-4">
                 {friendsLoading ? (
                   <div className="text-center py-8 text-xs font-bold text-gray-400">Loading friends...</div>
@@ -441,7 +471,7 @@ export function QuestDetail() {
                   friendsList.map(friend => {
                     const isAttending = attendees?.some((att: any) => att.user_id === friend.id)
                     const isInvited = data.invited?.some((inv: any) => inv.user_id === friend.id)
-                    
+
                     return (
                       <div key={friend.id} className="flex items-center justify-between p-3.5 bg-gray-50/50 dark:bg-gray-850/30 rounded-2xl border border-gray-100/50 dark:border-gray-800/50 transition-colors">
                         <div className="flex items-center gap-3">
@@ -497,9 +527,9 @@ export function QuestDetail() {
                   })
                 )}
               </div>
-              
-              <button 
-                onClick={() => setShowInvitePopup(false)} 
+
+              <button
+                onClick={() => setShowInvitePopup(false)}
                 className="w-full py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-extrabold text-base active:scale-95 transition-all cursor-pointer shrink-0"
               >
                 Done

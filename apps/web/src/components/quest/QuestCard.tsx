@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { MapPin } from 'lucide-react'
 import { format } from 'date-fns'
+import { categoryPursuitMap, pursuits, XP_REWARDS } from '../../features/pursuits/pursuits.config'
 
 interface QuestCardProps {
   quest: any
@@ -19,7 +20,11 @@ const CATEGORY_COLORS: Record<string, { border: string, bg: string, text: string
 export function QuestCard({ quest }: QuestCardProps) {
   const colors = CATEGORY_COLORS[quest.category] || CATEGORY_COLORS.Default
   const cost = '$'.repeat(quest.cost_tier) || 'Free'
-  
+
+  // Pursuit badge: which pursuit this quest's category rewards, and the XP preview
+  const pursuitKey = quest.category ? categoryPursuitMap[String(quest.category).toLowerCase()] : undefined
+  const pursuit = pursuitKey ? pursuits[pursuitKey] : undefined
+
   // Status badge display logic
   let statusBadge = null
   if (quest.my_status === 'accepted') statusBadge = <span className="text-green-600 font-bold text-sm">Going ✓</span>
@@ -50,6 +55,15 @@ export function QuestCard({ quest }: QuestCardProps) {
             <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colors.bg} ${colors.text} transition-colors`}>
               {quest.category}
             </span>
+            {pursuit && (
+              <span
+                className="px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1.5 transition-colors"
+                style={{ backgroundColor: `${pursuit.color}26`, color: pursuit.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: pursuit.color }} />
+                {pursuit.noun} · +{XP_REWARDS.checkinPrimary} XP
+              </span>
+            )}
             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors">
               {quest.vibe}
             </span>

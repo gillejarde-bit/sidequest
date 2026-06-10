@@ -62,4 +62,10 @@
   --sq-8: 48px;
   
   --sq-font: "SideQuest Sans", system-ui, sans-serif;
+
+  /* Overlay tokens (glassmorphic panels with backdrop-blur) */
+  --sq-overlay-heavy: rgba(42, 28, 20, 0.95);   /* surface @ 95% — panels */
+  --sq-overlay-mid:   rgba(42, 28, 20, 0.90);   /* surface @ 90% — popups */
+  --sq-overlay-soft:  rgba(42, 28, 20, 0.85);   /* surface @ 85% — empty states */
+  --sq-glass:         rgba(51, 35, 26, 0.80);   /* card @ 80% + backdrop-blur */
 }
