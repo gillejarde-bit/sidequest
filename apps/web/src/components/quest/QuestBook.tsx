@@ -383,27 +383,31 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
       )}
 
       {/* Main Physical Fake Book Mockup Frame */}
-      <motion.div 
+      <motion.div
         animate={shake ? {
           x: [0, -6, 6, -4, 4, -2, 2, 0],
           y: [0, 4, -4, 3, -3, 1, -1, 0]
         } : {}}
         transition={{ duration: 0.25 }}
-        className={`
-          w-full bg-[var(--sq-bg)] border-8 border-[var(--sq-ink)] rounded-[var(--sq-r-lg)] relative shadow-2xl overflow-hidden
-          aspect-[3.2/4] max-h-[calc(100dvh-180px)] flex transition-colors duration-300
-        `}
+        className="w-full relative aspect-[3.2/4] max-h-[calc(100dvh-180px)]"
       >
-        {/* Leather texture backdrop details */}
-        <div className="absolute inset-0 pointer-events-none bg-black/[0.04] dark:bg-white/[0.02]" />
+        {/* Leather cover, slightly larger than the page block */}
+        <div className="absolute -inset-2.5 rounded-[var(--sq-r-xl)] sq-book-cover pointer-events-none" />
 
+        {/* Stacked sheets peeking out toward the bottom-right (book depth) */}
+        <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(7px, 7px)' }} />
+        <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(4.5px, 4.5px)' }} />
+        <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(2px, 2px)' }} />
+
+        {/* Open page block */}
+        <div className="absolute inset-0 rounded-[var(--sq-r-md)] overflow-hidden flex shadow-2xl">
         <div className="flex-1 flex relative" style={{ perspective: "2000px", transformStyle: "preserve-3d" }}>
           {isWide ? (
             // DUAL PAGE (WIDE SCREEN) SPREAD WITH 3D PAGE-FLIP
             <div className="w-full h-full flex relative" style={{ transformStyle: "preserve-3d" }}>
               {/* Left Page Container (Always mounted, index changes dynamically) */}
               <div 
-                className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                className="w-1/2 h-full sq-book-page sq-book-page--left relative flex flex-col justify-between overflow-hidden shrink-0"
                 style={{ width: 'calc(50% + 1px)', marginRight: '-1px' }}
               >
                 {renderPageContent(isAnimating ? (direction === 'forward' ? prevPageIndex : currentPageIndex) : currentPageIndex)}
@@ -414,7 +418,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
               {/* Right Page Container (Always mounted, index changes dynamically) */}
               <div 
-                className="w-1/2 h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden shrink-0"
+                className="w-1/2 h-full sq-book-page sq-book-page--right relative flex flex-col justify-between overflow-hidden shrink-0"
                 style={{ width: 'calc(50% + 1px)', marginLeft: '-1px' }}
               >
                 {renderPageContent(isAnimating ? (direction === 'forward' ? currentPageIndex + 1 : prevPageIndex + 1) : currentPageIndex + 1)}
@@ -446,7 +450,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                   >
                     {/* Front side of flipping page */}
                     <div
-                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      className="absolute inset-0 sq-book-page sq-book-page--flip flex flex-col justify-between overflow-hidden"
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -461,7 +465,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
                     {/* Back side of flipping page */}
                     <div
-                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      className="absolute inset-0 sq-book-page sq-book-page--flip flex flex-col justify-between overflow-hidden"
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -490,7 +494,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             // SINGLE PAGE (MOBILE VIEWPORT) WITH 3D PAGE-FLIP
             <div className="w-full h-full relative" style={{ transformStyle: "preserve-3d" }}>
               {/* Static Page Container (Always mounted, preloads target page) */}
-              <div className="w-full h-full bg-[var(--sq-banner)] relative shadow-inner flex flex-col justify-between overflow-hidden">
+              <div className="w-full h-full sq-book-page sq-book-page--single relative flex flex-col justify-between overflow-hidden">
                 {renderPageContent(currentPageIndex)}
                 <div className="absolute bottom-4 right-4 text-[9px] font-medium text-[var(--sq-ink)]/40">
                   {currentPageIndex + 1}
@@ -517,7 +521,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                   >
                     {/* Front side of flipping page */}
                     <div
-                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      className="absolute inset-0 sq-book-page sq-book-page--flip flex flex-col justify-between overflow-hidden"
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -532,7 +536,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
 
                     {/* Back side of flipping page */}
                     <div
-                      className="absolute inset-0 bg-[var(--sq-banner)] shadow-inner flex flex-col justify-between overflow-hidden"
+                      className="absolute inset-0 sq-book-page sq-book-page--flip flex flex-col justify-between overflow-hidden"
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
@@ -569,6 +573,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
             <ChevronRightIcon size={20} active={false} withShadow={false} />
           </button>
         )}
+        </div>
       </motion.div>
 
       {/* Loose Leaf Parchment Certificate / XP Tally Card Overlay */}

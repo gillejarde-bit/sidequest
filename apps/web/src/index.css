@@ -460,4 +460,65 @@
 
 
 
-
+
+/* ── Quest Book — leather cover, stacked sheets, parchment pages ─────────── */
+
+/* Worn leather cover, warm ink-brown with an ember sheen along the spine */
+.sq-book-cover {
+  background:
+    linear-gradient(115deg,
+      color-mix(in srgb, var(--sq-ink) 65%, black) 0%,
+      var(--sq-ink) 16%,
+      color-mix(in srgb, var(--sq-ink) 84%, var(--sq-ember-600)) 58%,
+      color-mix(in srgb, var(--sq-ink) 62%, black) 100%);
+  box-shadow:
+    0 18px 40px -12px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.35),
+    inset 6px 0 10px -6px rgba(0, 0, 0, 0.45); /* spine shading */
+}
+
+/* The thin sheets peeking out under the open page (stacked-paper depth) */
+.sq-page-sheet {
+  background: color-mix(in srgb, var(--sq-banner) 84%, black);
+  border: 1px solid color-mix(in srgb, var(--sq-ink) 35%, transparent);
+}
+
+/* Parchment page surface — soft top light, warm deepening toward the foot */
+.sq-book-page {
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--sq-banner) 80%, white) 0%, transparent 55%),
+    linear-gradient(165deg,
+      color-mix(in srgb, var(--sq-banner) 94%, white) 0%,
+      var(--sq-banner) 52%,
+      color-mix(in srgb, var(--sq-banner) 88%, black) 100%);
+}
+
+/* Gutter shading per side of the spread */
+.sq-book-page--left {
+  box-shadow:
+    inset -16px 0 24px -14px rgba(58, 42, 32, 0.45),
+    inset 4px 0 10px -6px rgba(58, 42, 32, 0.15);
+}
+.sq-book-page--right {
+  box-shadow:
+    inset 16px 0 24px -14px rgba(58, 42, 32, 0.45),
+    inset -4px 0 10px -6px rgba(58, 42, 32, 0.15);
+}
+.sq-book-page--single {
+  box-shadow:
+    inset 12px 0 20px -14px rgba(58, 42, 32, 0.40),
+    inset -12px 0 20px -14px rgba(58, 42, 32, 0.25);
+}
+
+/* The page in mid-flip: page curl shading + a cast shadow onto the page below */
+.sq-book-page--flip {
+  box-shadow: 0 14px 34px -10px rgba(20, 13, 9, 0.55);
+}
+.sq-book-page--flip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(58, 42, 32, 0) 58%, rgba(58, 42, 32, 0.18) 100%);
+}

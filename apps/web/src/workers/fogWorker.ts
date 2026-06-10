@@ -26,18 +26,6 @@ const ctx = self as unknown as {
 const WORLD_RING: number[][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
 const ALL_RESOLUTIONS = [10, 8, 6, 4, 2, 1]
 
-// Deterministic warm patchwork color per cell (hues 15–45, golden/orange/amber)
-const hashCellToWarmColor = (cellId: string): string => {
-  let hash = 0
-  for (let i = 0; i < cellId.length; i++) {
-    hash = cellId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const h = 15 + Math.abs(hash % 30) // Hues 15 to 45 (warm golden/orange/amber tones)
-  const s = 60 + Math.abs((hash >> 8) % 15) // Saturation 60% to 75%
-  const l = 42 + Math.abs((hash >> 16) % 12) // Lightness 42% to 54%
-  return `hsl(${h}, ${s}%, ${l}%)`
-}
-
 function computeFog(fineCells: string[]): { fogData: Record<number, Feature>; linesData: Record<number, FeatureCollection> } {
   const fogData: Record<number, Feature> = {}
   const linesData: Record<number, FeatureCollection> = {}
@@ -118,46 +106,12 @@ function computeFog(fineCells: string[]): { fogData: Record<number, Feature>; li
       properties: {}
     }
 
-    // Build outlines and frontier lines
+    // Frontier lines only — the explored map itself stays clear.
+    // (Per the fog-v2 art direction: explored = clear map, soft glow on the
+    // frontier; the visible hex patchwork lives on the UNEXPLORED side and is
+    // rendered by the ambient grid in map.tsx.)
     const features: Feature[] = []
 
-    // Explored hex cell outlines and fills (at all resolutions)
-    cellsArray.forEach(cell => {
-      try {
-        const boundary = h3.cellToBoundary(cell, true)
-        if (boundary.length > 0) {
-          const closed = [...boundary]
-          closed.push(closed[0])
-
-          // Add outline
-          features.push({
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: closed
-            },
-            properties: { type: 'outline' }
-          })
-
-          // Add fill
-          features.push({
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [closed]
-            },
-            properties: {
-              type: 'cell-fill',
-              color: hashCellToWarmColor(cell)
-            }
-          })
-        }
-      } catch {
-        /* skip invalid cell */
-      }
-    })
-
-    // Frontier glow lines (outer perimeter of explored regions)
     merged.forEach(polygon => {
       polygon.forEach(ring => {
         features.push({
