@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Map, { NavigationControl, MapRef, Marker, Source, Layer } from 'react-map-gl'
+import Map, { NavigationControl, MapRef, Marker } from 'react-map-gl'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,110 +25,18 @@ import { Clock, MapPin, AlertCircle, Diamond, Locate, X } from 'lucide-react'
 
 // Fog-of-war imports
 import { FogLayer } from '../components/map/fog/FogLayer'
+import { FogHexCanvas } from '../components/map/fog/FogHexCanvas'
 import { FireLoadingScreen } from '../components/map/FireLoadingScreen'
 import { useCoverage } from '../hooks/useCoverage'
 import { FOG_CONFIG } from '../components/map/fog/config'
-import { useFogGeometry } from '../hooks/useFogGeometry'
 import * as h3 from 'h3-js'
 
 // Pursuit system imports (quest markers show the pursuit pip)
 import { categoryPursuitMap, pursuits } from '../features/pursuits/pursuits.config'
 
 import type { Database } from '../types/database.types'
-import type { Feature, FeatureCollection } from 'geojson'
 
-const getResForZoom = (zoom: number): number => {
-  if (zoom >= 13.0) return 10
-  if (zoom >= 10.5) return 8
-  if (zoom >= 8.0) return 6
-  if (zoom >= 5.5) return 4
-  if (zoom >= 3.5) return 2
-  return 1
-}
-
-// Zoom bands per H3 display resolution — tile the whole zoom range exactly
-const FOG_ZOOM_BANDS: Record<number, [number, number]> = {
-  10: [13.0, 24],
-  8: [10.5, 13.0],
-  6: [8.0, 10.5],
-  4: [5.5, 8.0],
-  2: [3.5, 5.5],
-  1: [0, 3.5]
-}
-
-// ─── Warm fog hex patchwork (visible unexplored hexes — cozy, never sci-fi) ────
-// Each unexplored cell gets a deterministic warm dark from this palette so the
-// patchwork is stable across frames (no flicker), per the fog-v2 art direction.
-const FOG_HEX_PALETTE = ['#1D130D', '#241A12', '#2B1D13', '#32220F', '#1A110B']
-const TORCH_LIT_RGB = { r: 0x6a, g: 0x3a, b: 0x18 } // ember-warmed fog tone
-
-const warmCellColor = (cellId: string, lit: number): string => {
-  let hash = 0
-  for (let i = 0; i < cellId.length; i++) {
-    hash = cellId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const base = FOG_HEX_PALETTE[Math.abs(hash) % FOG_HEX_PALETTE.length]
-  if (lit <= 0) return base
-  const r = parseInt(base.slice(1, 3), 16)
-  const g = parseInt(base.slice(3, 5), 16)
-  const b = parseInt(base.slice(5, 7), 16)
-  const t = Math.min(1, lit)
-  const mix = (a: number, c: number) => Math.round(a + (c - a) * t)
-  return `rgb(${mix(r, TORCH_LIT_RGB.r)}, ${mix(g, TORCH_LIT_RGB.g)}, ${mix(b, TORCH_LIT_RGB.b)})`
-}
-
-const distanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371e3
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-const getLayerOpacityExpression = (minZoom: number, maxZoom: number, baseOpacity: number) => {
-  const fade = 0.50
-  
-  if (minZoom === 0) {
-    return [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      maxZoom - fade,
-      baseOpacity,
-      maxZoom + fade,
-      0
-    ]
-  }
-  
-  if (maxZoom === 24) {
-    return [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      minZoom - fade,
-      0,
-      minZoom + fade,
-      baseOpacity
-    ]
-  }
-  
-  return [
-    'interpolate',
-    ['linear'],
-    ['zoom'],
-    minZoom - fade,
-    0,
-    minZoom + fade,
-    baseOpacity,
-    maxZoom - fade,
-    baseOpacity,
-    maxZoom + fade,
-    0
-  ]
-}
+// (Fog LOD, palette, and rendering all live in components/map/fog/FogHexCanvas.tsx)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface GooglePlaceResult {
@@ -257,14 +165,6 @@ export function MapPage() {
 
   const isAppReady = mapLoaded && firstFogPainted
 
-  // Fog GeoJSON is computed off the main thread in a Web Worker (see useFogGeometry)
-  const { fogData, linesData } = useFogGeometry(revealSet)
-
-  const [gridGeoJson, setGridGeoJson] = useState<FeatureCollection>({
-    type: 'FeatureCollection',
-    features: []
-  })
-
   const hasCenteredOnUserRef = useRef(false)
 
   // Populate revealSet from Supabase database coverage rows on load
@@ -273,78 +173,6 @@ export function MapPage() {
       setRevealSet(coverage)
     }
   }, [coverage, setRevealSet])
-
-  // Ambient unexplored hex patchwork (100ms debounced).
-  // Each unexplored cell in view gets a deterministic warm dark fill + a soft
-  // warm-charcoal outline; cells near the user are warmed by the torch.
-  // Explored cells are skipped entirely — the explored map stays clear.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const lat = viewState.latitude
-      const lng = viewState.longitude
-      const zoom = viewState.zoom
-
-      const res = getResForZoom(zoom)
-
-      try {
-        const centerCell = h3.latLngToCell(lat, lng, res)
-        if (centerCell) {
-          const cells = h3.gridDisk(centerCell, 12) // k=12 covers the screen
-
-          // Explored cells at the current display resolution (parents of fine cells)
-          const exploredAtRes = new Set<string>()
-          revealSet.forEach(fine => {
-            try {
-              exploredAtRes.add(res >= 10 ? fine : h3.cellToParent(fine, res))
-            } catch { /* skip invalid cell */ }
-          })
-
-          // Torch radius scales with the hex size at this resolution
-          const torchRadiusM = h3.getHexagonEdgeLengthAvg(res, h3.UNITS.m) * 6
-          const hasUser = userLoc.lat !== null && userLoc.lng !== null
-
-          const features = cells
-            .filter(cell => !exploredAtRes.has(cell))
-            .map((cell): Feature | null => {
-              const boundary = h3.cellToBoundary(cell, true)
-              if (boundary.length === 0) return null
-              const closed = [...boundary]
-              closed.push(closed[0])
-
-              let lit = 0
-              if (hasUser) {
-                const [cellLat, cellLng] = h3.cellToLatLng(cell)
-                const d = distanceMeters(userLoc.lat as number, userLoc.lng as number, cellLat, cellLng)
-                lit = Math.max(0, 1 - d / torchRadiusM)
-                lit = lit * lit // smooth falloff — bright at the user, gentle at the rim
-              }
-
-              return {
-                type: 'Feature',
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [closed]
-                },
-                properties: {
-                  cell,
-                  color: warmCellColor(cell, lit)
-                }
-              }
-            })
-            .filter((f): f is Feature => f !== null)
-
-          setGridGeoJson({
-            type: 'FeatureCollection',
-            features
-          })
-        }
-      } catch (e) {
-        console.error('[Map] Ambient grid generation failed:', e)
-      }
-    }, 100)
-
-    return () => clearTimeout(timer)
-  }, [viewState.latitude, viewState.longitude, viewState.zoom, revealSet, userLoc.lat, userLoc.lng])
 
   // Process user's geolocation changes: resolve cell, discover neighbors, add and persist
   useEffect(() => {
@@ -787,11 +615,23 @@ export function MapPage() {
           setFirstFogPainted(true)
         }}
       >
-        {/* Canvas Fog-of-War overlay rendered inside Map container context (first child to render behind markers/controls) */}
+        {/* Hex fog-of-war canvas: cached-bitmap transform during gestures (no flash),
+            LOD rebuild + crossfade at rest (hexes merge as you zoom out) */}
         {mapLoaded && mapInstance && (
-          <FogLayer 
-            map={mapInstance} 
-            userLocation={fogUserLocation} 
+          <FogHexCanvas
+            map={mapInstance}
+            revealSet={revealSet}
+            userLat={userLoc.lat}
+            userLng={userLoc.lng}
+            onFirstFramePaint={() => setFirstFogPainted(true)}
+          />
+        )}
+
+        {/* Drifting ember particles above the fog */}
+        {mapLoaded && mapInstance && (
+          <FogLayer
+            map={mapInstance}
+            userLocation={fogUserLocation}
             onFirstFramePaint={() => setFirstFogPainted(true)}
           />
         )}
@@ -998,98 +838,6 @@ export function MapPage() {
           </Marker>
         )}
 
-        {/* ── Fog stack (bottom → top): solid fog fills · warm hex patchwork · frontier glow ── */}
-
-        {/* 1. Fog Fill Layers (World Polygon minus explored holes).
-            Bands tile the zoom range exactly with FLAT opacity — no crossfade
-            dip, so fast zooming can never reveal the map through the fog. */}
-        {Object.entries(fogData).map(([resStr, data]) => {
-          const res = parseInt(resStr)
-          if (!data) return null
-          const [minZoom, maxZoom] = FOG_ZOOM_BANDS[res] ?? [0, 24]
-
-          return (
-            <Source key={`fog-fill-${res}`} id={`fog-fill-src-${res}`} type="geojson" data={data}>
-              <Layer
-                id={`fog-fill-layer-${res}`}
-                type="fill"
-                minzoom={minZoom}
-                maxzoom={maxZoom}
-                paint={{
-                  'fill-color': '#16100B', // forge-dark cozy base
-                  'fill-opacity': 0.98
-                }}
-              />
-            </Source>
-          )
-        })}
-
-        {/* 2. Visible warm hex patchwork over unexplored fog.
-            Deterministic warm darks per cell + torch-warmed cells near the user;
-            soft warm-charcoal outlines — cozy stitching, never sci-fi. */}
-        {gridGeoJson && (
-          <Source id="ambient-grid-src" type="geojson" data={gridGeoJson}>
-            <Layer
-              id="ambient-grid-fill-layer"
-              type="fill"
-              paint={{
-                'fill-color': ['get', 'color'] as any,
-                'fill-opacity': 0.85
-              }}
-            />
-            <Layer
-              id="ambient-grid-outline-layer"
-              type="line"
-              layout={{ 'line-join': 'round', 'line-cap': 'round' } as any}
-              paint={{
-                'line-color': '#3A2A20',
-                'line-width': 1,
-                'line-opacity': 0.4
-              }}
-            />
-          </Source>
-        )}
-
-        {/* 3. Frontier glow — boundary of the explored world only. Soft ember,
-            light, never neon. Crossfades between LOD bands. */}
-        {Object.entries(linesData).map(([resStr, lines]) => {
-          const res = parseInt(resStr)
-          if (!lines) return null
-          const [minZoom, maxZoom] = FOG_ZOOM_BANDS[res] ?? [0, 24]
-          const layerMinZoom = minZoom === 0 ? 0 : minZoom - 0.5
-          const layerMaxZoom = maxZoom === 24 ? 24 : maxZoom + 0.5
-
-          return (
-            <Source key={`fog-lines-${res}`} id={`fog-lines-src-${res}`} type="geojson" data={lines}>
-              <Layer
-                id={`fog-frontier-glow-layer-${res}`}
-                type="line"
-                minzoom={layerMinZoom}
-                maxzoom={layerMaxZoom}
-                filter={['==', ['get', 'type'], 'frontier']}
-                paint={{
-                  'line-color': '#EE8C46',
-                  'line-width': 5,
-                  'line-blur': 5,
-                  'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.35) as any
-                }}
-              />
-              <Layer
-                id={`fog-frontier-core-layer-${res}`}
-                type="line"
-                minzoom={layerMinZoom}
-                maxzoom={layerMaxZoom}
-                filter={['==', ['get', 'type'], 'frontier']}
-                layout={{ 'line-join': 'round', 'line-cap': 'round' } as any}
-                paint={{
-                  'line-color': '#F0B45C',
-                  'line-width': 1.2,
-                  'line-opacity': getLayerOpacityExpression(minZoom, maxZoom, 0.55) as any
-                }}
-              />
-            </Source>
-          )
-        })}
       </Map>
 
       {/* Breathing vignette overlay */}

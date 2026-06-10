@@ -40,6 +40,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
   const activeArchetype = deriveArchetype(pursuitXP)
 
   const [isWide, setIsWide] = useState(false)
+  const [coverOpen, setCoverOpen] = useState(false)
   const [shake, setShake] = useState(false)
   const [ceremonyPhase, setCeremonyPhase] = useState<'open' | 'descent' | 'impact' | 'settle' | 'tally'>('open')
 
@@ -59,9 +60,10 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
     }
   }, [currentPageIndex, prevPageIndex])
 
-  // Auto-navigate to History Page 1 if there's a pending ceremony
+  // Auto-open the book + navigate to History Page 1 if there's a pending ceremony
   useEffect(() => {
     if (pendingCeremony) {
+      setCoverOpen(true)
       setCurrentPageIndex(isWide ? 4 : 5)
     }
   }, [pendingCeremony, isWide, setCurrentPageIndex])
@@ -367,7 +369,52 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
   const rightPageIndex = leftPageIndex + 1
 
   return (
-    <div className="w-full flex flex-col items-center select-none px-4 max-w-4xl mx-auto relative">
+    <div className="w-full flex flex-col items-center select-none px-4 max-w-4xl mx-auto relative" style={{ perspective: '1600px' }}>
+      <AnimatePresence mode="wait" initial={false}>
+      {!coverOpen ? (
+        /* ── CLOSED BOOK — aged leather cover with the fire emblem ── */
+        <motion.button
+          key="cover"
+          onClick={() => setCoverOpen(true)}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ rotateY: -110, opacity: 0 }}
+          transition={{ duration: 0.55, ease: [0.45, 0, 0.25, 1] }}
+          style={{ transformOrigin: 'left center', transformStyle: 'preserve-3d' }}
+          className="relative w-full max-w-[420px] aspect-[3.2/4] max-h-[calc(100dvh-180px)] mx-auto cursor-pointer group"
+        >
+          {/* Page block peeking out under the cover */}
+          <div className="absolute left-1.5 right-1.5 bottom-0 h-[7%] rounded-b-[16px] sq-page-block-h" />
+
+          {/* Aged leather front cover */}
+          <div className="absolute inset-x-0 top-0 bottom-[5%] rounded-[20px] sq-cover-front transition-transform duration-300 group-hover:scale-[1.01]">
+            <div className="absolute inset-3 rounded-[14px] border-2 border-dashed border-[var(--sq-gold)]/25 pointer-events-none" />
+            {/* Corner studs */}
+            <div className="absolute top-5 left-5 w-2 h-2 rounded-full bg-[var(--sq-gold)]/30" />
+            <div className="absolute top-5 right-5 w-2 h-2 rounded-full bg-[var(--sq-gold)]/30" />
+            <div className="absolute bottom-5 left-5 w-2 h-2 rounded-full bg-[var(--sq-gold)]/30" />
+            <div className="absolute bottom-5 right-5 w-2 h-2 rounded-full bg-[var(--sq-gold)]/30" />
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+              <FireEmblem size={104} />
+              <div className="text-center">
+                <p className="text-[9px] tracking-[0.3em] uppercase text-[var(--sq-gold-soft)]/60 font-medium">The Chronicle of</p>
+                <h2 className="mt-1 text-2xl font-medium tracking-wide text-[var(--sq-banner)]">Quester's Book</h2>
+                <div className="mx-auto mt-3 h-0.5 w-14 rounded-full bg-[var(--sq-gold)]/40" />
+                <p className="mt-5 text-[9px] uppercase tracking-[0.25em] text-[var(--sq-gold-soft)]/45 group-hover:text-[var(--sq-gold-soft)]/80 transition-colors">Tap to open</p>
+              </div>
+            </div>
+          </div>
+        </motion.button>
+      ) : (
+      /* ── OPEN BOOK — recenters as the cover swings away ── */
+      <motion.div
+        key="book"
+        initial={{ opacity: 0, scale: 0.97, x: '6%' }}
+        animate={{ opacity: 1, scale: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 1, 0.4, 1] }}
+        className="w-full relative flex flex-col items-center"
+      >
       {/* Table of Contents Bookmark Ribbon */}
       {currentPageIndex > 1 && (
         <button
@@ -394,10 +441,10 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
         {/* Leather cover, slightly larger than the page block */}
         <div className="absolute -inset-2.5 rounded-[var(--sq-r-xl)] sq-book-cover pointer-events-none" />
 
-        {/* Stacked sheets peeking out toward the bottom-right (book depth) */}
-        <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(7px, 7px)' }} />
-        <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(4.5px, 4.5px)' }} />
+        {/* Fat page block — many stacked pages along the fore-edge and foot */}
         <div className="absolute inset-0 rounded-[var(--sq-r-md)] sq-page-sheet pointer-events-none" style={{ transform: 'translate(2px, 2px)' }} />
+        <div className="absolute top-1.5 -right-[9px] bottom-0 w-[9px] rounded-r-[5px] sq-page-block-v pointer-events-none" />
+        <div className="absolute -bottom-[9px] left-1.5 right-0 h-[9px] rounded-b-[5px] sq-page-block-h pointer-events-none" />
 
         {/* Open page block */}
         <div className="absolute inset-0 rounded-[var(--sq-r-md)] overflow-hidden flex shadow-2xl">
@@ -432,10 +479,10 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                 {isAnimating && (
                   <motion.div
                     key={`flip-${prevPageIndex}-${currentPageIndex}`}
-                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
-                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
-                    exit={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
-                    transition={{ duration: 0.55, ease: [0.25, 1, 0.5, 1] }}
+                    initial={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, 0deg)' } : { transform: 'rotate3d(-0.22, 1, 0, -180deg)' }}
+                    animate={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
+                    exit={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
+                    transition={{ duration: 0.6, ease: [0.3, 0.6, 0.3, 1] }}
                     style={{
                       transformOrigin: direction === 'forward' ? 'left center' : 'right center',
                       transformStyle: 'preserve-3d',
@@ -454,7 +501,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(0deg) translateZ(0.5px)',
+                        transform: 'translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? prevPageIndex + 1 : currentPageIndex + 1)}
@@ -469,7 +516,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg) translateZ(0.5px)',
+                        transform: 'rotate3d(-0.22, 1, 0, 180deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}
@@ -506,10 +553,10 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                 {isAnimating && (
                   <motion.div
                     key={`flip-single-${prevPageIndex}-${currentPageIndex}`}
-                    initial={direction === 'forward' ? { rotateY: 0 } : { rotateY: -180 }}
-                    animate={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
-                    exit={direction === 'forward' ? { rotateY: -180 } : { rotateY: 0 }}
-                    transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                    initial={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, 0deg)' } : { transform: 'rotate3d(-0.22, 1, 0, -180deg)' }}
+                    animate={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
+                    exit={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
+                    transition={{ duration: 0.55, ease: [0.3, 0.6, 0.3, 1] }}
                     style={{
                       transformOrigin: 'left center',
                       transformStyle: 'preserve-3d',
@@ -525,7 +572,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(0deg) translateZ(0.5px)',
+                        transform: 'translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? prevPageIndex : currentPageIndex)}
@@ -540,7 +587,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                       style={{
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg) translateZ(0.5px)',
+                        transform: 'rotate3d(-0.22, 1, 0, 180deg) translateZ(0.5px)',
                       }}
                     >
                       {renderPageContent(direction === 'forward' ? currentPageIndex : prevPageIndex)}
@@ -620,7 +667,30 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
           </motion.div>
         )}
       </AnimatePresence>
+      </motion.div>
+      )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+// Stylized campfire emblem for the cover — flat warm shapes, slightly worn
+function FireEmblem({ size = 96 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 96 96" fill="none" aria-hidden="true">
+      {/* worn ring */}
+      <circle cx="48" cy="48" r="44" stroke="var(--sq-gold)" strokeOpacity="0.35" strokeWidth="2.5" strokeDasharray="6 5" />
+      <circle cx="48" cy="48" r="38" stroke="var(--sq-gold)" strokeOpacity="0.18" strokeWidth="1.2" />
+      {/* crossed logs */}
+      <rect x="28" y="66" width="40" height="6" rx="3" transform="rotate(-8 48 69)" fill="var(--sq-ember-600)" opacity="0.85" />
+      <rect x="28" y="66" width="40" height="6" rx="3" transform="rotate(8 48 69)" fill="var(--sq-ink)" opacity="0.9" />
+      {/* outer flame */}
+      <path d="M48 18 C56 30 64 36 64 48 C64 59 57 66 48 66 C39 66 32 59 32 48 C32 40 36 34 40 30 C40 36 43 39 46 40 C44 32 45 24 48 18 Z" fill="var(--sq-ember-500)" />
+      {/* mid flame */}
+      <path d="M48 30 C53 37 58 41 58 49 C58 56 53 61 48 61 C43 61 38 56 38 49 C38 44 41 40 43 38 C43 42 45 44 47 45 C46 40 46 35 48 30 Z" fill="var(--sq-gold)" />
+      {/* core */}
+      <path d="M48 41 C51 45 53 47 53 51 C53 55 50 57 48 57 C46 57 43 55 43 51 C43 48 45 45 48 41 Z" fill="var(--sq-banner)" />
+    </svg>
   )
 }
 
