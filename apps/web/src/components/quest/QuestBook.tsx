@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuthStore } from '../../stores/auth'
 import { useStampsStore } from '../../features/stamps/stampsStore'
 import { usePursuitsStore } from '../../features/pursuits/pursuits.store'
@@ -47,18 +47,25 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
   const [prevPageIndex, setPrevPageIndex] = useState(currentPageIndex)
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [isAnimating, setIsAnimating] = useState(false)
+  const prefersReduced = useReducedMotion()
 
   useEffect(() => {
     if (currentPageIndex !== prevPageIndex) {
+      if (prefersReduced) {
+        // Reduced motion: instant page swap, no flip
+        setIsAnimating(false)
+        setPrevPageIndex(currentPageIndex)
+        return
+      }
       setDirection(currentPageIndex > prevPageIndex ? 'forward' : 'backward')
       setIsAnimating(true)
       const timer = setTimeout(() => {
         setIsAnimating(false)
         setPrevPageIndex(currentPageIndex)
-      }, 550)
+      }, 430)
       return () => clearTimeout(timer)
     }
-  }, [currentPageIndex, prevPageIndex])
+  }, [currentPageIndex, prevPageIndex, prefersReduced])
 
   // Auto-open the book + navigate to History Page 1 if there's a pending ceremony
   useEffect(() => {
@@ -482,7 +489,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                     initial={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, 0deg)' } : { transform: 'rotate3d(-0.22, 1, 0, -180deg)' }}
                     animate={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
                     exit={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
-                    transition={{ duration: 0.6, ease: [0.3, 0.6, 0.3, 1] }}
+                    transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
                     style={{
                       transformOrigin: direction === 'forward' ? 'left center' : 'right center',
                       transformStyle: 'preserve-3d',
@@ -556,7 +563,7 @@ export function QuestBook({ upcomingQuests, inviteQuests, myQuests, isLoading, o
                     initial={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, 0deg)' } : { transform: 'rotate3d(-0.22, 1, 0, -180deg)' }}
                     animate={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
                     exit={direction === 'forward' ? { transform: 'rotate3d(-0.22, 1, 0, -180deg)' } : { transform: 'rotate3d(-0.22, 1, 0, 0deg)' }}
-                    transition={{ duration: 0.55, ease: [0.3, 0.6, 0.3, 1] }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                     style={{
                       transformOrigin: 'left center',
                       transformStyle: 'preserve-3d',

@@ -555,3 +555,33 @@
   border-top: none;
   box-shadow: inset 0 -2px 4px -2px rgba(0, 0, 0, 0.5);
 }
+
+/* ── Book pages force paper-skinned content ───────────────────────────────
+   Cards, stamps, and lists rendered inside a parchment page must never use
+   the app's dark-mode surfaces — ink on paper, always. */
+.dark .sq-book-page .dark\:bg-gray-800,
+.dark .sq-book-page .dark\:bg-gray-900,
+.dark .sq-book-page .dark\:bg-gray-700 {
+  background-color: color-mix(in srgb, var(--sq-banner) 86%, white) !important;
+}
+[data-theme="ember"] .sq-book-page .rounded-2xl::before,
+[data-theme="ember"] .sq-book-page .rounded-3xl::before {
+  background-color: color-mix(in srgb, var(--sq-banner) 88%, white) !important;
+  border-color: color-mix(in srgb, var(--sq-ink) 28%, transparent) !important;
+}
+.dark .sq-book-page .dark\:text-white {
+  color: var(--sq-ink) !important;
+}
+.dark .sq-book-page .dark\:text-gray-300,
+.dark .sq-book-page .dark\:text-gray-400,
+.dark .sq-book-page .dark\:text-gray-500 {
+  color: color-mix(in srgb, var(--sq-ink) 62%, var(--sq-banner)) !important;
+}
+.dark .sq-book-page .dark\:border-gray-700,
+.dark .sq-book-page .dark\:border-gray-800 {
+  border-color: color-mix(in srgb, var(--sq-ink) 22%, transparent) !important;
+}
+.dark .sq-book-page .dark\:bg-gray-850\/30,
+.dark .sq-book-page .dark\:bg-gray-900\/50 {
+  background-color: color-mix(in srgb, var(--sq-banner) 92%, white) !important;
+}
