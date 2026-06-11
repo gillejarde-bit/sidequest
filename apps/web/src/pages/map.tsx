@@ -111,20 +111,9 @@ export function MapPage() {
 
   const initialCoords = useMemo(() => getLastKnownLocation(), [])
 
-  const [viewState, setViewState] = useState({
-    longitude: initialCoords.longitude,
-    latitude: initialCoords.latitude,
-    zoom: 14,
-    pitch: 0,
-    bearing: 0
-  })
-
-  // Track viewport changes for zoom LOD calculations
-  useEffect(() => {
-    if (viewState.zoom > 0) {
-      // Read viewState properties to satisfy strict compiler checks
-    }
-  }, [viewState])
+  // NOTE: no per-frame viewState mirror — camera state lives in Mapbox only.
+  // Re-rendering React on every 'move' frame re-painted every marker and was
+  // the main source of visible flicker while panning/zooming.
 
   // Geolocation tracking hook
   const userLoc = useGeolocation()
@@ -578,7 +567,6 @@ export function MapPage() {
           pitch: 0,
           bearing: 0
         }}
-        onMove={evt => setViewState(evt.viewState)}
         mapStyle={cozyStyle as any}
         mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
         antialias={false}

@@ -9,7 +9,6 @@ import {
   Plus, 
   AlertTriangle, 
   Sparkles, 
-  Check, 
   Loader2,
   ChevronLeft,
   Heart,
@@ -286,7 +285,7 @@ export function StreaksPage() {
       if (memberErr) throw memberErr
 
       addToast({
-        message: `Group "${groupName}" created! 👥`,
+        message: `🔥 The ${groupName} flame is lit! Keep it fed.`,
       })
 
       setGroupName('')
@@ -304,13 +303,14 @@ export function StreaksPage() {
     }
   }
 
+  // Flame tiers — every crew flame has a name worth chasing
   const getFlameStyles = (streak: number) => {
-    if (streak <= 2) return { color: '#A8A8B3', bgClass: 'bg-gray-100 dark:bg-gray-800 text-gray-400' }
-    if (streak <= 6) return { color: '#E67E22', bgClass: 'bg-orange-100 dark:bg-orange-950/30 text-orange-500' }
-    if (streak <= 13) return { color: '#FF6B35', bgClass: 'bg-amber-100 dark:bg-amber-950/30 text-amber-500 font-bold' }
-    if (streak <= 29) return { color: '#FF3B30', bgClass: 'bg-red-100 dark:bg-red-950/30 text-red-500 font-bold shadow-lg shadow-red-500/20' }
-    if (streak <= 49) return { color: '#FFD93D', bgClass: 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-500 font-bold shadow-lg shadow-yellow-500/20 animate-pulse' }
-    return { color: 'rainbow', bgClass: 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' }
+    if (streak <= 2) return { color: '#A8A8B3', tier: 'Cold Coals', bgClass: 'bg-gray-100 dark:bg-gray-800 text-gray-400' }
+    if (streak <= 6) return { color: '#E67E22', tier: 'Kindling', bgClass: 'bg-orange-100 dark:bg-orange-950/30 text-orange-500' }
+    if (streak <= 13) return { color: '#FF6B35', tier: 'Steady Burn', bgClass: 'bg-amber-100 dark:bg-amber-950/30 text-amber-500 font-bold' }
+    if (streak <= 29) return { color: '#FF3B30', tier: 'Roaring Fire', bgClass: 'bg-red-100 dark:bg-red-950/30 text-red-500 font-bold shadow-lg shadow-red-500/20' }
+    if (streak <= 49) return { color: '#FFD93D', tier: 'Wildfire', bgClass: 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-500 font-bold shadow-lg shadow-yellow-500/20 animate-pulse' }
+    return { color: 'rainbow', tier: 'Eternal Flame', bgClass: 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' }
   }
 
   const overallStreak = profile?.current_streak || 0
@@ -330,7 +330,7 @@ export function StreaksPage() {
           </Link>
           <div className="flex items-center gap-2">
             <Flame className="w-6 h-6 text-orange-500 animate-bounce" fill="currentColor" />
-            <h1 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">Streaks Hub</h1>
+            <h1 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">The Crew Flame</h1>
           </div>
           <button 
             onClick={() => setIsCreateModalOpen(true)}
@@ -361,12 +361,12 @@ export function StreaksPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
-                      Life
+                      Hearth Lives
                       <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
-                        Active
+                        Burning
                       </span>
                     </h3>
-                    <p className="text-xs text-gray-400 font-bold mt-0.5">{lives} / 3 Hearts remaining</p>
+                    <p className="text-xs text-gray-400 font-bold mt-0.5">{lives} of 3 hearts still glowing</p>
                   </div>
                 </div>
                 
@@ -394,7 +394,7 @@ export function StreaksPage() {
                   />
                 </div>
                 <p className="text-[11px] text-gray-400 dark:text-gray-300 font-semibold mt-2.5 leading-relaxed">
-                  Missing planned quests reduces your hearts. Recharge by attending group events or verifying hidden gems!
+                  Skip a planned quest and a heart turns to ash. Rekindle them by showing up for your crew or verifying hidden gems in the wild.
                 </p>
               </div>
             </motion.div>
@@ -412,9 +412,9 @@ export function StreaksPage() {
               <Heart className="w-6 h-6 animate-bounce" fill="currentColor" />
             </div>
             <div>
-              <h3 className="font-black text-gray-900 dark:text-white text-base">Your Streak is Broken! 💔</h3>
+              <h3 className="font-black text-gray-900 dark:text-white text-base">Your flame went out 🕯️</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
-                You didn't check in on time or were too far. Save your <span className="text-orange-500">{(profile as any).previous_streak}-day streak</span> before it's gone forever!
+                The embers of your <span className="text-orange-500">{(profile as any).previous_streak}-day flame</span> are still warm. One life brings it roaring back — wait too long and it goes cold for good.
               </p>
             </div>
             <button
@@ -425,7 +425,7 @@ export function StreaksPage() {
               {restoring ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
                   <Heart className="w-4.5 h-4.5 fill-current" />
-                  Use 1 Life to Restore
+                  Rekindle with 1 Life
                 </>
               )}
             </button>
@@ -447,7 +447,7 @@ export function StreaksPage() {
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-black tracking-wider uppercase bg-white/20 px-2.5 py-1 rounded-full text-white/95">
-                Active Personal Streak
+                Your flame has burned for
               </span>
               <div className="flex items-baseline gap-2 mt-4">
                 <span className="text-6xl font-black tracking-tight">{overallStreak}</span>
@@ -474,12 +474,12 @@ export function StreaksPage() {
 
           <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm text-orange-50">
             <div>
-              <p className="opacity-75">Personal Best</p>
+              <p className="opacity-75">Brightest blaze</p>
               <p className="font-extrabold text-white text-lg">{overallLongest} days 🔥</p>
             </div>
             {overallStreak >= 5 && (
               <span className="bg-emerald-500/30 px-3 py-1 rounded-xl text-xs font-black">
-                ON FIRE!
+                BLAZING
               </span>
             )}
           </div>
@@ -489,10 +489,10 @@ export function StreaksPage() {
         <div className="flex items-center justify-between pt-2">
           <h2 className="text-lg font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
-            Group Streaks
+            Crew Flames
           </h2>
           <span className="text-xs text-gray-400 font-bold bg-gray-200/50 dark:bg-gray-800 px-2 py-1 rounded-lg">
-            {streaks.length} Joined
+            {streaks.length} {streaks.length === 1 ? 'crew' : 'crews'}
           </span>
         </div>
 
@@ -500,7 +500,7 @@ export function StreaksPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-gray-400 font-semibold">Loading your group streaks...</p>
+            <p className="text-sm text-gray-400 font-semibold">Stoking the coals...</p>
           </div>
         ) : streaks.length === 0 ? (
           <motion.div 
@@ -508,18 +508,18 @@ export function StreaksPage() {
             animate={{ opacity: 1 }}
             className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-4 shadow-sm"
           >
-            <p className="text-gray-400 font-bold">You aren't in any quest groups yet! Start a Group to build streaks together.</p>
+            <p className="text-gray-400 font-bold">No crew, no fire. Light one with your people — every quest you finish together feeds the same shared flame.</p>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-6 py-3 bg-primary hover:bg-[#46A302] text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
             >
-              Create New Group
+              Light a Crew Flame
             </button>
           </motion.div>
         ) : (
           <div className="space-y-4">
             {streaks.map((crew, idx) => {
-              const { color: flameColor, bgClass } = getFlameStyles(crew.current_streak)
+              const { color: flameColor, bgClass, tier } = getFlameStyles(crew.current_streak)
               const percent = Math.min(100, Math.round((crew.current_streak / crew.next_milestone) * 100))
               const isRainbow = flameColor === 'rainbow'
               const lastQuestDate = crew.last_quest_at ? new Date(crew.last_quest_at).toLocaleDateString() : 'Never'
@@ -557,7 +557,7 @@ export function StreaksPage() {
                         </h3>
                         <p className="text-xs text-gray-400 font-semibold flex items-center gap-1.5 mt-0.5">
                           <Users className="w-3.5 h-3.5" />
-                          {crew.member_count} members • Last quest: {lastQuestDate}
+                          {crew.member_count} {crew.member_count === 1 ? 'keeper' : 'keepers'} · last fed {lastQuestDate}
                         </p>
                       </div>
                     </div>
@@ -584,6 +584,7 @@ export function StreaksPage() {
                         </motion.div>
                         <span className="text-sm font-black tracking-tight">{crew.current_streak}</span>
                       </div>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">{tier}</span>
                       {crew.is_at_risk && (
                         <div className="flex items-center gap-1 text-[9px] text-red-500 font-black bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-lg border border-red-100 dark:border-red-950/50 mt-1">
                           <Heart className="w-2.5 h-2.5 fill-current" />
@@ -598,10 +599,10 @@ export function StreaksPage() {
                     <div className="mt-3 flex flex-col gap-1 bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 p-2.5 rounded-2xl text-xs font-bold border border-red-100 dark:border-red-950/30">
                       <div className="flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
-                        <span>⚠️ At risk — missing this costs a life</span>
+                        <span>The flame is flickering — quest soon or it costs a heart</span>
                       </div>
                       <span className="text-[10px] text-gray-400 dark:text-gray-300 pl-5">
-                        {crew.days_until_break} days left to quest!
+                        {crew.days_until_break} {crew.days_until_break === 1 ? 'day' : 'days'} to feed the fire
                       </span>
                     </div>
                   )}
@@ -609,7 +610,7 @@ export function StreaksPage() {
                   {/* Progress Milestone Bar */}
                   <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
                     <div className="flex items-center justify-between text-xs font-bold text-gray-400 dark:text-gray-500 mb-1.5">
-                      <span>Next milestone: {crew.next_milestone} days</span>
+                      <span>Next blaze at {crew.next_milestone} days</span>
                       <span>{percent}%</span>
                     </div>
                     <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -651,11 +652,11 @@ export function StreaksPage() {
               className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700 focus:outline-none"
             >
               <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                <Users className="w-6 h-6 text-primary" />
-                Assemble a New Group
+                <Flame className="w-6 h-6 text-primary" fill="currentColor" />
+                Light a New Crew Flame
               </h2>
               <p className="text-xs font-semibold text-gray-400 mb-5">
-                Rally your friends to tackle quests together, maintain a unified streak flame, and earn exclusive team rewards!
+                Gather your people. Every quest you finish together feeds one shared flame — keep it alive and the whole crew earns the glory. Let it die, and everyone feels the cold.
               </p>
 
               <form onSubmit={handleCreateGroup} className="space-y-4">
@@ -671,7 +672,7 @@ export function StreaksPage() {
                     ) : (
                       <>
                         <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1 group-hover:text-primary transition-colors" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Upload Pic</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Crew Crest</span>
                       </>
                     )}
                     {uploading && (
@@ -685,7 +686,7 @@ export function StreaksPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className="text-xs font-black text-primary hover:text-[#46A302] active:scale-95 transition-all"
                   >
-                    {crewAvatarUrl ? 'Change Photo' : 'Choose Group Icon'}
+                    {crewAvatarUrl ? 'Change Photo' : 'Choose a Crew Crest'}
                   </button>
                   <input 
                     type="file" 
@@ -698,26 +699,26 @@ export function StreaksPage() {
 
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Group Name
+                    Crew Name
                   </label>
                   <input
                     type="text"
                     required
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="e.g. Taco Tuesday Alliance"
+                    placeholder="e.g. The Taco Tuesday Alliance"
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Description / Vibe
+                    Crew Vibe
                   </label>
                   <textarea
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
-                    placeholder="Describe your group's focus..."
+                    placeholder="What does this crew chase? Food spots, night hikes, arcade raids..."
                     rows={2}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
                   />
@@ -725,7 +726,7 @@ export function StreaksPage() {
 
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Group Banner Color
+                    Crew Color
                   </label>
                   <div className="flex items-center gap-2.5">
                     {presetColors.map((color) => (
@@ -757,8 +758,8 @@ export function StreaksPage() {
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <Check className="w-4 h-4" strokeWidth={2.5} />
-                        Assemble
+                        <Flame className="w-4 h-4" fill="currentColor" />
+                        Light the Flame
                       </>
                     )}
                   </button>

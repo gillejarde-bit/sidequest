@@ -84,6 +84,7 @@ interface FogBitmap {
   centerLng: number
   centerLat: number
   zoom: number
+  res: number
   cssWidth: number
   cssHeight: number
 }
@@ -257,16 +258,21 @@ export function FogHexCanvas({ map, revealSet, userLat, userLng, onFirstFramePai
         ctx.restore()
       }
 
-      previousRef.current = currentRef.current
+      const prevBitmap = currentRef.current
+      previousRef.current = prevBitmap
       currentRef.current = {
         canvas: bitmap,
         centerLng: center.lng,
         centerLat: center.lat,
         zoom,
+        res,
         cssWidth: cssW,
         cssHeight: cssH
       }
-      fadeStartRef.current = performance.now()
+      // Crossfade ONLY when the hex resolution changes (the merge moment).
+      // Same-res rebuilds (reveal updates, drift refreshes) swap instantly —
+      // repeated fades read as flicker.
+      fadeStartRef.current = prevBitmap && prevBitmap.res !== res ? performance.now() : 0
       lastRebuildRef.current = performance.now()
       draw()
     }
