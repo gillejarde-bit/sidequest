@@ -14,19 +14,15 @@ import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } f
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
 import { format } from 'date-fns'
+import type { Database } from '../../types/database.types'
 
 // Same fallback the flat map uses when no fix is available yet.
 const FALLBACK: GeoOrigin = { lat: 36.1699, lng: -115.1398 }
 
 type Source = 'loading' | 'osm' | 'fallback'
 
-interface QuestRow {
-  id: string
-  name: string
-  created_at: string
-  location_lat: number | null
-  location_lng: number | null
-}
+// Same RPC the flat map uses — quests come back with resolved location coords.
+type QuestRow = Database['public']['Functions']['get_my_quests']['Returns'][number]
 
 function metersBetween(a: GeoOrigin, b: GeoOrigin): number {
   const dy = (a.lat - b.lat) * 110_540
@@ -62,13 +58,11 @@ export default function WorldView() {
   const { data: recentQuests = [] } = useQuery({
     queryKey: ['world-recent-quests'],
     queryFn: async (): Promise<QuestRow[]> => {
-      const { data, error } = await supabase
-        .from('quests')
-        .select('id, name, created_at, location_lat, location_lng')
-        .order('created_at', { ascending: false })
-        .limit(15)
-      if (error) return []
-      return (data ?? []) as QuestRow[]
+      const { data, error } = await supabase.rpc('get_my_quests', { filter_status: undefined })
+      if (error || !data) return []
+      return [...data]
+        .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime())
+        .slice(0, 15)
     },
     staleTime: 60_000,
   })
@@ -80,7 +74,7 @@ export default function WorldView() {
     if (!engine || !origin) return
     const pins = new Map<string, QuestPin>()
     for (const q of recentQuests) {
-      if (q.location_lat == null || q.location_lng == null) continue
+      if (!Number.isFinite(q.location_lat) || !Number.isFinite(q.location_lng)) continue
       const { wx, wz } = geoToTile(origin, q.location_lat, q.location_lng)
       pins.set(tileKey(wx, wz), { id: q.id, name: q.name })
     }
@@ -340,9 +334,9 @@ export default function WorldView() {
                 onClick={() => navigate({ to: '/quest/$id', params: { id: q.id } })}
                 className="flex w-full cursor-pointer items-center gap-1.5 rounded-[var(--sq-r-sm)] px-1 py-1 text-left transition-colors hover:bg-[var(--sq-surface)]"
               >
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${q.location_lat != null ? 'bg-[var(--sq-gold)]' : 'bg-[var(--sq-text-faint)]'}`} />
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${Number.isFinite(q.location_lat) ? 'bg-[var(--sq-gold)]' : 'bg-[var(--sq-text-faint)]'}`} />
                 <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-[var(--sq-text)]">{q.name}</span>
-                <span className="shrink-0 text-[8px] font-medium text-[var(--sq-text-faint)]">{format(new Date(q.created_at), 'dd MMM')}</span>
+                <span className="shrink-0 text-[8px] font-medium text-[var(--sq-text-faint)]">{format(new Date(q.starts_at), 'dd MMM')}</span>
               </button>
             ))}
           </div>
