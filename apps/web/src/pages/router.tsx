@@ -222,7 +222,7 @@ const requireAuth = async () => {
   }
 }
 
-import { MapPage } from './map'
+import { WorldMapPage } from './worldmap'
 import { CreateQuestPage } from './quest/create'
 import { CampfirePage } from './campfire'
 
@@ -237,7 +237,7 @@ export const mapRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/map',
   beforeLoad: requireAuth,
-  component: MapPage,
+  component: WorldMapPage,
 })
 
 export const loginRoute = createRoute({
