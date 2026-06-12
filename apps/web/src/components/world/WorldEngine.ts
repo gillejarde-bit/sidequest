@@ -13,9 +13,10 @@ import { gsap } from 'gsap'
 import { generateTile, TEMPLATES, tileRng, type TemplateId, type TileSpec } from './templates'
 import { tileKey, type GeoOrigin, type WorldPoi } from './osm'
 import {
-  buildFogPuffs, buildNature, buildPlayer, buildStructure,
-  disposeObject, setGroupTone, GROUND_COLORS, P,
+  buildFogPuffs, buildNature, buildPathPad, buildPlayer, buildQuestFlag, buildStructure,
+  disposeObject, setGroupTone, GROUND_COLORS,
 } from './structures'
+import { makeLabel, releaseLabel } from './labels'
 
 const GRID_MIN = -3
 const GRID_MAX = 4
@@ -33,9 +34,27 @@ interface Tile {
   groundMat: THREE.MeshLambertMaterial
   content: THREE.Group | null
   puffs: THREE.Group | null
+  path: THREE.Group | null
+  flag: THREE.Group | null
+  label: THREE.Sprite | null
   zone: Zone
   tone: { b: number; d: number }
   phase: number
+}
+
+export interface QuestPin {
+  id: string
+  name: string
+}
+
+export interface MapTile {
+  wx: number
+  wz: number
+  ground: TileSpec['ground']
+  template: TemplateId | null
+  zone: 'core' | 'seen' | 'fog'
+  hasQuest: boolean
+  hasPath: boolean
 }
 
 export interface DiscoverInfo {
@@ -52,6 +71,7 @@ export interface EngineEvents {
   onDiscover?: (info: DiscoverInfo) => void
   onHover?: (label: string | null) => void
   onStep?: (wx: number, wz: number, discoveredCount: number) => void
+  onQuestTap?: (questId: string) => void
 }
 
 const STORE_KEY = 'sq-world-state:v1'
@@ -59,6 +79,7 @@ const STORE_KEY = 'sq-world-state:v1'
 interface SavedState {
   origin: GeoOrigin
   discovered: string[]
+  visits?: Array<[string, number]>
 }
 
 function metersBetween(a: GeoOrigin, b: GeoOrigin): number {
@@ -97,8 +118,13 @@ export class WorldEngine {
   private emberData: Array<{ x: number; y: number; z: number; v: number; phase: number }> = []
 
   private discovered = new Set<string>()
+  private visits = new Map<string, number>()
+  private quests = new Map<string, QuestPin>()
   private hovered: Tile | null = null
   private lanternLights = 0
+  private wingL: THREE.Object3D | null = null
+  private wingR: THREE.Object3D | null = null
+  private tail: THREE.Object3D | null = null
 
   origin: GeoOrigin = { lat: 0, lng: 0 }
 
@@ -120,6 +146,7 @@ export class WorldEngine {
         if (metersBetween(saved.origin, wanted) < 5000) {
           this.origin = saved.origin
           this.discovered = new Set(saved.discovered)
+          this.visits = new Map(saved.visits ?? [])
           return this.origin
         }
       }
@@ -132,19 +159,22 @@ export class WorldEngine {
     try {
       const keys = [...this.discovered]
       const trimmed = keys.length > 4000 ? keys.slice(keys.length - 4000) : keys
-      localStorage.setItem(STORE_KEY, JSON.stringify({ origin: this.origin, discovered: trimmed } satisfies SavedState))
+      const visits = [...this.visits.entries()].slice(-4000)
+      localStorage.setItem(STORE_KEY, JSON.stringify({ origin: this.origin, discovered: trimmed, visits } satisfies SavedState))
     } catch { /* fine */ }
   }
 
   start(width: number, height: number): void {
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true })
+    // alpha:true — the warm fire backdrop is CSS behind the canvas
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer.setClearColor(0x000000, 0)
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.12
 
-    this.scene.background = new THREE.Color(P.bg)
+    this.scene.background = null
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 100)
     this.resize(width, height)
 
@@ -171,10 +201,14 @@ export class WorldEngine {
     this.player = buildPlayer()
     this.player.position.set(this.px, 0, this.pz)
     this.torchTip = this.player.getObjectByName('torch-tip') as THREE.Mesh | null
+    this.wingL = this.player.getObjectByName('wing-l') ?? null
+    this.wingR = this.player.getObjectByName('wing-r') ?? null
+    this.tail = this.player.getObjectByName('tail') ?? null
     this.torch = new THREE.PointLight(0xff9a52, 5, 7, 1.8)
-    this.torch.position.set(0.16, 0.9, 0.05)
+    this.torch.position.set(0, 0.8, 0.05)
     this.player.add(this.torch)
     this.scene.add(this.player)
+    this.visits.set(tileKey(this.px, this.pz), Math.max(1, this.visits.get(tileKey(this.px, this.pz)) ?? 0))
 
     this.buildEmbers()
     this.rebuildWindow(true)
@@ -267,7 +301,7 @@ export class WorldEngine {
 
     const tile: Tile = {
       wx, wz, spec, root, ground, groundMat,
-      content: null, puffs: null, zone,
+      content: null, puffs: null, path: null, flag: null, label: null, zone,
       tone: this.toneFor(zone), phase: rng() * Math.PI * 2,
     }
 
@@ -279,10 +313,126 @@ export class WorldEngine {
       if (zone === 'core') this.discovered.add(tileKey(wx, wz))
     }
 
+    this.refreshPath(tile)
+    this.refreshFlag(tile)
+    if (zone === 'core') this.refreshLabel(tile)
+
     setGroupTone(root, tile.tone.b, tile.tone.d)
     this.scene.add(root)
     this.tiles.set(tileKey(wx, wz), tile)
     return tile
+  }
+
+  // ── Paths, flags, labels ───────────────────────────────────────────────────
+
+  /** Templates worth a floating nametag (homes and rocks stay quiet). */
+  private static LABELED: Set<TemplateId> = new Set([
+    'hearth', 'nightwatch', 'lorehall', 'marketplace', 'waypost',
+    'gatheringhall', 'forge', 'lanternpost',
+  ])
+
+  private refreshLabel(tile: Tile): void {
+    const wanted =
+      tile.zone === 'core' && tile.spec.template &&
+      (tile.spec.name || WorldEngine.LABELED.has(tile.spec.template))
+    if (!wanted) {
+      if (tile.label) {
+        tile.root.remove(tile.label)
+        releaseLabel(tile.label)
+        tile.label = null
+      }
+      return
+    }
+    if (tile.label) return
+    const def = TEMPLATES[tile.spec.template!]
+    const text = tile.spec.name || def.title
+    const label = makeLabel(text, def.color)
+    label.position.set(0, 1.06, 0)
+    label.scale.multiplyScalar(0.001) // pop in via gsap
+    tile.root.add(label)
+    tile.label = label
+    const target = { x: label.scale.x * 1000, y: label.scale.y * 1000 }
+    this.ctx.add(() => {
+      gsap.to(label.scale, { x: target.x, y: target.y, duration: 0.45, ease: 'back.out(2)', delay: 0.25 })
+    })
+  }
+
+  private refreshFlag(tile: Tile): void {
+    const quest = this.quests.get(tileKey(tile.wx, tile.wz))
+    if (!quest) {
+      if (tile.flag) {
+        tile.root.remove(tile.flag)
+        disposeObject(tile.flag)
+        tile.flag = null
+      }
+      return
+    }
+    if (tile.flag) return
+    const flag = buildQuestFlag()
+    flag.position.set(0.3, 0, -0.3)
+    tile.root.add(flag)
+    tile.flag = flag
+    flag.scale.setScalar(0.01)
+    this.ctx.add(() => {
+      gsap.to(flag.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'elastic.out(1, 0.6)', delay: 0.15 })
+    })
+  }
+
+  private refreshPath(tile: Tile): void {
+    const k = tileKey(tile.wx, tile.wz)
+    const v = this.visits.get(k) ?? 0
+    if (tile.path) {
+      tile.root.remove(tile.path)
+      disposeObject(tile.path)
+      tile.path = null
+    }
+    if (v < 2 || tile.spec.ground === 'water') return
+    const connected = (dx: number, dz: number) =>
+      (this.visits.get(tileKey(tile.wx + dx, tile.wz + dz)) ?? 0) >= 2
+    const wear = Math.min(1, (v - 2) / 4 + 0.25)
+    const path = buildPathPad(
+      [connected(0, -1), connected(1, 0), connected(0, 1), connected(-1, 0)],
+      wear,
+      tileRng(tile.wx, tile.wz, 17),
+    )
+    tile.root.add(path)
+    tile.path = path
+    setGroupTone(path, tile.tone.b, tile.tone.d)
+  }
+
+  /** Bind quests (already geocoded to tiles by the view) onto the board. */
+  setQuests(pins: Map<string, QuestPin>): void {
+    this.quests = pins
+    for (const tile of this.tiles.values()) this.refreshFlag(tile)
+  }
+
+  /** Flat-map snapshot: every remembered tile + the current fog ring. */
+  getMapData(radius = 28): { px: number; pz: number; tiles: MapTile[] } {
+    const out: MapTile[] = []
+    const seen = new Set<string>()
+    const push = (wx: number, wz: number, zone: MapTile['zone']) => {
+      const k = tileKey(wx, wz)
+      if (seen.has(k)) return
+      seen.add(k)
+      const spec = this.specFor(wx, wz)
+      out.push({
+        wx, wz, ground: spec.ground, template: spec.template, zone,
+        hasQuest: this.quests.has(k),
+        hasPath: (this.visits.get(k) ?? 0) >= 2,
+      })
+    }
+    for (const k of this.discovered) {
+      const [wx, wz] = k.split(',').map(Number)
+      if (Math.abs(wx - this.px) > radius || Math.abs(wz - this.pz) > radius) continue
+      const dx = wx - this.px
+      const dz = wz - this.pz
+      const inCore = dx >= CORE_MIN && dx <= CORE_MAX && dz >= CORE_MIN && dz <= CORE_MAX
+      push(wx, wz, inCore ? 'core' : 'seen')
+    }
+    for (const tile of this.tiles.values()) {
+      if (tile.zone === 'fog') push(tile.wx, tile.wz, 'fog')
+    }
+    return { px: this.px, pz: this.pz, tiles: out }
   }
 
   private buildContent(tile: Tile, pop: boolean): void {
@@ -333,6 +483,12 @@ export class WorldEngine {
           this.buildContent(tile, true)
           if (tile.content) setGroupTone(tile.content, tile.tone.b, tile.tone.d)
         }
+        if (tile.label) {
+          tile.root.remove(tile.label)
+          releaseLabel(tile.label)
+          tile.label = null
+        }
+        if (tile.zone === 'core') this.refreshLabel(tile)
       })
     })
   }
@@ -340,6 +496,11 @@ export class WorldEngine {
   private removeTile(tile: Tile, animated: boolean): void {
     this.tiles.delete(tileKey(tile.wx, tile.wz))
     if (this.hovered === tile) this.hovered = null
+    if (tile.label) {
+      tile.root.remove(tile.label)
+      releaseLabel(tile.label)
+      tile.label = null
+    }
     if (!animated) {
       this.scene.remove(tile.root)
       disposeObject(tile.root)
@@ -415,6 +576,8 @@ export class WorldEngine {
       this.buildContent(tile, false)
     }
 
+    this.refreshLabel(tile)
+
     this.ctx.add(() => {
       gsap.to(tile.tone, {
         b: target.b, d: target.d, duration: 0.6, ease: 'power2.out',
@@ -449,6 +612,14 @@ export class WorldEngine {
     }
     for (const tile of this.tiles.values()) {
       this.setZone(tile, this.zoneFor(tile.wx, tile.wz), true)
+    }
+
+    // Footsteps wear a path: count the visit, refresh this tile + neighbors
+    const landedKey = tileKey(this.px, this.pz)
+    this.visits.set(landedKey, Math.min(9, (this.visits.get(landedKey) ?? 0) + 1))
+    for (const [ox, oz] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      const t = this.tiles.get(tileKey(this.px + ox, this.pz + oz))
+      if (t) this.refreshPath(t)
     }
 
     // Player hop
@@ -540,6 +711,11 @@ export class WorldEngine {
   tapAt(ndcX: number, ndcY: number): void {
     const tile = this.pickTile(ndcX, ndcY)
     if (!tile) return
+    const quest = this.quests.get(tileKey(tile.wx, tile.wz))
+    if (quest && tile.zone !== 'fog') {
+      this.events.onQuestTap?.(quest.id)
+      return
+    }
     const dx = tile.wx - this.px
     const dz = tile.wz - this.pz
     if (dx === 0 && dz === 0) return
@@ -592,9 +768,22 @@ export class WorldEngine {
       }
     }
 
-    // Player idle bob (only when standing still)
+    // Thomas: idle hover-bob + wing flap (quick beats while hopping)
     if (!this.moving && this.player) {
-      this.player.position.y = Math.sin(t * 2.1) * 0.02
+      this.player.position.y = 0.04 + Math.sin(t * 2.1) * 0.03
+    }
+    const flap = this.moving ? Math.sin(t * 22) * 0.55 : Math.sin(t * 3.1) * 0.12
+    if (this.wingL) this.wingL.rotation.z = -(Math.PI / 2 + 0.5) - flap
+    if (this.wingR) this.wingR.rotation.z = (Math.PI / 2 + 0.5) + flap
+    if (this.tail) this.tail.rotation.x = Math.sin(t * 1.7) * 0.08
+
+    // Quest flags ripple
+    for (const tile of this.tiles.values()) {
+      if (tile.flag) {
+        const banner = tile.flag.getObjectByName('quest-banner')
+        if (banner) banner.rotation.y = Math.sin(t * 2.4 + tile.phase) * 0.22
+        tile.flag.position.y = Math.sin(t * 1.6 + tile.phase) * 0.012
+      }
     }
 
     // Drifting embers around the player

@@ -585,3 +585,56 @@
 .dark .sq-book-page .dark\:bg-gray-900\/50 {
   background-color: color-mix(in srgb, var(--sq-banner) 92%, white) !important;
 }
+
+/* ── LOW-POLY BOOK RESKIN ───────────────────────────────────────────────────
+   The Quest Book joins the World's art style: flat color facets with hard
+   stops instead of soft leather gradients, cut corners instead of curves.
+   Declared after the originals so these win the cascade. */
+
+.sq-cover-front {
+  background:
+    linear-gradient(118deg, #523321 0%, #523321 26%, transparent 26%),
+    linear-gradient(244deg, #2A1810 0%, #2A1810 22%, transparent 22%),
+    linear-gradient(160deg, #462B1B 0%, #462B1B 48%, #3A2317 48%, #3A2317 74%, #311D12 74%, #311D12 100%);
+  background-color: #3A2317;
+  border: 3px solid color-mix(in srgb, var(--sq-ink) 60%, black);
+  border-radius: 0;
+  clip-path: polygon(
+    18px 0%, calc(100% - 18px) 0%, 100% 18px,
+    100% calc(100% - 18px), calc(100% - 18px) 100%,
+    18px 100%, 0% calc(100% - 18px), 0% 18px);
+  box-shadow:
+    0 22px 44px -14px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 2px rgba(246, 166, 35, 0.10);
+}
+
+.sq-book-page {
+  background:
+    linear-gradient(122deg, rgba(58, 42, 32, 0.045) 0%, rgba(58, 42, 32, 0.045) 32%, transparent 32%),
+    linear-gradient(238deg, rgba(58, 42, 32, 0.06) 0%, rgba(58, 42, 32, 0.06) 24%, transparent 24%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--sq-banner) 96%, white) 0%,
+      color-mix(in srgb, var(--sq-banner) 96%, white) 55%,
+      color-mix(in srgb, var(--sq-banner) 90%, black) 55.05%,
+      color-mix(in srgb, var(--sq-banner) 90%, black) 100%);
+}
+
+.sq-page-block-v {
+  background: repeating-linear-gradient(90deg,
+    color-mix(in srgb, var(--sq-banner) 74%, black) 0 3px,
+    color-mix(in srgb, var(--sq-banner) 94%, white) 3px 6px);
+  box-shadow: none;
+}
+.sq-page-block-h {
+  background: repeating-linear-gradient(0deg,
+    color-mix(in srgb, var(--sq-banner) 74%, black) 0 3px,
+    color-mix(in srgb, var(--sq-banner) 94%, white) 3px 6px);
+  box-shadow: none;
+}
+
+/* Mid-flip: stronger cast shadow + crisp edge highlight = readable page turn */
+.sq-book-page--flip {
+  box-shadow:
+    0 18px 40px -8px rgba(20, 13, 9, 0.6),
+    inset 0 0 0 1.5px rgba(58, 42, 32, 0.18);
+}

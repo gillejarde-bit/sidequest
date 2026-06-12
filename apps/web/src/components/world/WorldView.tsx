@@ -1,18 +1,32 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// WorldView — mounts the isometric world engine, feeds it GPS + OSM data,
-// and renders the HUD (discovery toasts, hover labels, source badge).
+// WorldView — mounts the isometric world engine, feeds it GPS + OSM + quests,
+// and renders the HUD: location, minimap, scale, stats, recent quests, toasts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { WorldEngine, type DiscoverInfo } from './WorldEngine'
-import { fetchOsmChunk, geoToTile, tileToGeo, type GeoOrigin, type WorldPoi } from './osm'
+import { useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { WorldEngine, type DiscoverInfo, type QuestPin } from './WorldEngine'
+import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrigin, type WorldPoi } from './osm'
+import { Minimap } from './Minimap'
+import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { useGeolocation } from '../../hooks/useGeolocation'
+import { supabase } from '../../lib/supabase'
+import { format } from 'date-fns'
 
 // Same fallback the flat map uses when no fix is available yet.
 const FALLBACK: GeoOrigin = { lat: 36.1699, lng: -115.1398 }
 
 type Source = 'loading' | 'osm' | 'fallback'
+
+interface QuestRow {
+  id: string
+  name: string
+  created_at: string
+  location_lat: number | null
+  location_lng: number | null
+}
 
 function metersBetween(a: GeoOrigin, b: GeoOrigin): number {
   const dy = (a.lat - b.lat) * 110_540
@@ -29,6 +43,7 @@ export default function WorldView() {
   const lastFetchTile = useRef({ wx: 0, wz: 0 })
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const navigate = useNavigate()
   const gps = useGeolocation()
   const gpsRef = useRef(gps)
   gpsRef.current = gps
@@ -39,6 +54,39 @@ export default function WorldView() {
   const [hover, setHover] = useState<string | null>(null)
   const [tileCount, setTileCount] = useState(0)
   const [showHint, setShowHint] = useState(true)
+  const [stepVersion, setStepVersion] = useState(0)
+  const [place, setPlace] = useState<PlaceInfo | null>(null)
+  const [statsOpen, setStatsOpen] = useState(false)
+
+  // ── Recent quests (top 5 list + flags on the board) ───────────────────────
+  const { data: recentQuests = [] } = useQuery({
+    queryKey: ['world-recent-quests'],
+    queryFn: async (): Promise<QuestRow[]> => {
+      const { data, error } = await supabase
+        .from('quests')
+        .select('id, name, created_at, location_lat, location_lng')
+        .order('created_at', { ascending: false })
+        .limit(15)
+      if (error) return []
+      return (data ?? []) as QuestRow[]
+    },
+    staleTime: 60_000,
+  })
+
+  // Bind quests with coordinates onto board tiles
+  useEffect(() => {
+    const engine = engineRef.current
+    const origin = originRef.current
+    if (!engine || !origin) return
+    const pins = new Map<string, QuestPin>()
+    for (const q of recentQuests) {
+      if (q.location_lat == null || q.location_lng == null) continue
+      const { wx, wz } = geoToTile(origin, q.location_lat, q.location_lng)
+      pins.set(tileKey(wx, wz), { id: q.id, name: q.name })
+    }
+    engine.setQuests(pins)
+    setStepVersion((v) => v + 1)
+  }, [recentQuests, resetKey, source])
 
   // ── Engine lifecycle ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -58,15 +106,18 @@ export default function WorldView() {
       onHover: (label) => {
         if (!cancelled) setHover(label)
       },
+      onQuestTap: (questId) => {
+        if (!cancelled) navigate({ to: '/quest/$id', params: { id: questId } })
+      },
       onStep: (wx, wz, discovered) => {
         if (cancelled) return
         setTileCount(discovered)
-        // Walked far from the last fetch center → pull the next OSM chunk.
+        setStepVersion((v) => v + 1)
+        const origin = originRef.current
+        // Walked far from the last fetch center → next OSM chunk + new place name
         const last = lastFetchTile.current
-        if (Math.abs(wx - last.wx) + Math.abs(wz - last.wz) > 7) {
+        if (origin && Math.abs(wx - last.wx) + Math.abs(wz - last.wz) > 7) {
           lastFetchTile.current = { wx, wz }
-          const origin = originRef.current
-          if (!origin) return
           const c = tileToGeo(origin, wx, wz)
           fetchOsmChunk(origin, c.lat, c.lng)
             .then((chunk) => {
@@ -77,10 +128,10 @@ export default function WorldView() {
               engine.setPois(poisRef.current, poisRef.current.size < 12)
             })
             .catch(() => undefined)
+          reverseGeocode(c.lat, c.lng).then((p) => { if (!cancelled) setPlace(p) }).catch(() => undefined)
         }
         // Keep walking toward the live GPS position if it's still ahead.
         const g = gpsRef.current
-        const origin = originRef.current
         if (g.lat != null && g.lng != null && origin) {
           const t = geoToTile(origin, g.lat, g.lng)
           if (t.wx !== wx || t.wz !== wz) engine.stepToward(t.wx, t.wz)
@@ -95,6 +146,7 @@ export default function WorldView() {
     lastFetchTile.current = { wx: 0, wz: 0 }
 
     engine.start(holder.clientWidth, holder.clientHeight)
+    setStepVersion((v) => v + 1)
 
     const ro = new ResizeObserver(() => {
       engine.resize(holder.clientWidth, holder.clientHeight)
@@ -107,10 +159,13 @@ export default function WorldView() {
         poisRef.current = new Map(chunk.pois)
         engine.setPois(poisRef.current, chunk.count < 12)
         setSource('osm')
+        setStepVersion((v) => v + 1)
       })
       .catch(() => {
         if (!cancelled) setSource('fallback')
       })
+
+    reverseGeocode(origin.lat, origin.lng).then((p) => { if (!cancelled) setPlace(p) }).catch(() => undefined)
 
     const hintTimer = setTimeout(() => setShowHint(false), 8000)
 
@@ -122,9 +177,9 @@ export default function WorldView() {
       engine.dispose()
       engineRef.current = null
     }
-  }, [resetKey])
+  }, [resetKey, navigate])
 
-  // ── Live GPS → board steps (walking moves the world) ──────────────────────
+  // ── Live GPS → board steps (walking IS the movement) ──────────────────────
   useEffect(() => {
     if (gps.lat == null || gps.lng == null) return
     const origin = originRef.current
@@ -132,7 +187,6 @@ export default function WorldView() {
     if (!origin || !engine) return
     const here = { lat: gps.lat, lng: gps.lng }
     if (metersBetween(origin, here) > 5000) {
-      // Player is in a different part of the world — rebuild around them.
       setSource('loading')
       setResetKey((k) => k + 1)
       return
@@ -141,7 +195,7 @@ export default function WorldView() {
     engine.stepToward(t.wx, t.wz)
   }, [gps.lat, gps.lng])
 
-  // ── Keyboard movement ──────────────────────────────────────────────────────
+  // ── Keyboard movement (desktop testing) ────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -172,11 +226,32 @@ export default function WorldView() {
     }
   }
 
+  const getMapData = useCallback(() => engineRef.current?.getMapData() ?? null, [])
+
+  const stats = computeStats(tileCount, place?.state ?? null)
+  const locationLabel = place
+    ? [place.area, place.city].filter(Boolean).join(' · ') || place.state || null
+    : null
+
   return (
-    <div ref={holderRef} className="relative h-full w-full overflow-hidden bg-[var(--sq-bg)] touch-none select-none">
+    <div ref={holderRef} className="relative h-full w-full overflow-hidden touch-none select-none">
+      {/* ── Warm fire backdrop (behind the transparent canvas) ── */}
+      <div className="pointer-events-none absolute inset-0" style={{ background: '#16100B' }} />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(85% 60% at 50% 100%, rgba(242,116,30,0.22) 0%, rgba(216,90,48,0.10) 38%, transparent 70%),' +
+            'radial-gradient(60% 45% at 18% 8%, rgba(246,166,35,0.07) 0%, transparent 60%),' +
+            'radial-gradient(70% 55% at 85% 20%, rgba(226,101,91,0.05) 0%, transparent 60%)',
+        }}
+      />
+      <div className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-[130%] -translate-x-1/2 rounded-[50%] bg-[var(--sq-ember-500)]/14 blur-3xl animate-pulse" style={{ animationDuration: '5s' }} />
+      <div className="pointer-events-none absolute -bottom-10 left-[12%] h-40 w-56 rounded-full bg-[var(--sq-gold)]/10 blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
+
       <canvas
         ref={canvasRef}
-        className="block h-full w-full"
+        className="relative block h-full w-full"
         onPointerMove={(e) => {
           const ndc = toNdc(e)
           if (ndc) engineRef.current?.hoverAt(ndc.x, ndc.y)
@@ -198,16 +273,37 @@ export default function WorldView() {
       {/* Soft vignette */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(20,12,8,0.55) 100%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(20,12,8,0.5) 100%)' }}
       />
 
-      {/* Top-left: title + data source */}
-      <div className="absolute left-4 top-4 z-20 flex flex-col gap-2 items-start">
+      {/* ── Top-center: where you are ── */}
+      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2">
+        <AnimatePresence mode="wait">
+          {locationLabel && !toast && (
+            <motion.div
+              key={locationLabel}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="flex items-center gap-2 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)]/90 px-4 py-2 shadow-[var(--sq-shadow-soft)] backdrop-blur-sm"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--sq-ember-500)] animate-pulse" />
+              <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[var(--sq-text)] whitespace-nowrap">
+                {locationLabel}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Top-left: title, source, exploration chip, recent quests ── */}
+      <div className="absolute left-4 top-4 z-20 flex w-[190px] flex-col items-start gap-2">
         <div className="flex items-center gap-2 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)]/90 px-3.5 py-2 shadow-[var(--sq-shadow-soft)] backdrop-blur-sm">
           <span className="text-sm">⬡</span>
           <span className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--sq-text)]">World</span>
           <span className="rounded-full bg-[var(--sq-ember-500)]/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--sq-ember-400)]">beta</span>
         </div>
+
         <div className="flex items-center gap-1.5 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-2.5 py-1 backdrop-blur-sm">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
@@ -218,14 +314,57 @@ export default function WorldView() {
             {source === 'osm' ? 'Live world data' : source === 'loading' ? 'Charting the area…' : 'Wander mode'}
           </span>
         </div>
+
         {tileCount > 0 && (
-          <div className="rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-faint)] backdrop-blur-sm">
-            {tileCount} tiles uncovered
+          <button
+            onClick={() => setStatsOpen(true)}
+            className="cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-gold)]/30 bg-[var(--sq-bg)]/85 px-2.5 py-1.5 text-left backdrop-blur-sm transition-transform hover:scale-[1.03] active:scale-95"
+          >
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">
+              ⬡ {tileCount} tiles uncovered
+            </span>
+            <span className="block text-[8px] font-bold uppercase tracking-wider text-[var(--sq-text-faint)]">
+              ≈ {formatArea(stats)} · tap for stats
+            </span>
+          </button>
+        )}
+
+        {recentQuests.length > 0 && (
+          <div className="w-full rounded-[var(--sq-r-md)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 p-2 backdrop-blur-sm">
+            <div className="mb-1 px-1 text-[8px] font-black uppercase tracking-[0.16em] text-[var(--sq-ember-400)]">
+              Recent quests
+            </div>
+            {recentQuests.slice(0, 5).map((q) => (
+              <button
+                key={q.id}
+                onClick={() => navigate({ to: '/quest/$id', params: { id: q.id } })}
+                className="flex w-full cursor-pointer items-center gap-1.5 rounded-[var(--sq-r-sm)] px-1 py-1 text-left transition-colors hover:bg-[var(--sq-surface)]"
+              >
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${q.location_lat != null ? 'bg-[var(--sq-gold)]' : 'bg-[var(--sq-text-faint)]'}`} />
+                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-[var(--sq-text)]">{q.name}</span>
+                <span className="shrink-0 text-[8px] font-medium text-[var(--sq-text-faint)]">{format(new Date(q.created_at), 'dd MMM')}</span>
+              </button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Discovery toast */}
+      {/* ── Top-right: minimap (expandable flat map) ── */}
+      <Minimap getData={getMapData} version={stepVersion} />
+
+      {/* ── Bottom-left: scale legend ── */}
+      <div className="pointer-events-none absolute bottom-28 left-4 z-20 flex flex-col gap-1 rounded-[var(--sq-r-md)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-3 py-2 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px] border border-[var(--sq-gold)]/60 bg-[var(--sq-gold)]/20" />
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">1 tile ≈ {TILE_METERS} m</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-[3px] w-10 rounded-full bg-gradient-to-r from-[var(--sq-ember-500)] to-transparent" />
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-faint)]">board ≈ {8 * TILE_METERS} m across</span>
+        </div>
+      </div>
+
+      {/* ── Discovery toast ── */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -262,7 +401,7 @@ export default function WorldView() {
         )}
       </AnimatePresence>
 
-      {/* Hover label */}
+      {/* ── Hover label ── */}
       <AnimatePresence>
         {hover && !toast && (
           <motion.div
@@ -278,7 +417,7 @@ export default function WorldView() {
         )}
       </AnimatePresence>
 
-      {/* First-run hint */}
+      {/* ── First-run hint ── */}
       <AnimatePresence>
         {showHint && (
           <motion.div
@@ -289,11 +428,79 @@ export default function WorldView() {
             className="pointer-events-none absolute bottom-28 left-1/2 z-20 -translate-x-1/2"
           >
             <div className="rounded-[var(--sq-r-pill)] border border-[var(--sq-ember-500)]/30 bg-[var(--sq-surface)]/90 px-4 py-2 text-[11px] font-medium text-[var(--sq-text-muted)] backdrop-blur-sm whitespace-nowrap shadow-[var(--sq-shadow-glow)]">
-              Tap the fog to wander <span className="mx-1 text-[var(--sq-text-faint)]">·</span> WASD works too
+              Walk to explore — or tap the fog to wander
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Exploration stats modal ── */}
+      <AnimatePresence>
+        {statsOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-6"
+            onClick={() => setStatsOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 14, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-5 shadow-[var(--sq-shadow-soft)]"
+            >
+              <div className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--sq-ember-400)]">Wanderer's ledger</div>
+              <h3 className="mb-4 text-lg font-black text-[var(--sq-text)]">Your explored world</h3>
+
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <StatCard big={String(stats.tiles)} label="tiles uncovered" />
+                <StatCard big={formatArea(stats)} label={`${stats.areaKm2 >= 0.01 ? `${stats.areaKm2.toFixed(2)} km² · ` : ''}real ground`} />
+                <StatCard big={stats.footballFields >= 1 ? stats.footballFields.toFixed(1) : stats.footballFields.toFixed(2)} label="football fields" />
+                <StatCard big={stats.cityBlocks >= 1 ? stats.cityBlocks.toFixed(1) : stats.cityBlocks.toFixed(2)} label="city blocks" />
+              </div>
+
+              {stats.statePct != null && stats.stateName && (
+                <div className="mb-4 rounded-[var(--sq-r-md)] border border-[var(--sq-gold)]/25 bg-[var(--sq-gold)]/8 px-3.5 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">
+                    {stats.stateName} explored
+                  </div>
+                  <div className="mt-0.5 text-sm font-bold text-[var(--sq-text)]">
+                    {formatPct(stats.statePct)}
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--sq-bg)]">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[var(--sq-ember-500)] to-[var(--sq-gold)]"
+                      style={{ width: `${Math.max(1.5, Math.min(100, stats.statePct * 1000))}%` }}
+                    />
+                  </div>
+                  <div className="mt-1.5 text-[9px] font-medium leading-relaxed text-[var(--sq-text-muted)]">
+                    Every tile is ~{TILE_METERS} m of real {stats.stateName}. Keep walking — the fog remembers.
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setStatsOpen(false)}
+                className="w-full cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/30 bg-[var(--sq-ember-500)] py-2.5 text-[11px] font-black uppercase tracking-wider text-[var(--sq-ink)] transition-transform hover:scale-[1.02] active:scale-95"
+              >
+                Back to wandering
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function StatCard({ big, label }: { big: string; label: string }) {
+  return (
+    <div className="rounded-[var(--sq-r-md)] border border-[var(--sq-hairline)] bg-[var(--sq-surface)] px-3 py-2.5">
+      <div className="text-base font-black text-[var(--sq-text)]">{big}</div>
+      <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">{label}</div>
     </div>
   )
 }

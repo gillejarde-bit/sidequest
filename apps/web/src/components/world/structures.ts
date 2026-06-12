@@ -298,24 +298,123 @@ export function buildFogPuffs(rng: () => number): THREE.Group {
   return g
 }
 
-/** The Wanderer — cloak, satchel, and a torch-staff with a glowing tip. */
+/**
+ * Thomas the Phoenix — the player marker. A simple orange fiery low-poly bird:
+ * ember body, gold chest, flame crest, swept wings, glowing three-feather tail.
+ * (Swap point: if a custom player icon/model is provided later, replace this
+ * builder — everything else references the group, not the parts.)
+ */
 export function buildPlayer(): THREE.Group {
   const g = new THREE.Group()
-  const body = new THREE.Mesh(
-    new THREE.ConeGeometry(0.16, 0.34, 7),
-    lambert(P.ember),
-  )
-  body.position.y = 0.17
+
+  // Body — plump teardrop, leaning slightly forward
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), lambert(P.ember))
+  body.position.set(0, 0.26, 0)
+  body.scale.set(1, 1.15, 1.3)
+  body.rotation.x = -0.18
   register(body, body.material as THREE.MeshLambertMaterial)
   g.add(body)
 
-  sphere(g, 0.095, P.cream, [0, 0.4, 0], 0, 0xffcb6b, 0)
-  cone(g, 0.1, 0.14, P.emberDeep, [0, 0.5, -0.01], 7) // hood
-  box(g, [0.09, 0.11, 0.05], P.gold, [0, 0.22, -0.14], 0.1) // satchel
+  // Chest — warm gold glow
+  const chest = sphere(g, 0.1, P.gold, [0, 0.22, 0.1], 0.25, 0xffcb6b, 0)
+  chest.scale.set(0.9, 1, 0.7)
 
-  cyl(g, 0.012, 0.012, 0.5, P.woodDark, [0.16, 0.27, 0.05], 5) // staff
-  const tip = sphere(g, 0.045, P.goldSoft, [0.16, 0.54, 0.05], 1)
-  tip.name = 'torch-tip'
+  // Head + beak
+  sphere(g, 0.105, P.emberSoft, [0, 0.47, 0.1], 0, 0xffcb6b, 0)
+  cone(g, 0.035, 0.09, P.goldSoft, [0, 0.46, 0.23], 5).rotation.x = Math.PI / 2
+
+  // Flame crest — three little fire tongues
+  cone(g, 0.035, 0.12, P.emberDeep, [0, 0.58, 0.04], 5)
+  const c2 = cone(g, 0.03, 0.14, P.ember, [0, 0.6, 0.09], 5)
+  c2.rotation.x = 0.25
+  const c3 = sphere(g, 0.028, P.goldSoft, [0, 0.64, 0.12], 0.9)
+  c3.name = 'torch-tip' // crest tip carries the torch glow
+
+  // Wings — swept flame triangles (named for flap animation)
+  const wingGeo = new THREE.ConeGeometry(0.07, 0.26, 4)
+  for (const side of [-1, 1] as const) {
+    const mat = lambert(P.emberDeep)
+    const wing = new THREE.Mesh(wingGeo, mat)
+    wing.position.set(side * 0.16, 0.3, -0.02)
+    wing.rotation.z = side * (Math.PI / 2 + 0.5)
+    wing.rotation.y = side * 0.25
+    register(wing, mat)
+    wing.name = side === -1 ? 'wing-l' : 'wing-r'
+    g.add(wing)
+  }
+
+  // Tail — three trailing flame feathers, gold → ember
+  const tail = new THREE.Group()
+  tail.name = 'tail'
+  const t1 = cone(tail, 0.035, 0.24, P.goldSoft, [0, 0, 0], 5)
+  t1.rotation.x = -2.3
+  const t2 = cone(tail, 0.03, 0.2, P.ember, [0.05, 0.01, -0.02], 5)
+  t2.rotation.x = -2.5
+  t2.rotation.z = -0.2
+  const t3 = cone(tail, 0.03, 0.2, P.ember, [-0.05, 0.01, -0.02], 5)
+  t3.rotation.x = -2.5
+  t3.rotation.z = 0.2
+  tail.position.set(0, 0.3, -0.16)
+  g.add(tail)
+
+  // Tiny feet
+  cyl(g, 0.014, 0.014, 0.08, P.gold, [0.05, 0.04, 0.02], 4)
+  cyl(g, 0.014, 0.014, 0.08, P.gold, [-0.05, 0.04, 0.02], 4)
+
+  return g
+}
+
+/** Quest flag — an ember pennant planted on a tile that has a quest. */
+export function buildQuestFlag(): THREE.Group {
+  const g = new THREE.Group()
+  g.name = 'quest-flag'
+  cyl(g, 0.012, 0.016, 0.5, P.ink, [0, 0.25, 0], 5)
+  const banner = box(g, [0.2, 0.11, 0.015], P.ember, [0.11, 0.42, 0], 0, 0.35, 0xff9a52)
+  banner.name = 'quest-banner'
+  sphere(g, 0.025, P.goldSoft, [0, 0.52, 0], 0.9)
+  cyl(g, 0.05, 0.06, 0.04, P.stone, [0, 0.02, 0], 6)
+  return g
+}
+
+/**
+ * Worn footpath overlay — appears once a tile has been walked repeatedly.
+ * `conns` = [N(-z), E(+x), S(+z), W(-x)] connections to neighboring path tiles.
+ * `wear` 0..1 widens and darkens the trail the more you walk it.
+ */
+export function buildPathPad(conns: [boolean, boolean, boolean, boolean], wear: number, rng: () => number): THREE.Group {
+  const g = new THREE.Group()
+  const w = 0.1 + wear * 0.08 // half-width of the trail
+  const trail = 0x86643f
+  const padMat = lambert(trail)
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(w * 1.5, w * 1.6, 0.02, 7), padMat)
+  pad.position.y = 0.012
+  pad.rotation.y = rng() * Math.PI
+  pad.castShadow = false
+  pad.receiveShadow = true
+  register(pad, padMat)
+  pad.castShadow = false
+  g.add(pad)
+
+  const dirs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]
+  conns.forEach((on, i) => {
+    if (!on) return
+    const [dx, dz] = dirs[i]
+    const segMat = lambert(trail)
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(dx !== 0 ? 0.5 : w * 2, 0.018, dz !== 0 ? 0.5 : w * 2), segMat)
+    seg.position.set(dx * 0.25, 0.01, dz * 0.25)
+    seg.castShadow = false
+    seg.receiveShadow = true
+    register(seg, segMat)
+    seg.castShadow = false
+    g.add(seg)
+  })
+
+  // a few pressed-in pebbles
+  for (let i = 0; i < 2 + Math.floor(wear * 3); i++) {
+    const p = sphere(g, 0.014 + rng() * 0.012, 0x9c8568, [(rng() - 0.5) * 0.5, 0.015, (rng() - 0.5) * 0.5], 0, 0xffcb6b, 0)
+    p.scale.y = 0.4
+    p.castShadow = false
+  }
   return g
 }
 
