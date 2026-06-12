@@ -1,214 +1,201 @@
-// Minimap + fullscreen flat map. Same world, seen from above — square tiles
-// in the iso palette, rotated 45° so it matches what the player perceives on
-// the isometric board. Fog is a single connected gray field; discovered tiles
-// punch through it in color.
+// Minimap — a real Mapbox map (streets, labels, places) wearing the campfire
+// theme. Mini mode is a locked top-down mirror of the player; expanded mode is
+// an interactive, clamped panel that never covers the bottom nav.
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import Map, { Marker, type MapRef } from 'react-map-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { MapTile } from './WorldEngine'
-import { TEMPLATES } from './templates'
+import cozyStyle from '../map/fog/sidequest-cozy-style.json'
 
-export interface MinimapData {
-  px: number
-  pz: number
-  tiles: MapTile[]
+export interface WorldQuestMarker {
+  id: string
+  name: string
+  lat: number
+  lng: number
 }
 
 interface MinimapProps {
-  getData: () => MinimapData | null
-  version: number // bump to trigger redraw
+  playerGeo: { lat: number; lng: number }
+  quests: WorldQuestMarker[]
+  onQuestClick: (questId: string) => void
 }
 
-const GROUND_HEX: Record<MapTile['ground'], string> = {
-  grass: '#7C9A5E',
-  park: '#6E945C',
-  soil: '#9C7A55',
-  plaza: '#A89274',
-  water: '#3E7A66',
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
+
+// Warm desaturated grade over Mapbox so it sits inside the game world.
+const COZY_FILTER = 'saturate(0.78) sepia(0.18) brightness(0.92) contrast(1.02)'
+
+function PlayerDot({ size = 16 }: { size?: number }) {
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <span className="absolute inset-0 animate-ping rounded-full bg-[var(--sq-ember-500)]/50" />
+      <span
+        className="absolute inset-0 rounded-full border-2 border-[var(--sq-keyline)] bg-[var(--sq-ember-500)]"
+        style={{ boxShadow: '0 0 10px rgba(242,116,30,0.8)' }}
+      />
+    </div>
+  )
 }
 
-// Connected gray fog — desaturated, reads as "unknown", not "missing".
-const FOG_FILL = '#4A443E'
-const FOG_EDGE = '#3A3531'
-const SEEN_DIM = 0.45
-
-function drawMap(
-  canvas: HTMLCanvasElement,
-  data: MinimapData,
-  sizePx: number,
-  tilePx: number,
-): void {
-  const dpr = Math.min(window.devicePixelRatio, 2)
-  canvas.width = sizePx * dpr
-  canvas.height = sizePx * dpr
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  ctx.scale(dpr, dpr)
-  ctx.clearRect(0, 0, sizePx, sizePx)
-
-  const half = sizePx / 2
-  ctx.save()
-  ctx.translate(half, half)
-  ctx.rotate(-Math.PI / 4) // match the isometric orientation
-
-  const span = Math.ceil(sizePx / tilePx / 1.2)
-
-  // 1) connected fog field under everything
-  ctx.fillStyle = FOG_FILL
-  const fogExtent = span * tilePx
-  ctx.fillRect(-fogExtent, -fogExtent, fogExtent * 2, fogExtent * 2)
-  ctx.strokeStyle = FOG_EDGE
-  ctx.lineWidth = 1
-  for (let i = -span; i <= span; i++) {
-    ctx.beginPath()
-    ctx.moveTo(i * tilePx, -fogExtent)
-    ctx.lineTo(i * tilePx, fogExtent)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(-fogExtent, i * tilePx)
-    ctx.lineTo(fogExtent, i * tilePx)
-    ctx.stroke()
-  }
-
-  // 2) discovered tiles punch through in color
-  for (const t of data.tiles) {
-    if (t.zone === 'fog') continue
-    const x = (t.wx - data.px) * tilePx
-    const y = (t.wz - data.pz) * tilePx
-    if (Math.abs(x) > fogExtent || Math.abs(y) > fogExtent) continue
-
-    const fill = t.template ? TEMPLATES[t.template].color : GROUND_HEX[t.ground]
-    ctx.globalAlpha = t.zone === 'seen' ? SEEN_DIM : 1
-    ctx.fillStyle = fill
-    ctx.fillRect(x - tilePx / 2 + 0.5, y - tilePx / 2 + 0.5, tilePx - 1, tilePx - 1)
-
-    if (t.hasPath && tilePx >= 6) {
-      ctx.fillStyle = '#86643F'
-      const w = Math.max(2, tilePx * 0.3)
-      ctx.fillRect(x - w / 2, y - w / 2, w, w)
-    }
-    ctx.globalAlpha = 1
-
-    if (t.hasQuest) {
-      ctx.fillStyle = '#FFCB6B'
-      ctx.beginPath()
-      ctx.arc(x, y, Math.max(2.5, tilePx * 0.22), 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = '#3A2A20'
-      ctx.lineWidth = 1
-      ctx.stroke()
-    }
-  }
-
-  // 3) player
-  ctx.fillStyle = '#F2741E'
-  ctx.beginPath()
-  ctx.arc(0, 0, Math.max(3, tilePx * 0.32), 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = '#F5E6D3'
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  ctx.restore()
-
-  // soft circular mask edge (drawn over, cheap vignette)
-  const grad = ctx.createRadialGradient(half, half, half * 0.72, half, half, half)
-  grad.addColorStop(0, 'rgba(30,20,14,0)')
-  grad.addColorStop(1, 'rgba(30,20,14,0.9)')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, sizePx, sizePx)
+function QuestPin({ name, big, onClick }: { name: string; big?: boolean; onClick?: () => void }) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.()
+      }}
+      className={`group flex flex-col items-center ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+      title={name}
+    >
+      <span
+        className={`flex items-center justify-center rounded-full border border-[var(--sq-ink)] bg-[var(--sq-gold)] text-[var(--sq-ink)] shadow-[0_0_8px_rgba(246,166,35,0.7)] ${
+          big ? 'h-6 w-6 text-[13px]' : 'h-4 w-4 text-[9px]'
+        }`}
+      >
+        ⚑
+      </span>
+      {big && (
+        <span className="mt-0.5 max-w-[120px] truncate rounded-full bg-[var(--sq-bg)]/90 px-2 py-0.5 text-[9px] font-bold text-[var(--sq-text)] opacity-0 transition-opacity group-hover:opacity-100">
+          {name}
+        </span>
+      )}
+    </button>
+  )
 }
 
-export function Minimap({ getData, version }: MinimapProps) {
-  const smallRef = useRef<HTMLCanvasElement>(null)
-  const bigRef = useRef<HTMLCanvasElement>(null)
+export function Minimap({ playerGeo, quests, onQuestClick }: MinimapProps) {
   const [expanded, setExpanded] = useState(false)
-
-  // Small map: redraw on every step
-  useEffect(() => {
-    const canvas = smallRef.current
-    const data = getData()
-    if (canvas && data) drawMap(canvas, data, 144, 9)
-  }, [getData, version])
-
-  // Big map: redraw when opened or on step while open
-  useEffect(() => {
-    if (!expanded) return
-    const canvas = bigRef.current
-    const data = getData()
-    if (canvas && data) {
-      const size = Math.min(window.innerWidth, window.innerHeight) - 48
-      drawMap(canvas, data, size, Math.max(12, Math.floor(size / 42)))
-    }
-  }, [getData, version, expanded])
+  const bigMapRef = useRef<MapRef>(null)
 
   return (
     <>
-      {/* Mini map (top-right) */}
-      <button
-        onClick={() => setExpanded(true)}
-        className="absolute right-4 top-4 z-20 cursor-pointer rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)]/90 p-1.5 shadow-[var(--sq-shadow-soft)] backdrop-blur-sm transition-transform hover:scale-[1.03] active:scale-95"
-        title="Expand map"
-      >
-        <canvas ref={smallRef} style={{ width: 144, height: 144 }} className="block rounded-[var(--sq-r-md)]" />
-        <div className="pointer-events-none absolute bottom-2.5 left-1/2 -translate-x-1/2 rounded-full bg-[var(--sq-bg)]/80 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[var(--sq-text-muted)]">
-          Tap to expand
-        </div>
-        {/* North marker — matches iso (up-right) */}
-        <div className="pointer-events-none absolute right-1 top-0.5 text-[9px] font-black text-[var(--sq-ember-400)]">N</div>
-      </button>
+      {/* ── Mini map (top-right): locked, mirrors the player from above ── */}
+      <div className="absolute right-4 top-4 z-20 pointer-events-auto">
+        <div className="relative h-[148px] w-[148px] overflow-hidden rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-bg)] shadow-[var(--sq-shadow-soft)]">
+          <div className="absolute inset-0" style={{ filter: COZY_FILTER }}>
+            <Map
+              longitude={playerGeo.lng}
+              latitude={playerGeo.lat}
+              zoom={15.2}
+              mapStyle={cozyStyle as any}
+              mapboxAccessToken={MAPBOX_TOKEN}
+              attributionControl={false}
+              dragPan={false}
+              dragRotate={false}
+              scrollZoom={false}
+              doubleClickZoom={false}
+              touchZoomRotate={false}
+              touchPitch={false}
+              keyboard={false}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {quests.map((q) => (
+                <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="center">
+                  <QuestPin name={q.name} />
+                </Marker>
+              ))}
+              <Marker longitude={playerGeo.lng} latitude={playerGeo.lat} anchor="center">
+                <PlayerDot size={14} />
+              </Marker>
+            </Map>
+          </div>
 
-      {/* Fullscreen flat map */}
+          {/* warm vignette + expand hit-area (blocks map gestures in mini mode) */}
+          <button
+            onClick={() => setExpanded(true)}
+            className="absolute inset-0 cursor-pointer"
+            style={{ background: 'radial-gradient(circle at 50% 50%, transparent 55%, rgba(22,16,11,0.55) 100%)' }}
+            title="Expand map"
+          >
+            <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-[var(--sq-bg)]/85 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[var(--sq-text-muted)]">
+              Tap to expand
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expanded map: clamped panel, interactive, nav stays clear ── */}
       <AnimatePresence>
         {expanded && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#16100B]/96 backdrop-blur-md"
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 z-50 pointer-events-auto flex items-start justify-center bg-[#16100B]/80 backdrop-blur-sm"
+            onClick={() => setExpanded(false)}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
           >
             <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-              className="relative"
+              initial={{ scale: 0.94, y: 12, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative mt-[max(16px,env(safe-area-inset-top))] flex w-[min(92vw,560px)] flex-col overflow-hidden rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] shadow-[var(--sq-shadow-soft)]"
+              style={{ height: 'min(62dvh, 600px)' }}
             >
-              <canvas ref={bigRef} className="block rounded-[var(--sq-r-xl)]" />
-              <div className="pointer-events-none absolute right-3 top-2 text-xs font-black text-[var(--sq-ember-400)]">N ↗</div>
+              {/* header */}
+              <div className="flex items-center justify-between border-b border-[var(--sq-hairline)] px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🗺</span>
+                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--sq-text)]">Overview</span>
+                  <span className="rounded-full bg-[var(--sq-gold)]/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">
+                    {quests.length} quest{quests.length === 1 ? '' : 's'} nearby
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => bigMapRef.current?.flyTo({ center: [playerGeo.lng, playerGeo.lat], zoom: 15, duration: 800 })}
+                    className="cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)] px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--sq-text-muted)] transition-colors hover:text-[var(--sq-text)]"
+                  >
+                    ◎ Recenter
+                  </button>
+                  <button
+                    onClick={() => setExpanded(false)}
+                    className="cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/30 bg-[var(--sq-ember-500)] px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--sq-ink)] transition-transform hover:scale-105 active:scale-95"
+                  >
+                    ⬡ World
+                  </button>
+                </div>
+              </div>
+
+              {/* the real map — pan/zoom enabled here */}
+              <div className="relative flex-1" style={{ filter: COZY_FILTER }}>
+                <Map
+                  ref={bigMapRef}
+                  initialViewState={{ longitude: playerGeo.lng, latitude: playerGeo.lat, zoom: 14.6, pitch: 0, bearing: 0 }}
+                  mapStyle={cozyStyle as any}
+                  mapboxAccessToken={MAPBOX_TOKEN}
+                  attributionControl={false}
+                  style={{ width: '100%', height: '100%' }}
+                >
+                  {quests.map((q) => (
+                    <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="bottom">
+                      <QuestPin name={q.name} big onClick={() => onQuestClick(q.id)} />
+                    </Marker>
+                  ))}
+                  <Marker longitude={playerGeo.lng} latitude={playerGeo.lat} anchor="center">
+                    <PlayerDot />
+                  </Marker>
+                </Map>
+              </div>
+
+              {/* legend footer */}
+              <div className="flex items-center justify-center gap-4 border-t border-[var(--sq-hairline)] px-4 py-2">
+                <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--sq-ember-500)]" /> You
+                </span>
+                <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">
+                  <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[var(--sq-gold)] text-[7px] text-[var(--sq-ink)]">⚑</span> Quest — tap to open
+                </span>
+              </div>
             </motion.div>
-
-            {/* Legend */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 px-6">
-              <LegendDot color="#F2741E" label="You" round />
-              <LegendDot color="#FFCB6B" label="Quest" round />
-              <LegendDot color={FOG_FILL} label="Unexplored" />
-              <LegendDot color={GROUND_HEX.grass} label="Explored" />
-              <LegendDot color="#86643F" label="Your paths" />
-            </div>
-
-            <button
-              onClick={() => setExpanded(false)}
-              className="mt-5 cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/30 bg-[var(--sq-ember-500)] px-6 py-2.5 text-[11px] font-black uppercase tracking-wider text-[var(--sq-ink)] shadow-[var(--sq-shadow-glow)] transition-transform hover:scale-105 active:scale-95"
-            >
-              ⬡ Back to World
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
     </>
-  )
-}
-
-function LegendDot({ color, label, round }: { color: string; label: string; round?: boolean }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span
-        className={round ? 'h-2.5 w-2.5 rounded-full' : 'h-2.5 w-2.5 rounded-[2px]'}
-        style={{ background: color }}
-      />
-      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">{label}</span>
-    </div>
   )
 }

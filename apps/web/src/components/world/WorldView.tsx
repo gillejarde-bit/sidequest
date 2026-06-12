@@ -3,13 +3,13 @@
 // and renders the HUD: location, minimap, scale, stats, recent quests, toasts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { WorldEngine, type DiscoverInfo, type QuestPin } from './WorldEngine'
 import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrigin, type WorldPoi } from './osm'
-import { Minimap } from './Minimap'
+import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
@@ -50,7 +50,7 @@ export default function WorldView() {
   const [hover, setHover] = useState<string | null>(null)
   const [tileCount, setTileCount] = useState(0)
   const [showHint, setShowHint] = useState(true)
-  const [stepVersion, setStepVersion] = useState(0)
+  const [playerTile, setPlayerTile] = useState({ wx: 0, wz: 0 })
   const [place, setPlace] = useState<PlaceInfo | null>(null)
   const [statsOpen, setStatsOpen] = useState(false)
 
@@ -79,7 +79,6 @@ export default function WorldView() {
       pins.set(tileKey(wx, wz), { id: q.id, name: q.name })
     }
     engine.setQuests(pins)
-    setStepVersion((v) => v + 1)
   }, [recentQuests, resetKey, source])
 
   // ── Engine lifecycle ───────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ export default function WorldView() {
       onStep: (wx, wz, discovered) => {
         if (cancelled) return
         setTileCount(discovered)
-        setStepVersion((v) => v + 1)
+        setPlayerTile({ wx, wz })
         const origin = originRef.current
         // Walked far from the last fetch center → next OSM chunk + new place name
         const last = lastFetchTile.current
@@ -140,7 +139,7 @@ export default function WorldView() {
     lastFetchTile.current = { wx: 0, wz: 0 }
 
     engine.start(holder.clientWidth, holder.clientHeight)
-    setStepVersion((v) => v + 1)
+    setPlayerTile(engine.getPlayerTile())
 
     const ro = new ResizeObserver(() => {
       engine.resize(holder.clientWidth, holder.clientHeight)
@@ -153,7 +152,6 @@ export default function WorldView() {
         poisRef.current = new Map(chunk.pois)
         engine.setPois(poisRef.current, chunk.count < 12)
         setSource('osm')
-        setStepVersion((v) => v + 1)
       })
       .catch(() => {
         if (!cancelled) setSource('fallback')
@@ -220,7 +218,49 @@ export default function WorldView() {
     }
   }
 
-  const getMapData = useCallback(() => engineRef.current?.getMapData() ?? null, [])
+  // ── Minimap + off-board quest indicator data ───────────────────────────────
+  const questMarkers = useMemo<WorldQuestMarker[]>(
+    () =>
+      recentQuests
+        .filter((q) => Number.isFinite(q.location_lat) && Number.isFinite(q.location_lng))
+        .map((q) => ({ id: q.id, name: q.name, lat: q.location_lat, lng: q.location_lng })),
+    [recentQuests],
+  )
+
+  const origin = originRef.current
+  const playerGeo = origin
+    ? tileToGeo(origin, playerTile.wx, playerTile.wz)
+    : { lat: gps.lat ?? FALLBACK.lat, lng: gps.lng ?? FALLBACK.lng }
+
+  interface OffBoardQuest {
+    id: string
+    name: string
+    wx: number
+    wz: number
+    angle: number // screen-space angle in the iso projection
+    meters: number
+  }
+
+  const offBoard = useMemo<OffBoardQuest[]>(() => {
+    const o = originRef.current
+    if (!o) return []
+    const out: OffBoardQuest[] = []
+    for (const q of questMarkers) {
+      const t = geoToTile(o, q.lat, q.lng)
+      const dx = t.wx - playerTile.wx
+      const dz = t.wz - playerTile.wz
+      // Inside the visible 8x8 window? The board itself shows the flag.
+      if (dx >= -3 && dx <= 4 && dz >= -3 && dz <= 4) continue
+      const meters = Math.hypot(dx, dz) * TILE_METERS
+      // Iso projection: screen-x ∝ (dx − dz), screen-y ∝ (dx + dz)
+      const angle = Math.atan2((dx + dz) * 0.5, (dx - dz) * 0.866)
+      out.push({ id: q.id, name: q.name, wx: t.wx, wz: t.wz, angle, meters })
+    }
+    return out.sort((a, b) => a.meters - b.meters).slice(0, 4)
+  }, [questMarkers, playerTile])
+
+  const formatDistance = (m: number) =>
+    m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`
 
   const stats = computeStats(tileCount, place?.state ?? null)
   const locationLabel = place
@@ -343,8 +383,47 @@ export default function WorldView() {
         )}
       </div>
 
-      {/* ── Top-right: minimap (expandable flat map) ── */}
-      <Minimap getData={getMapData} version={stepVersion} />
+      {/* ── Off-board quest direction indicators ── */}
+      <AnimatePresence>
+        {offBoard.map((q) => {
+          const xPct = Math.min(86, Math.max(14, 50 + Math.cos(q.angle) * 41))
+          const yPct = Math.min(72, Math.max(18, 46 + Math.sin(q.angle) * 33))
+          return (
+            <motion.button
+              key={q.id}
+              initial={{ opacity: 0, scale: 0.8, left: `${xPct}%`, top: `${yPct}%` }}
+              animate={{ opacity: 1, scale: 1, left: `${xPct}%`, top: `${yPct}%` }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 230, damping: 24 }}
+              onClick={() => engineRef.current?.stepToward(q.wx, q.wz)}
+              className="pointer-events-auto absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+              style={{ left: `${xPct}%`, top: `${yPct}%` }}
+              title={`Walk toward ${q.name}`}
+            >
+              <div className="flex items-center gap-1.5 rounded-[var(--sq-r-pill)] border border-[var(--sq-gold)]/40 bg-[var(--sq-bg)]/88 py-1 pl-1.5 pr-2 shadow-[0_0_12px_rgba(246,166,35,0.25)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--sq-gold)] text-[10px] text-[var(--sq-ink)]">⚑</span>
+                <span className="max-w-[110px] truncate text-left text-[10px] font-bold leading-tight text-[var(--sq-text)]">
+                  {q.name}
+                  <span className="block text-[8px] font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">{formatDistance(q.meters)}</span>
+                </span>
+                <span
+                  className="shrink-0 text-[11px] text-[var(--sq-ember-400)]"
+                  style={{ transform: `rotate(${q.angle}rad)` }}
+                >
+                  ➤
+                </span>
+              </div>
+            </motion.button>
+          )
+        })}
+      </AnimatePresence>
+
+      {/* ── Top-right: minimap (real Mapbox, expandable) ── */}
+      <Minimap
+        playerGeo={playerGeo}
+        quests={questMarkers}
+        onQuestClick={(id) => navigate({ to: '/quest/$id', params: { id } })}
+      />
 
       {/* ── Bottom-left: scale legend ── */}
       <div className="pointer-events-none absolute bottom-28 left-4 z-20 flex flex-col gap-1 rounded-[var(--sq-r-md)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-3 py-2 backdrop-blur-sm">
