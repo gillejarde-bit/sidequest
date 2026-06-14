@@ -4,7 +4,7 @@
 //  · 8x8 sliding window over an infinite seeded world (GRID offsets -3…+4)
 //  · 4x4 discovered core (CORE offsets -1…+2); 2-tile fog ring around it
 //  · step one tile → a new row pops in ahead, the far row sinks away
-//  · three tile states: fog (never seen, cloud puffs) · memory (seen, dimmed)
+//  · three tile states: fog (never seen, seamless fog bank) · memory (seen, dimmed)
 //    · core (lit, torch-warmed, structures alive)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ import { gsap } from 'gsap'
 import { generateTile, TEMPLATES, tileRng, type TemplateId, type TileSpec } from './templates'
 import { tileKey, type GeoOrigin, type WorldPoi } from './osm'
 import {
-  buildFogPuffs, buildNature, buildPathPad, buildPlayer, buildQuestFlag, buildStructure,
+  applyAvatarToSprite, buildFogCap, buildNature, buildPathPad, buildPlayer, buildQuestFlag, buildStructure,
   disposeObject, setGroupTone, GROUND_COLORS,
 } from './structures'
 import { makeLabel, releaseLabel } from './labels'
@@ -33,9 +33,10 @@ interface Tile {
   ground: THREE.Mesh
   groundMat: THREE.MeshLambertMaterial
   content: THREE.Group | null
-  puffs: THREE.Group | null
+  fog: THREE.Group | null
   path: THREE.Group | null
   flag: THREE.Group | null
+  flagLabel: THREE.Sprite | null
   label: THREE.Sprite | null
   zone: Zone
   tone: { b: number; d: number }
@@ -122,18 +123,25 @@ export class WorldEngine {
   private quests = new Map<string, QuestPin>()
   private hovered: Tile | null = null
   private lanternLights = 0
-  private wingL: THREE.Object3D | null = null
-  private wingR: THREE.Object3D | null = null
-  private tail: THREE.Object3D | null = null
+  private avatar: { url: string | null; initial: string } = { url: null, initial: '◆' }
 
   origin: GeoOrigin = { lat: 0, lng: 0 }
 
   private canvas: HTMLCanvasElement
   private events: EngineEvents
 
-  constructor(canvas: HTMLCanvasElement, events: EngineEvents) {
+  constructor(canvas: HTMLCanvasElement, events: EngineEvents, opts?: { avatarUrl?: string | null; initial?: string }) {
     this.canvas = canvas
     this.events = events
+    this.avatar = { url: opts?.avatarUrl ?? null, initial: opts?.initial || '◆' }
+  }
+
+  /** Update the player medallion when the user's profile/avatar changes. */
+  setPlayerAvatar(url: string | null, initial: string): void {
+    this.avatar = { url, initial: initial || '◆' }
+    if (!this.player) return
+    const sprite = this.player.getObjectByName('avatar') as THREE.Sprite | null
+    if (sprite) applyAvatarToSprite(sprite, this.avatar.url, this.avatar.initial)
   }
 
   /** Adopt a saved origin when it's nearby so discovered tiles stay aligned. */
@@ -197,13 +205,10 @@ export class WorldEngine {
     this.shadowPlane.receiveShadow = true
     this.scene.add(this.shadowPlane)
 
-    // Player + torch
-    this.player = buildPlayer()
+    // Player marker + torch
+    this.player = buildPlayer({ avatarUrl: this.avatar.url, initial: this.avatar.initial })
     this.player.position.set(this.px, 0, this.pz)
     this.torchTip = this.player.getObjectByName('torch-tip') as THREE.Mesh | null
-    this.wingL = this.player.getObjectByName('wing-l') ?? null
-    this.wingR = this.player.getObjectByName('wing-r') ?? null
-    this.tail = this.player.getObjectByName('tail') ?? null
     this.torch = new THREE.PointLight(0xff9a52, 5, 7, 1.8)
     this.torch.position.set(0, 0.8, 0.05)
     this.player.add(this.torch)
@@ -259,6 +264,12 @@ export class WorldEngine {
     return { wx: this.px, wz: this.pz }
   }
 
+  /** Explored tile keys + player tile — drives the minimap fog so both maps
+   *  reveal the exact same area. */
+  getExplored(): { px: number; pz: number; discovered: string[] } {
+    return { px: this.px, pz: this.pz, discovered: [...this.discovered] }
+  }
+
   // ── Board management ───────────────────────────────────────────────────────
 
   private specFor(wx: number, wz: number): TileSpec {
@@ -301,13 +312,13 @@ export class WorldEngine {
 
     const tile: Tile = {
       wx, wz, spec, root, ground, groundMat,
-      content: null, puffs: null, path: null, flag: null, label: null, zone,
+      content: null, fog: null, path: null, flag: null, flagLabel: null, label: null, zone,
       tone: this.toneFor(zone), phase: rng() * Math.PI * 2,
     }
 
     if (zone === 'fog') {
-      tile.puffs = buildFogPuffs(rng)
-      root.add(tile.puffs)
+      tile.fog = buildFogCap(wx, wz)
+      root.add(tile.fog)
     } else {
       this.buildContent(tile, false)
       if (zone === 'core') this.discovered.add(tileKey(wx, wz))
@@ -332,8 +343,10 @@ export class WorldEngine {
   ])
 
   private refreshLabel(tile: Tile): void {
+    // A quest tile shows its quest name instead of the building name (see refreshFlag).
     const wanted =
       tile.zone === 'core' && tile.spec.template &&
+      !this.quests.has(tileKey(tile.wx, tile.wz)) &&
       (tile.spec.name || WorldEngine.LABELED.has(tile.spec.template))
     if (!wanted) {
       if (tile.label) {
@@ -365,6 +378,13 @@ export class WorldEngine {
         disposeObject(tile.flag)
         tile.flag = null
       }
+      if (tile.flagLabel) {
+        tile.root.remove(tile.flagLabel)
+        releaseLabel(tile.flagLabel)
+        tile.flagLabel = null
+      }
+      // A quest leaving a tile lets the building name return.
+      this.refreshLabel(tile)
       return
     }
     if (tile.flag) return
@@ -375,6 +395,23 @@ export class WorldEngine {
     flag.scale.setScalar(0.01)
     this.ctx.add(() => {
       gsap.to(flag.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'elastic.out(1, 0.6)', delay: 0.15 })
+    })
+
+    // Floating quest name — sits high enough to read above the fog bank, so
+    // quests are easy to spot before you reach them.
+    if (tile.label) {
+      tile.root.remove(tile.label)
+      releaseLabel(tile.label)
+      tile.label = null
+    }
+    const label = makeLabel(quest.name, '#F6A623')
+    label.position.set(0.3, 1.0, -0.3)
+    label.scale.multiplyScalar(0.001)
+    tile.root.add(label)
+    tile.flagLabel = label
+    const target = { x: label.scale.x * 1000, y: label.scale.y * 1000 }
+    this.ctx.add(() => {
+      gsap.to(label.scale, { x: target.x, y: target.y, duration: 0.45, ease: 'back.out(2)', delay: 0.2 })
     })
   }
 
@@ -501,6 +538,11 @@ export class WorldEngine {
       releaseLabel(tile.label)
       tile.label = null
     }
+    if (tile.flagLabel) {
+      tile.root.remove(tile.flagLabel)
+      releaseLabel(tile.flagLabel)
+      tile.flagLabel = null
+    }
     if (!animated) {
       this.scene.remove(tile.root)
       disposeObject(tile.root)
@@ -546,16 +588,18 @@ export class WorldEngine {
     const target = this.toneFor(zone)
     const k = tileKey(tile.wx, tile.wz)
 
-    if (zone !== 'fog' && tile.puffs) {
-      const puffs = tile.puffs
-      tile.puffs = null
+    if (zone !== 'fog' && tile.fog) {
+      const fog = tile.fog
+      tile.fog = null
       this.ctx.add(() => {
-        puffs.children.forEach((puff, i) => {
-          gsap.to(puff.scale, { x: 0.01, y: 0.01, z: 0.01, duration: 0.4, ease: 'power2.in', delay: i * 0.05 })
+        fog.traverse((o) => {
+          const m = (o as THREE.Mesh).material as THREE.MeshLambertMaterial | undefined
+          if (m && 'opacity' in m) gsap.to(m, { opacity: 0, duration: 0.5, ease: 'power2.in' })
         })
-        gsap.to(puffs.position, {
-          y: 0.5, duration: 0.5, ease: 'power1.out',
-          onComplete: () => { tile.root.remove(puffs); disposeObject(puffs) },
+        gsap.to(fog.position, { y: 0.7, duration: 0.55, ease: 'power1.out' })
+        gsap.to(fog.scale, {
+          x: 0.85, y: 0.5, z: 0.85, duration: 0.55, ease: 'power1.out',
+          onComplete: () => { tile.root.remove(fog); disposeObject(fog) },
         })
       })
     }
@@ -704,30 +748,17 @@ export class WorldEngine {
       const def = TEMPLATES[tile.spec.template]
       this.events.onHover?.(tile.spec.name ? `${tile.spec.name} — ${def.title}` : `${def.title} · ${def.subtitle}`)
     } else {
-      this.events.onHover?.(tile.zone === 'fog' ? 'Unexplored — tap to wander' : null)
+      this.events.onHover?.(tile.zone === 'fog' ? 'Unexplored' : null)
     }
   }
 
   tapAt(ndcX: number, ndcY: number): void {
+    // Tapping NEVER moves the player — movement is WASD + real GPS only.
+    // The single allowed tap action is opening a quest from its marker.
     const tile = this.pickTile(ndcX, ndcY)
     if (!tile) return
     const quest = this.quests.get(tileKey(tile.wx, tile.wz))
-    if (quest && tile.zone !== 'fog') {
-      this.events.onQuestTap?.(quest.id)
-      return
-    }
-    const dx = tile.wx - this.px
-    const dz = tile.wz - this.pz
-    if (dx === 0 && dz === 0) return
-    if (tile.zone === 'core' && tile.spec.template) {
-      const def = TEMPLATES[tile.spec.template]
-      this.events.onDiscover?.({
-        template: def.id, title: def.title, subtitle: def.subtitle,
-        color: def.color, name: tile.spec.name, xp: def.xp, isNew: false,
-      })
-      return
-    }
-    this.stepToward(tile.wx, tile.wz)
+    if (quest) this.events.onQuestTap?.(quest.id)
   }
 
   // ── Ambient life ───────────────────────────────────────────────────────────
@@ -768,14 +799,10 @@ export class WorldEngine {
       }
     }
 
-    // Thomas: idle hover-bob + wing flap (quick beats while hopping)
+    // Marker: gentle idle hover-bob (the hop itself is handled in move()).
     if (!this.moving && this.player) {
       this.player.position.y = 0.04 + Math.sin(t * 2.1) * 0.03
     }
-    const flap = this.moving ? Math.sin(t * 22) * 0.55 : Math.sin(t * 3.1) * 0.12
-    if (this.wingL) this.wingL.rotation.z = -(Math.PI / 2 + 0.5) - flap
-    if (this.wingR) this.wingR.rotation.z = (Math.PI / 2 + 0.5) + flap
-    if (this.tail) this.tail.rotation.x = Math.sin(t * 1.7) * 0.08
 
     // Quest flags ripple
     for (const tile of this.tiles.values()) {
@@ -804,15 +831,14 @@ export class WorldEngine {
       attr.needsUpdate = true
     }
 
-    // Water shimmer + fog puff breathing
+    // Water shimmer + synchronized fog breathing.
+    // All fog slices share one bob value so the seam-free bank moves as a whole.
+    const fogBob = Math.sin(t * 0.5) * 0.012
     for (const tile of this.tiles.values()) {
       if (tile.spec.ground === 'water') {
         tile.ground.position.y = -0.12 + Math.sin(t * 1.4 + tile.phase) * 0.015
       }
-      if (tile.puffs) {
-        tile.puffs.position.y = Math.sin(t * 0.9 + tile.phase) * 0.025
-        tile.puffs.rotation.y = Math.sin(t * 0.22 + tile.phase) * 0.08
-      }
+      if (tile.fog) tile.fog.position.y = fogBob
     }
   }
 

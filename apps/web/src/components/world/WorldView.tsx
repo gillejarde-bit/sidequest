@@ -11,8 +11,10 @@ import { WorldEngine, type DiscoverInfo, type QuestPin } from './WorldEngine'
 import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrigin, type WorldPoi } from './osm'
 import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
+import { FireLoadingScreen } from '../map/FireLoadingScreen'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../stores/auth'
 import { format } from 'date-fns'
 import type { Database } from '../../types/database.types'
 
@@ -43,9 +45,12 @@ export default function WorldView() {
   const gps = useGeolocation()
   const gpsRef = useRef(gps)
   gpsRef.current = gps
+  const profile = useAuthStore((s) => s.profile)
 
   const [resetKey, setResetKey] = useState(0)
   const [source, setSource] = useState<Source>('loading')
+  const [ready, setReady] = useState(false)
+  const [showLoader, setShowLoader] = useState(true)
   const [toast, setToast] = useState<DiscoverInfo | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [tileCount, setTileCount] = useState(0)
@@ -55,7 +60,7 @@ export default function WorldView() {
   const [statsOpen, setStatsOpen] = useState(false)
 
   // ── Recent quests (top 5 list + flags on the board) ───────────────────────
-  const { data: recentQuests = [] } = useQuery({
+  const { data: recentQuests = [], isLoading: questsLoading } = useQuery({
     queryKey: ['world-recent-quests'],
     queryFn: async (): Promise<QuestRow[]> => {
       const { data, error } = await supabase.rpc('get_my_quests', { filter_status: undefined })
@@ -89,6 +94,7 @@ export default function WorldView() {
 
     let cancelled = false
 
+    const initialProfile = useAuthStore.getState().profile
     const engine = new WorldEngine(canvas, {
       onDiscover: (info) => {
         if (cancelled) return
@@ -130,6 +136,9 @@ export default function WorldView() {
           if (t.wx !== wx || t.wz !== wz) engine.stepToward(t.wx, t.wz)
         }
       },
+    }, {
+      avatarUrl: initialProfile?.avatar_url ?? null,
+      initial: (initialProfile?.display_name || initialProfile?.username || '◆').slice(0, 1),
     })
     engineRef.current = engine
 
@@ -206,8 +215,33 @@ export default function WorldView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // ── Keep the player medallion in sync with the user's profile picture ──────
+  useEffect(() => {
+    engineRef.current?.setPlayerAvatar(
+      profile?.avatar_url ?? null,
+      (profile?.display_name || profile?.username || '◆').slice(0, 1),
+    )
+  }, [profile?.avatar_url, profile?.display_name, profile?.username])
+
+  // ── Loading gate ───────────────────────────────────────────────────────────
+  // Hold the fire screen until the world has settled: location fixed AND the
+  // first OSM chunk + quests applied. This hides the reload flash where raw
+  // procedural tiles morph into real places and quest flags pop in late.
+  const dataReady = source !== 'loading' && !questsLoading
+  useEffect(() => {
+    if (dataReady) setReady(true)
+  }, [dataReady])
+  // Safety net: never let a slow/failed Overpass fetch trap the loader.
+  useEffect(() => {
+    setReady(false)
+    setShowLoader(true)
+    const t = setTimeout(() => setReady(true), 5000)
+    return () => clearTimeout(t)
+  }, [resetKey])
+
   // ── Pointer → NDC ──────────────────────────────────────────────────────────
   const downPos = useRef<{ x: number; y: number; t: number } | null>(null)
+  const lastHover = useRef(0)
 
   const toNdc = (e: ReactPointerEvent) => {
     const rect = holderRef.current?.getBoundingClientRect()
@@ -226,6 +260,45 @@ export default function WorldView() {
         .map((q) => ({ id: q.id, name: q.name, lat: q.location_lat, lng: q.location_lng })),
     [recentQuests],
   )
+
+  // ── Minimap fog: unexplored tiles around the player as GL fill squares ──────
+  // Same explored set as the 3D board, so both maps reveal identically. Squares
+  // are slightly oversized so neighbours overlap into one seamless fog sheet.
+  const fogData = useMemo<GeoJSON.FeatureCollection>(() => {
+    const o = originRef.current
+    const eng = engineRef.current
+    if (!o || !eng) return { type: 'FeatureCollection', features: [] }
+    const { px, pz, discovered } = eng.getExplored()
+    const seen = new Set(discovered)
+    const R = 13
+    const half = (TILE_METERS * 1.12) / 2
+    const features: GeoJSON.Feature[] = []
+    for (let dx = -R; dx <= R; dx++) {
+      for (let dz = -R; dz <= R; dz++) {
+        const wx = px + dx
+        const wz = pz + dz
+        if (seen.has(tileKey(wx, wz))) continue
+        const c = tileToGeo(o, wx, wz)
+        const dLat = half / 110_540
+        const dLng = half / (111_320 * Math.cos((c.lat * Math.PI) / 180))
+        features.push({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[
+              [c.lng - dLng, c.lat - dLat],
+              [c.lng + dLng, c.lat - dLat],
+              [c.lng + dLng, c.lat + dLat],
+              [c.lng - dLng, c.lat + dLat],
+              [c.lng - dLng, c.lat - dLat],
+            ]],
+          },
+        })
+      }
+    }
+    return { type: 'FeatureCollection', features }
+  }, [playerTile, tileCount, source])
 
   const origin = originRef.current
   const playerGeo = origin
@@ -287,6 +360,9 @@ export default function WorldView() {
         ref={canvasRef}
         className="relative block h-full w-full"
         onPointerMove={(e) => {
+          const now = performance.now()
+          if (now - lastHover.current < 40) return // throttle raycasts for smoothness
+          lastHover.current = now
           const ndc = toNdc(e)
           if (ndc) engineRef.current?.hoverAt(ndc.x, ndc.y)
         }}
@@ -395,10 +471,10 @@ export default function WorldView() {
               animate={{ opacity: 1, scale: 1, left: `${xPct}%`, top: `${yPct}%` }}
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ type: 'spring', stiffness: 230, damping: 24 }}
-              onClick={() => engineRef.current?.stepToward(q.wx, q.wz)}
+              onClick={() => navigate({ to: '/quest/$id', params: { id: q.id } })}
               className="pointer-events-auto absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
               style={{ left: `${xPct}%`, top: `${yPct}%` }}
-              title={`Walk toward ${q.name}`}
+              title={`Open ${q.name}`}
             >
               <div className="flex items-center gap-1.5 rounded-[var(--sq-r-pill)] border border-[var(--sq-gold)]/40 bg-[var(--sq-bg)]/88 py-1 pl-1.5 pr-2 shadow-[0_0_12px_rgba(246,166,35,0.25)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--sq-gold)] text-[10px] text-[var(--sq-ink)]">⚑</span>
@@ -422,6 +498,7 @@ export default function WorldView() {
       <Minimap
         playerGeo={playerGeo}
         quests={questMarkers}
+        fog={fogData}
         onQuestClick={(id) => navigate({ to: '/quest/$id', params: { id } })}
       />
 
@@ -501,7 +578,7 @@ export default function WorldView() {
             className="pointer-events-none absolute bottom-28 left-1/2 z-20 -translate-x-1/2"
           >
             <div className="rounded-[var(--sq-r-pill)] border border-[var(--sq-ember-500)]/30 bg-[var(--sq-surface)]/90 px-4 py-2 text-[11px] font-medium text-[var(--sq-text-muted)] backdrop-blur-sm whitespace-nowrap shadow-[var(--sq-shadow-glow)]">
-              Walk to explore — or tap the fog to wander
+              Use WASD or walk to explore · tap a quest flag to open it
             </div>
           </motion.div>
         )}
@@ -565,6 +642,11 @@ export default function WorldView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Fire loading screen: covers the world until it has settled ── */}
+      {showLoader && (
+        <FireLoadingScreen isReady={ready} onExitComplete={() => setShowLoader(false)} />
+      )}
     </div>
   )
 }

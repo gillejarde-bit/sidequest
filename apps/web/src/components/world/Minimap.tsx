@@ -3,7 +3,7 @@
 // an interactive, clamped panel that never covers the bottom nav.
 
 import { useRef, useState } from 'react'
-import Map, { Marker, type MapRef } from 'react-map-gl'
+import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { motion, AnimatePresence } from 'framer-motion'
 import cozyStyle from '../map/fog/sidequest-cozy-style.json'
@@ -18,6 +18,7 @@ export interface WorldQuestMarker {
 interface MinimapProps {
   playerGeo: { lat: number; lng: number }
   quests: WorldQuestMarker[]
+  fog?: GeoJSON.FeatureCollection
   onQuestClick: (questId: string) => void
 }
 
@@ -25,6 +26,14 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 
 // Warm desaturated grade over Mapbox so it sits inside the game world.
 const COZY_FILTER = 'saturate(0.78) sepia(0.18) brightness(0.92) contrast(1.02)'
+
+// Native GL fog paint — the unexplored squares fed from the engine. Blocky on
+// purpose so it reads like the low-poly fog bank on the 3D board.
+const FOG_PAINT = {
+  'fill-color': '#15100B',
+  'fill-opacity': 0.82,
+  'fill-outline-color': '#15100B',
+}
 
 function PlayerDot({ size = 16 }: { size?: number }) {
   return (
@@ -64,7 +73,7 @@ function QuestPin({ name, big, onClick }: { name: string; big?: boolean; onClick
   )
 }
 
-export function Minimap({ playerGeo, quests, onQuestClick }: MinimapProps) {
+export function Minimap({ playerGeo, quests, fog, onQuestClick }: MinimapProps) {
   const [expanded, setExpanded] = useState(false)
   const bigMapRef = useRef<MapRef>(null)
 
@@ -90,6 +99,11 @@ export function Minimap({ playerGeo, quests, onQuestClick }: MinimapProps) {
               keyboard={false}
               style={{ width: '100%', height: '100%' }}
             >
+              {fog && (
+                <Source id="sq-minimap-fog-src" type="geojson" data={fog}>
+                  <Layer id="sq-minimap-fog" type="fill" paint={FOG_PAINT} />
+                </Source>
+              )}
               {quests.map((q) => (
                 <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="center">
                   <QuestPin name={q.name} />
@@ -172,6 +186,11 @@ export function Minimap({ playerGeo, quests, onQuestClick }: MinimapProps) {
                   attributionControl={false}
                   style={{ width: '100%', height: '100%' }}
                 >
+                  {fog && (
+                    <Source id="sq-minimap-fog-src-big" type="geojson" data={fog}>
+                      <Layer id="sq-minimap-fog-big" type="fill" paint={FOG_PAINT} />
+                    </Source>
+                  )}
                   {quests.map((q) => (
                     <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="bottom">
                       <QuestPin name={q.name} big onClick={() => onQuestClick(q.id)} />

@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { MapPin, Calendar, ChevronLeft, Users, Navigation, Star, Heart, Check, Plus } from 'lucide-react'
+import { MapPin, Calendar, ChevronLeft, Navigation, Check, Plus, Heart, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useQuestDetail } from '../../hooks/useQuestDetail'
 import { RSVPButton } from '../../components/quest/RSVPButton'
 import { CheckInButton } from '../../components/quest/CheckInButton'
 import { QuestChat } from '../../components/quest/QuestChat'
+import { CategoryHero } from '../../components/quest/CategoryHero'
 import { useFriends } from '../../hooks/useFriends'
+import { useGeolocation } from '../../hooks/useGeolocation'
 import { format, isToday } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
-import Map, { Marker } from 'react-map-gl'
+import Map, { Marker, Source, Layer } from 'react-map-gl'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { supabase } from '../../lib/supabase'
@@ -19,374 +21,331 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
 import cozyStyle from '../../components/map/fog/sidequest-cozy-style.json'
 
-const CATEGORY_COLORS: Record<string, { bg: string, text: string }> = {
-  Food: { bg: 'bg-[#FF6B6B]/15', text: 'text-[#FF6B6B]' },
-  Outdoors: { bg: 'bg-[#58CC02]/15', text: 'text-[#58CC02]' },
-  Nightlife: { bg: 'bg-[#9B59B6]/15', text: 'text-[#9B59B6]' },
-  Culture: { bg: 'bg-[#3498DB]/15', text: 'text-[#3498DB]' },
-  Fitness: { bg: 'bg-[#E67E22]/15', text: 'text-[#E67E22]' },
-  Gaming: { bg: 'bg-[#E91E63]/15', text: 'text-[#E91E63]' },
-  Default: { bg: 'bg-[#6C63FF]/15', text: 'text-[#6C63FF]' }
+type Tab = 'details' | 'party' | 'chat'
+
+function Tag({ children, tone = 'ember' }: { children: ReactNode; tone?: 'ember' | 'muted' | 'success' }) {
+  const cls =
+    tone === 'success'
+      ? 'bg-[var(--sq-success)]/15 text-[var(--sq-success)]'
+      : tone === 'muted'
+      ? 'bg-[var(--sq-surface)] text-[var(--sq-text-muted)]'
+      : 'bg-[var(--sq-ember-500)]/15 text-[var(--sq-ember-400)]'
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${cls}`}>
+      {children}
+    </span>
+  )
 }
 
 export function QuestDetail() {
   const { id } = useParams({ from: '/quest/$id' })
   const { profile } = useAuthStore()
   const { data, isLoading, refetch } = useQuestDetail(id)
+  const geo = useGeolocation()
+  const [tab, setTab] = useState<Tab>('details')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [placeDetails, setPlaceDetails] = useState<any>(null)
   const [showInvitePopup, setShowInvitePopup] = useState(false)
   const [invitingState, setInvitingState] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({})
   const { data: friendsList = [], isLoading: friendsLoading } = useFriends()
 
-  useEffect(() => {
-    if (!data?.location?.osm_id) return
+  const location = data?.location
+  const hasUser = geo.lat != null && geo.lng != null
 
-    const initPlaces = () => {
-      if (window.google?.maps?.places) {
-        const service = new window.google.maps.places.PlacesService(document.createElement('div'))
-        service.getDetails({
-          placeId: data.location.osm_id,
-          fields: ['photos', 'rating', 'user_ratings_total']
-        }, (place: any, status: any) => {
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
-            setPlaceDetails(place)
-          }
-        })
-      }
+  // Straight-line route preview (turn-by-turn happens in the maps deep-link).
+  const routeData = useMemo<GeoJSON.Feature | null>(() => {
+    if (!location || !hasUser) return null
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: [[geo.lng!, geo.lat!], [location.lng, location.lat]] },
     }
+  }, [location, hasUser, geo.lat, geo.lng])
 
-    if (window.google?.maps?.places) {
-      initPlaces()
-    } else {
-      const script = document.createElement('script')
-      const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`
-      script.async = true
-      script.defer = true
-      script.onload = () => initPlaces()
-      document.head.appendChild(script)
-    }
-  }, [data?.location?.osm_id])
+  const directionsUrl = location
+    ? `https://www.google.com/maps/dir/?api=1&${hasUser ? `origin=${geo.lat},${geo.lng}&` : ''}destination=${location.lat},${location.lng}&travelmode=walking`
+    : '#'
 
-  if (isLoading) return <div className="p-8 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
-  if (!data) return <div className="p-8 text-center">Quest not found</div>
+  if (isLoading) return <div className="flex h-[100dvh] items-center justify-center bg-[var(--sq-bg)]"><div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--sq-ember-500)] border-t-transparent" /></div>
+  if (!data) return <div className="flex h-[100dvh] items-center justify-center bg-[var(--sq-bg)] text-[var(--sq-text)]">Quest not found</div>
 
-  const { quest, location, creator, attendees, my_status, is_creator, user_attended } = data
-  const colors = CATEGORY_COLORS[quest.category] || CATEGORY_COLORS.Default
+  const { quest, creator, attendees, my_status, is_creator, user_attended } = data
   const cost = '$'.repeat(quest.cost_tier) || 'Free'
   const isParticipant = my_status === 'accepted' || is_creator
   const showCheckIn = isParticipant && isToday(new Date(quest.starts_at))
 
-  // XP Preview: what checking in to this quest will earn (uses data already loaded — no extra queries)
+  // XP preview (no extra queries — uses already-loaded category/vibe)
   const primaryPursuitKey = quest.category ? categoryPursuitMap[String(quest.category).toLowerCase()] : undefined
   const primaryPursuit = primaryPursuitKey ? pursuits[primaryPursuitKey] : undefined
   const secondaryPursuitKey = quest.vibe ? vibePursuitNudge[String(quest.vibe).toLowerCase()] : undefined
   const secondaryPursuit = secondaryPursuitKey && secondaryPursuitKey !== primaryPursuitKey ? pursuits[secondaryPursuitKey] : undefined
   const discoveryPursuit = pursuits.discovery
 
+  const TabButton = ({ value, label }: { value: Tab; label: string }) => (
+    <button
+      onClick={() => setTab(value)}
+      className={`relative flex-1 cursor-pointer py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
+        tab === value ? 'text-[var(--sq-ember-400)]' : 'text-[var(--sq-text-faint)] hover:text-[var(--sq-text-muted)]'
+      }`}
+    >
+      {label}
+      {tab === value && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-[var(--sq-ember-500)]" />}
+    </button>
+  )
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-[100px] transition-colors duration-300">
-      {/* 1. HERO IMAGE (Google Places Photo or Mapbox Fallback) */}
-      <div className="relative h-[200px] w-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
-        <button onClick={() => window.history.back()} className="absolute top-safe-4 left-4 z-10 w-10 h-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-colors">
-          <ChevronLeft className="w-6 h-6 text-gray-900 dark:text-white pr-1" />
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--sq-bg)] text-[var(--sq-text)]">
+      {/* ── Low-poly category hero ── */}
+      <div className="relative h-[148px] shrink-0 overflow-hidden">
+        <CategoryHero category={quest.category} className="absolute inset-0 h-full w-full" />
+        <button
+          onClick={() => window.history.back()}
+          className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--sq-hairline-strong)] bg-[var(--sq-bg)]/70 backdrop-blur-md active:scale-95"
+        >
+          <ChevronLeft className="h-5 w-5 text-[var(--sq-text)]" />
         </button>
-
-        {placeDetails?.photos?.[0] ? (
-          <img
-            src={placeDetails.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 })}
-            alt={data?.location?.name}
-            className="w-full h-full object-cover"
-          />
-        ) : location ? (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-            <span className="text-white/50 font-bold text-lg tracking-widest uppercase">Secret Location</span>
-          </div>
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 via-gray-50/20 dark:via-gray-900/20 to-transparent transition-colors duration-300" />
-      </div>
-
-      {/* 2. QUEST INFO */}
-      <div className="px-6 -mt-6 relative z-10 space-y-6">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white leading-tight mb-3">{quest.name}</h1>
-          <div className="flex flex-wrap gap-2 mb-6">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colors.bg} ${colors.text}`}>
-              {quest.category}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-700">
-              {quest.vibe}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-              {cost}
-            </span>
-            {placeDetails?.rating && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 flex items-center gap-1">
-                <Star className="w-3 h-3 fill-current" />
-                {placeDetails.rating} ({placeDetails.user_ratings_total})
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-4 bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
-            <a href={`https://maps.google.com/?q=${location.lat},${location.lng}`} target="_blank" rel="noreferrer" className="flex items-start gap-3 hover:opacity-70 active:scale-95 transition-all">
-              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white">{location.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">Tap for directions</p>
-              </div>
-            </a>
-
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white">{format(new Date(quest.starts_at), "EEEE, MMMM d")}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{format(new Date(quest.starts_at), "h:mm a")}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="flex-1 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-gray-900 dark:text-white">{data.attendee_count} attending</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {quest.max_party_size ? `Max party size: ${quest.max_party_size}` : 'Unlimited party size'}
-                  </p>
-                </div>
-              </div>
-            </div>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[var(--sq-bg)] via-[var(--sq-bg)]/85 to-transparent px-5 pb-3 pt-12">
+          <h1 className="text-2xl font-black leading-tight text-[var(--sq-text)] line-clamp-2">{quest.name}</h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <Tag>{quest.category}</Tag>
+            {quest.vibe && <Tag tone="muted">{quest.vibe}</Tag>}
+            <Tag tone="success">{cost}</Tag>
           </div>
         </div>
+      </div>
 
-        {quest.description && (
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{quest.description}</p>
+      {/* ── Tabs ── */}
+      <div className="flex shrink-0 items-stretch border-b border-[var(--sq-hairline)] bg-[var(--sq-bg)] px-2">
+        <TabButton value="details" label="Details" />
+        <TabButton value="party" label={`Party · ${data.attendee_count}`} />
+        <TabButton value="chat" label="Chat" />
+      </div>
+
+      {/* ── Content ── */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* DETAILS */}
+        {tab === 'details' && (
+          <div className="h-full overflow-y-auto px-4 py-3 space-y-3">
+            <div className="rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline)] bg-[var(--sq-card)] divide-y divide-[var(--sq-hairline)]">
+              {location && (
+                <a href={directionsUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3.5 active:scale-[0.99] transition-transform">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sq-ember-500)]/12 text-[var(--sq-ember-400)]"><MapPin className="h-5 w-5" /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-[var(--sq-text)]">{location.name}</p>
+                    <p className="text-xs text-[var(--sq-text-muted)]">Tap for directions</p>
+                  </div>
+                  <Navigation className="h-4 w-4 shrink-0 text-[var(--sq-text-faint)]" />
+                </a>
+              )}
+              <div className="flex items-center gap-3 p-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sq-gold)]/12 text-[var(--sq-gold-soft)]"><Calendar className="h-5 w-5" /></div>
+                <div className="min-w-0">
+                  <p className="font-bold text-[var(--sq-text)]">{format(new Date(quest.starts_at), 'EEEE, MMMM d')}</p>
+                  <p className="text-xs text-[var(--sq-text-muted)]">{format(new Date(quest.starts_at), 'h:mm a')}</p>
+                </div>
+              </div>
+              <Link to="/profile/$id" params={{ id: creator.id }} className="flex items-center gap-3 p-3.5 active:scale-[0.99] transition-transform">
+                <img src={creator.avatar_url || ''} alt="" className="h-9 w-9 shrink-0 rounded-full border border-[var(--sq-hairline)] bg-[var(--sq-surface)] object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-[var(--sq-text)]">{creator.display_name || creator.username}</p>
+                  <p className="text-xs text-[var(--sq-text-muted)]">Level {creator.level || 1} Host</p>
+                </div>
+                <span className="rounded-full bg-[var(--sq-surface)] px-2 py-0.5 text-[10px] font-bold text-[var(--sq-text-muted)]">{data.attendee_count} going</span>
+              </Link>
+            </div>
+
+            {quest.description && (
+              <p className="line-clamp-3 px-1 text-sm leading-relaxed text-[var(--sq-text-muted)] whitespace-pre-wrap">{quest.description}</p>
+            )}
+
+            {/* Directions: route preview + deep-link */}
+            {location && (
+              <div className="overflow-hidden rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline)] bg-[var(--sq-card)]">
+                <div className="h-[140px] w-full">
+                  <Map
+                    initialViewState={{ longitude: location.lng, latitude: location.lat, zoom: 14 }}
+                    mapStyle={cozyStyle as any}
+                    pitch={0}
+                    bearing={0}
+                    mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                    interactive={false}
+                    style={{ width: '100%', height: '100%' }}
+                    onLoad={(e) => {
+                      const map = e.target
+                      try {
+                        map.setLayoutProperty('poi-label', 'visibility', 'none')
+                        map.setLayoutProperty('transit-label', 'visibility', 'none')
+                      } catch { /* style may lack these layers */ }
+                      if (hasUser && location) {
+                        const b = new mapboxgl.LngLatBounds([geo.lng!, geo.lat!], [location.lng, location.lat])
+                        map.fitBounds(b, { padding: 38, maxZoom: 15, duration: 0 })
+                      }
+                      map.resize()
+                    }}
+                  >
+                    {routeData && (
+                      <Source id="route" type="geojson" data={routeData}>
+                        <Layer
+                          id="route-line"
+                          type="line"
+                          paint={{ 'line-color': '#F2741E', 'line-width': 3, 'line-dasharray': [1.6, 1.2] }}
+                          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                        />
+                      </Source>
+                    )}
+                    <Marker longitude={location.lng} latitude={location.lat} anchor="bottom">
+                      <div className="flex flex-col items-center">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--sq-keyline)] bg-[var(--sq-gold)] text-[12px] text-[var(--sq-ink)] shadow-[0_0_8px_rgba(246,166,35,0.7)]">⚑</span>
+                      </div>
+                    </Marker>
+                    {hasUser && (
+                      <Marker longitude={geo.lng!} latitude={geo.lat!} anchor="center">
+                        <span className="block h-3.5 w-3.5 rounded-full border-2 border-[var(--sq-keyline)] bg-[var(--sq-ember-500)] shadow-[0_0_8px_rgba(242,116,30,0.8)]" />
+                      </Marker>
+                    )}
+                  </Map>
+                </div>
+                <a
+                  href={directionsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 border-t border-[var(--sq-hairline)] py-3 text-sm font-black uppercase tracking-wider text-[var(--sq-ember-400)] hover:bg-[var(--sq-card-hover)] active:scale-[0.99] transition-all"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Get Directions
+                </a>
+              </div>
+            )}
           </div>
         )}
 
-        {/* 3. CREATOR */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider ml-2">Organized by</h3>
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
-            <Link to="/profile/$id" params={{ id: creator.id }} className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-              <div className="flex items-center gap-3">
-                <img src={creator.avatar_url || ''} alt="" className="w-12 h-12 rounded-full object-cover bg-gray-100 dark:bg-gray-700" />
-                <div>
-                  <h4 className="font-bold text-gray-900 dark:text-white">{creator.display_name || creator.username}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Level {creator.level || 1} Host</p>
-                </div>
+        {/* PARTY */}
+        {tab === 'party' && (
+          <div className="h-full overflow-y-auto px-4 py-3 space-y-3">
+            <div className="rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline)] bg-[var(--sq-card)] p-4">
+              <div className="flex flex-wrap gap-3">
+                {attendees && attendees.map((att: any, i: number) => (
+                  <motion.div key={att.user_id} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }} className="w-16 text-center">
+                    <Link to="/profile/$id" params={{ id: att.user_id }}>
+                      <div className="relative mx-auto mb-1 h-14 w-14">
+                        <div className="h-full w-full overflow-hidden rounded-full border border-[var(--sq-hairline)] bg-[var(--sq-surface)]">
+                          {att.avatar_url ? (
+                            <img src={att.avatar_url} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-bold text-[var(--sq-text-faint)]">{att.username[0].toUpperCase()}</div>
+                          )}
+                        </div>
+                        <div className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border border-[var(--sq-bg)] ${att.has_attended ? 'bg-[var(--sq-gold)] text-[var(--sq-ink)]' : 'bg-[var(--sq-success)] text-white'}`}>
+                          <Check className="h-3 w-3 stroke-[3.5]" />
+                        </div>
+                      </div>
+                      <p className="truncate text-[10px] font-bold text-[var(--sq-text-muted)]">{att.display_name || att.username}</p>
+                    </Link>
+                  </motion.div>
+                ))}
+                {is_creator && (
+                  <div className="w-16 text-center">
+                    <button onClick={() => setShowInvitePopup(true)} className="mx-auto mb-1 flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--sq-ember-500)] text-[var(--sq-ember-400)] hover:bg-[var(--sq-ember-500)]/10 active:scale-95 transition-all cursor-pointer">
+                      <Plus className="h-6 w-6 stroke-[3]" />
+                    </button>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-[var(--sq-ember-400)]">Invite</p>
+                  </div>
+                )}
               </div>
-            </Link>
-          </div>
-        </div>
-
-        {/* 4. ATTENDEES */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-end ml-2">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">The Party</h3>
-            <span className="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{data.attendee_count} going</span>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
-            <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
-              {attendees && attendees.map((att: any, i: number) => (
-                <motion.div
-                  key={att.user_id}
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="snap-start shrink-0 text-center w-16"
-                >
-                  <Link to="/profile/$id" params={{ id: att.user_id }}>
-                    <div className="relative w-14 h-14 mx-auto mb-1">
-                      <div className="w-full h-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        {att.avatar_url ? (
-                          <img src={att.avatar_url} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">
-                            {att.username[0].toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      {/* RSVP going / check-in attendance indicator badges */}
-                      <div className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border border-white dark:border-gray-800 flex items-center justify-center shadow-sm ${
-                        att.has_attended
-                          ? 'bg-amber-500 text-white border-yellow-300 animate-pulse'
-                          : 'bg-green-500 text-white'
-                      }`}>
-                        <Check className="w-3.5 h-3.5 stroke-[3.5]" />
-                      </div>
-                    </div>
-                    <p className="text-[10px] font-bold text-gray-700 dark:text-gray-300 truncate flex items-center justify-center gap-0.5 mt-1">
-                      {att.display_name || att.username}
-                      {att.has_attended && <span className="text-amber-500 font-extrabold shrink-0">★</span>}
-                    </p>
-                  </Link>
-                </motion.div>
-              ))}
-
-              {/* Special Invite button (plus symbol) at the end of the Party list */}
-              {is_creator && (
-                <div className="snap-start shrink-0 text-center w-16">
-                  <button
-                    onClick={() => setShowInvitePopup(true)}
-                    className="w-14 h-14 mx-auto mb-1 rounded-full border-2 border-dashed border-primary text-primary hover:bg-primary/10 active:scale-95 flex items-center justify-center transition-all cursor-pointer bg-gray-50/50 dark:bg-gray-800/10"
-                  >
-                    <Plus className="w-6 h-6 stroke-[3]" />
-                  </button>
-                  <p className="text-[10px] font-black text-primary uppercase tracking-wider mt-1.5 text-center leading-none">
-                    Invite
-                  </p>
+              {is_creator && data.invited && data.invited.length > data.attendee_count && (
+                <div className="mt-3 border-t border-[var(--sq-hairline)] pt-3 text-center text-xs font-medium text-[var(--sq-text-faint)]">
+                  + {data.invited.length - data.attendee_count} pending invites
                 </div>
               )}
             </div>
-            {is_creator && data.invited && data.invited.length > data.attendee_count && (
-              <div className="mt-3 text-xs text-center text-gray-400 dark:text-gray-500 font-medium border-t border-gray-100 dark:border-gray-700 pt-3">
-                + {data.invited.length - data.attendee_count} pending invites
+
+            {is_creator && (
+              <div className="rounded-[var(--sq-r-lg)] border border-[var(--sq-heart)]/25 bg-[var(--sq-card)] p-4">
+                <AnimatePresence mode="wait">
+                  {!showDeleteConfirm ? (
+                    <motion.button key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDeleteConfirm(true)} className="flex w-full items-center justify-center gap-2 rounded-[var(--sq-r-md)] bg-[var(--sq-heart)]/10 py-3 font-bold text-[var(--sq-heart)] hover:bg-[var(--sq-heart)]/20 transition-colors">
+                      <Trash2 className="h-4 w-4" /> Delete Quest
+                    </motion.button>
+                  ) : (
+                    <motion.div key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                      <p className="text-center text-sm font-bold text-[var(--sq-heart)]">Delete this quest? This cannot be undone.</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-[var(--sq-r-md)] bg-[var(--sq-surface)] py-3 font-bold text-[var(--sq-text-muted)] hover:bg-[var(--sq-card-hover)] transition-colors">Cancel</button>
+                        <button onClick={async () => { const { error } = await supabase.from('quests').delete().eq('id', quest.id); if (!error) window.location.href = '/quests'; else alert('Error deleting quest: ' + error.message) }} className="flex-1 rounded-[var(--sq-r-md)] bg-[var(--sq-heart)] py-3 font-bold text-white shadow-md transition-colors">Confirm</button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>
-        </div>
+        )}
 
-        {/* 5. MINI MAP */}
-        <div className="space-y-3">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
-            <div className="w-full h-[180px] pointer-events-none">
-              <Map
-                initialViewState={{
-                  longitude: location.lng,
-                  latitude: location.lat,
-                  zoom: 15
-                }}
-                mapStyle={cozyStyle as any}
-                pitch={0}
-                bearing={0}
-                mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-                interactive={false}
-                onLoad={(e) => {
-                  const map = e.target;
-                  try {
-                    map.setLayoutProperty('poi-label', 'visibility', 'none');
-                    map.setLayoutProperty('transit-label', 'visibility', 'none');
-                    map.resize();
-                  } catch (err) {}
-                }}
-                onError={(e) => console.error('MAPBOX ERROR:', e.error)}
-              >
-                <Marker longitude={location.lng} latitude={location.lat}>
-                  <div className="w-6 h-6 bg-primary rounded-full border-2 border-white shadow-lg" />
-                </Marker>
-              </Map>
-            </div>
-            <a
-              href={`https://maps.google.com/?q=${location.lat},${location.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-4 bg-white dark:bg-gray-800 text-primary font-bold hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700 transition-colors"
-            >
-              <Navigation className="w-4 h-4" />
-              Get Directions
-            </a>
-          </div>
-        </div>
-
-        {/* 6. QUEST CHAT */}
-        <div className="space-y-3 pb-8">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider ml-2">Party Chat</h3>
-          <QuestChat questId={quest.id} isParticipant={isParticipant} previewOnly={false} />
-        </div>
-
-        {/* 7. DANGER ZONE */}
-        {is_creator && (
-          <div className="space-y-3 pb-8">
-            <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider ml-2">Danger Zone</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden transition-colors">
-              <AnimatePresence mode="wait">
-                {!showDeleteConfirm ? (
-                  <motion.button
-                    key="btn"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full py-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
-                  >
-                    Delete Quest
-                  </motion.button>
-                ) : (
-                  <motion.div
-                    key="confirm"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-3"
-                  >
-                    <p className="text-sm text-red-600 dark:text-red-400 font-bold text-center">
-                      Are you absolutely sure? This cannot be undone.
-                    </p>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const { error } = await supabase.from('quests').delete().eq('id', quest.id);
-                          if (!error) window.location.href = '/quests';
-                          else alert('Error deleting quest: ' + error.message);
-                        }}
-                        className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-md hover:bg-red-600 transition-colors"
-                      >
-                        Confirm
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+        {/* CHAT */}
+        {tab === 'chat' && (
+          <div className="h-full overflow-y-auto p-4">
+            <QuestChat questId={quest.id} isParticipant={isParticipant} previewOnly={false} />
           </div>
         )}
       </div>
 
-      {/* STREAK RECOVERY ALERT BANNER (Floating above bottom bar if streak broken) */}
+      {/* ── Action bar ── */}
+      <div className="shrink-0 border-t border-[var(--sq-hairline)] bg-[var(--sq-surface)] p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        {showCheckIn && !user_attended && primaryPursuit && (
+          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--sq-text-faint)]">Check in to earn:</span>
+            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: primaryPursuit.color }}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: primaryPursuit.color }} />
+              {primaryPursuit.noun} +{XP_REWARDS.checkinPrimary} XP
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: discoveryPursuit.color }}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: discoveryPursuit.color }} />
+              {discoveryPursuit.noun} +{XP_REWARDS.pioneerBonus} XP <span className="font-medium text-[var(--sq-text-faint)]">(if first visit)</span>
+            </span>
+            {secondaryPursuit && (
+              <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: secondaryPursuit.color }}>
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: secondaryPursuit.color }} />
+                {secondaryPursuit.noun} +{XP_REWARDS.checkinSecondary} XP
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex gap-3">
+          {showCheckIn && (
+            <CheckInButton
+              questId={quest.id}
+              initialCheckedIn={user_attended}
+              category={quest.category}
+              vibe={quest.vibe}
+              creatorId={creator.id}
+              isFellowshipEligible={quest.privacy === 'group' || quest.is_group_quest || quest.max_party_size >= 3 || (attendees && attendees.length >= 3)}
+              locationName={location?.name}
+              questName={quest?.name}
+              onSuccess={() => { refetch() }}
+            />
+          )}
+          <RSVPButton questId={quest.id} currentStatus={my_status} isCreator={is_creator} />
+        </div>
+      </div>
+
+      {/* ── Streak recovery banner ── */}
       <AnimatePresence>
         {profile && (profile as any).current_streak === 0 && (profile as any).previous_streak > 0 && (profile as any).lives > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            className="fixed bottom-[88px] left-4 right-4 z-40 bg-gradient-to-r from-red-500/95 to-orange-500/95 backdrop-blur-md text-white p-3 rounded-2xl shadow-xl flex items-center justify-between border border-red-400/30 max-w-md mx-auto"
+            className="fixed bottom-[96px] left-4 right-4 z-40 mx-auto flex max-w-md items-center justify-between rounded-2xl border border-[var(--sq-heart)]/30 bg-gradient-to-r from-[var(--sq-heart)]/95 to-[var(--sq-ember-500)]/95 p-3 text-white shadow-xl backdrop-blur-md"
           >
             <div className="flex items-center gap-2.5">
-              <Heart className="w-5 h-5 fill-current animate-pulse text-red-100 shrink-0" />
+              <Heart className="h-5 w-5 shrink-0 animate-pulse fill-current text-red-100" />
               <div className="text-left">
-                <p className="text-[11px] font-black tracking-wider uppercase leading-none text-red-100">Streak Broken! 💔</p>
-                <p className="text-[10px] opacity-90 mt-0.5 leading-tight">Revive your {(profile as any).previous_streak}-day flame with 1 Life.</p>
+                <p className="text-[11px] font-black uppercase leading-none tracking-wider text-red-100">Streak Broken! 💔</p>
+                <p className="mt-0.5 text-[10px] leading-tight opacity-90">Revive your {(profile as any).previous_streak}-day flame with 1 Life.</p>
               </div>
             </div>
             <button
-              onClick={async () => {
-                try {
-                  const { data, error } = await supabase.rpc('restore_streak_with_life' as any)
-                  if (error) throw error
-                  if (data && (data as any).success) {
-                    await useAuthStore.getState().fetchProfile(profile.id)
-                  }
-                } catch (e: any) {
-                  console.error(e)
-                }
-              }}
-              className="px-3.5 py-1.5 bg-white text-red-600 text-[10px] font-black rounded-xl hover:bg-red-50 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+              onClick={async () => { try { const { data: rd, error } = await supabase.rpc('restore_streak_with_life' as any); if (error) throw error; if (rd && (rd as any).success) { await useAuthStore.getState().fetchProfile(profile.id) } } catch (e) { console.error(e) } }}
+              className="shrink-0 cursor-pointer rounded-xl bg-white px-3.5 py-1.5 text-[10px] font-black text-[var(--sq-heart)] shadow-md active:scale-95"
             >
               RESTORE
             </button>
@@ -394,132 +353,53 @@ export function QuestDetail() {
         )}
       </AnimatePresence>
 
-      {/* BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 flex flex-col gap-3 transition-colors">
-        {/* XP Preview — shown before check-in, understated like a fitness app breakdown */}
-        {showCheckIn && !user_attended && primaryPursuit && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Check in to earn:</span>
-            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: primaryPursuit.color }}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: primaryPursuit.color }} />
-              {primaryPursuit.noun} +{XP_REWARDS.checkinPrimary} XP
-            </span>
-            <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: discoveryPursuit.color }}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: discoveryPursuit.color }} />
-              {discoveryPursuit.noun} +{XP_REWARDS.pioneerBonus} XP <span className="font-medium text-gray-400 dark:text-gray-500">(if first visit)</span>
-            </span>
-            {secondaryPursuit && (
-              <span className="flex items-center gap-1 text-[11px] font-extrabold" style={{ color: secondaryPursuit.color }}>
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: secondaryPursuit.color }} />
-                {secondaryPursuit.noun} +{XP_REWARDS.checkinSecondary} XP
-              </span>
-            )}
-          </div>
-        )}
-        <div className="flex gap-3">
-        {showCheckIn && (
-          <CheckInButton
-            questId={quest.id}
-            initialCheckedIn={user_attended}
-            category={quest.category}
-            vibe={quest.vibe}
-            creatorId={creator.id}
-            isFellowshipEligible={
-              quest.privacy === 'group' ||
-              quest.is_group_quest ||
-              quest.max_party_size >= 3 ||
-              (attendees && attendees.length >= 3)
-            }
-            locationName={location?.name}
-            questName={quest?.name}
-            onSuccess={() => {
-              refetch()
-            }}
-          />
-        )}
-        <RSVPButton questId={quest.id} currentStatus={my_status} isCreator={is_creator} />
-        </div>
-      </div>
-
-      {/* Invite Friends Modal Popup */}
+      {/* ── Invite friends modal ── */}
       <AnimatePresence>
         {showInvitePopup && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowInvitePopup(false)}
-              className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-[2px]"
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 rounded-t-3xl p-6 z-[101] pb-safe max-h-[80vh] flex flex-col transition-colors duration-300 shadow-[0_-8px_30px_rgba(0,0,0,0.15)]"
-            >
-              <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6 shrink-0" />
-              <h3 className="text-xl font-black text-center mb-6 text-gray-900 dark:text-white shrink-0">Invite Friends</h3>
-
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowInvitePopup(false)} className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[2px]" />
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="fixed bottom-0 left-0 right-0 z-[101] flex max-h-[80vh] flex-col rounded-t-3xl border-t border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] p-6 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.4)]">
+              <div className="mx-auto mb-6 h-1.5 w-12 shrink-0 rounded-full bg-[var(--sq-hairline-strong)]" />
+              <h3 className="mb-6 shrink-0 text-center text-xl font-black text-[var(--sq-text)]">Invite Friends</h3>
+              <div className="flex-1 space-y-3 overflow-y-auto pb-4">
                 {friendsLoading ? (
-                  <div className="text-center py-8 text-xs font-bold text-gray-400">Loading friends...</div>
+                  <div className="py-8 text-center text-xs font-bold text-[var(--sq-text-faint)]">Loading friends...</div>
                 ) : friendsList.length === 0 ? (
-                  <div className="text-center py-8 text-xs font-bold text-gray-400">You don't have any friends yet!</div>
+                  <div className="py-8 text-center text-xs font-bold text-[var(--sq-text-faint)]">You don't have any friends yet!</div>
                 ) : (
-                  friendsList.map(friend => {
+                  friendsList.map((friend) => {
                     const isAttending = attendees?.some((att: any) => att.user_id === friend.id)
                     const isInvited = data.invited?.some((inv: any) => inv.user_id === friend.id)
-
                     return (
-                      <div key={friend.id} className="flex items-center justify-between p-3.5 bg-gray-50/50 dark:bg-gray-850/30 rounded-2xl border border-gray-100/50 dark:border-gray-800/50 transition-colors">
+                      <div key={friend.id} className="flex items-center justify-between rounded-2xl border border-[var(--sq-hairline)] bg-[var(--sq-card)] p-3.5">
                         <div className="flex items-center gap-3">
-                          <img src={friend.avatar_url || ''} alt="" className="w-10 h-10 rounded-full object-cover bg-gray-150 dark:bg-gray-800" />
+                          <img src={friend.avatar_url || ''} alt="" className="h-10 w-10 rounded-full border border-[var(--sq-hairline)] bg-[var(--sq-surface)] object-cover" />
                           <div>
-                            <h4 className="font-bold text-sm text-gray-900 dark:text-white">@{friend.username}</h4>
-                            <p className="text-[10px] text-gray-450 dark:text-gray-500 font-extrabold uppercase tracking-widest mt-0.5">Level {friend.level}</p>
+                            <h4 className="text-sm font-bold text-[var(--sq-text)]">@{friend.username}</h4>
+                            <p className="mt-0.5 text-[10px] font-extrabold uppercase tracking-widest text-[var(--sq-text-faint)]">Level {friend.level}</p>
                           </div>
                         </div>
-
                         {isAttending ? (
-                          <span className="px-3.5 py-1.5 text-xs font-black bg-green-500/10 text-green-600 dark:text-green-400 rounded-xl uppercase tracking-wider">Going</span>
+                          <span className="rounded-xl bg-[var(--sq-success)]/15 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-[var(--sq-success)]">Going</span>
                         ) : isInvited ? (
-                          <span className="px-3.5 py-1.5 text-xs font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl uppercase tracking-wider">Pending</span>
+                          <span className="rounded-xl bg-[var(--sq-gold)]/15 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">Pending</span>
                         ) : (
                           <button
                             disabled={invitingState[friend.id] === 'sending' || invitingState[friend.id] === 'sent'}
                             onClick={async () => {
-                              setInvitingState(prev => ({ ...prev, [friend.id]: 'sending' }))
-                              const { error } = await supabase
-                                .from('quest_invites')
-                                .insert({
-                                  quest_id: quest.id,
-                                  user_id: friend.id,
-                                  status: 'pending'
-                                })
-                              if (!error) {
-                                setInvitingState(prev => ({ ...prev, [friend.id]: 'sent' }))
-                                refetch()
-                              } else {
-                                setInvitingState(prev => ({ ...prev, [friend.id]: 'error' }))
-                                alert('Error sending invite: ' + (error.message || 'Check your database connection or RLS policy.'))
-                              }
+                              setInvitingState((prev) => ({ ...prev, [friend.id]: 'sending' }))
+                              const { error } = await supabase.from('quest_invites').insert({ quest_id: quest.id, user_id: friend.id, status: 'pending' })
+                              if (!error) { setInvitingState((prev) => ({ ...prev, [friend.id]: 'sent' })); refetch() }
+                              else { setInvitingState((prev) => ({ ...prev, [friend.id]: 'error' })); alert('Error sending invite: ' + (error.message || 'Check your RLS policy.')) }
                             }}
-                            className={`px-4 py-1.5 text-xs font-black rounded-xl active:scale-95 transition-all shadow-md cursor-pointer ${
-                              invitingState[friend.id] === 'sending'
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
-                                : invitingState[friend.id] === 'sent'
-                                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-not-allowed'
-                                : invitingState[friend.id] === 'error'
-                                ? 'bg-red-500 hover:bg-red-650 text-white'
-                                : 'bg-primary hover:bg-[#46A302] text-white'
+                            className={`cursor-pointer rounded-xl px-4 py-1.5 text-xs font-black shadow-md active:scale-95 transition-all ${
+                              invitingState[friend.id] === 'sending' ? 'cursor-not-allowed bg-[var(--sq-surface)] text-[var(--sq-text-faint)]'
+                              : invitingState[friend.id] === 'sent' ? 'cursor-not-allowed bg-[var(--sq-success)]/15 text-[var(--sq-success)]'
+                              : invitingState[friend.id] === 'error' ? 'bg-[var(--sq-heart)] text-white'
+                              : 'bg-[var(--sq-ember-500)] text-[var(--sq-ink)] hover:bg-[var(--sq-ember-400)]'
                             }`}
                           >
-                            {invitingState[friend.id] === 'sending' ? 'Sending...'
-                             : invitingState[friend.id] === 'sent' ? 'Sent!'
-                             : invitingState[friend.id] === 'error' ? 'Retry'
-                             : 'Invite'}
+                            {invitingState[friend.id] === 'sending' ? 'Sending...' : invitingState[friend.id] === 'sent' ? 'Sent!' : invitingState[friend.id] === 'error' ? 'Retry' : 'Invite'}
                           </button>
                         )}
                       </div>
@@ -527,11 +407,7 @@ export function QuestDetail() {
                   })
                 )}
               </div>
-
-              <button
-                onClick={() => setShowInvitePopup(false)}
-                className="w-full py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-extrabold text-base active:scale-95 transition-all cursor-pointer shrink-0"
-              >
+              <button onClick={() => setShowInvitePopup(false)} className="w-full shrink-0 cursor-pointer rounded-2xl bg-[var(--sq-card)] py-4 text-base font-extrabold text-[var(--sq-text-muted)] hover:bg-[var(--sq-card-hover)] active:scale-95 transition-all">
                 Done
               </button>
             </motion.div>

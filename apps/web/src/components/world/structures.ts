@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import * as THREE from 'three'
+import { hash2 } from './templates'
 import type { TemplateId } from './templates'
 import type { GroundKind, NatureKind } from './templates'
 
@@ -274,92 +275,193 @@ export function buildNature(kind: NatureKind, rng: () => number): THREE.Group {
   return g
 }
 
-/** Soft dark cloud puffs that sit on undiscovered tiles. */
-export function buildFogPuffs(rng: () => number): THREE.Group {
-  const g = new THREE.Group()
-  const n = 3 + Math.floor(rng() * 2)
-  for (let i = 0; i < n; i++) {
-    const r = 0.16 + rng() * 0.12
-    const mat = new THREE.MeshLambertMaterial({
-      color: i % 2 === 0 ? 0x423125 : 0x37281e,
-      transparent: true,
-      opacity: 0.96,
-      flatShading: true,
-    })
-    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat)
-    m.position.set(-0.22 + rng() * 0.44, 0.1 + rng() * 0.08, -0.22 + rng() * 0.44)
-    m.scale.y = 0.55
-    m.rotation.y = rng() * Math.PI
-    ;(m.userData as ToneUserData).noTone = true
-    m.castShadow = false
-    m.receiveShadow = false
-    g.add(m)
-  }
-  return g
+// ── Seamless fog bank ─────────────────────────────────────────────────────────
+// One continuous rolling fog instead of per-tile cloud puffs. Each undiscovered
+// tile gets a slice of the bank: a solid (slightly oversized) body so neighbours
+// overlap with no vertical seams, topped by a crown whose vertex heights come
+// from a value-noise field sampled in WORLD space — so adjacent tiles meet at the
+// exact same height and read as a single unbroken sea of fog.
+
+const FOG_BODY = 0x2b1e15
+const FOG_CROWN = 0x3a2a1d
+
+function fHash(ix: number, iz: number): number {
+  return (hash2(ix, iz, 4242) % 10000) / 10000
+}
+function fSmooth(t: number): number {
+  return t * t * (3 - 2 * t)
+}
+/** Continuous value noise in [0,1], identical for every fog tile. */
+function fogNoise(x: number, z: number): number {
+  const s = 0.55
+  const X = x * s
+  const Z = z * s
+  const ix = Math.floor(X)
+  const iz = Math.floor(Z)
+  const fx = fSmooth(X - ix)
+  const fz = fSmooth(Z - iz)
+  const a = fHash(ix, iz)
+  const b = fHash(ix + 1, iz)
+  const c = fHash(ix, iz + 1)
+  const d = fHash(ix + 1, iz + 1)
+  const top = a + (b - a) * fx
+  const bot = c + (d - c) * fx
+  return top + (bot - top) * fz
+}
+/** World-space height of the top of the fog at a point. */
+export function fogTopY(worldX: number, worldZ: number): number {
+  return 0.26 + fogNoise(worldX, worldZ) * 0.22
 }
 
 /**
- * Thomas the Phoenix — the player marker. A simple orange fiery low-poly bird:
- * ember body, gold chest, flame crest, swept wings, glowing three-feather tail.
- * (Swap point: if a custom player icon/model is provided later, replace this
- * builder — everything else references the group, not the parts.)
+ * One tile's slice of the seamless fog bank. `noTone` keeps it dark regardless of
+ * the tile's reveal tone. Materials are transparent so the engine can dissolve
+ * the slice when the tile is discovered.
  */
-export function buildPlayer(): THREE.Group {
+export function buildFogCap(wx: number, wz: number): THREE.Group {
   const g = new THREE.Group()
+  g.name = 'fog-cap'
 
-  // Body — plump teardrop, leaning slightly forward
-  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), lambert(P.ember))
-  body.position.set(0, 0.26, 0)
-  body.scale.set(1, 1.15, 1.3)
-  body.rotation.x = -0.18
-  register(body, body.material as THREE.MeshLambertMaterial)
+  // Body — fills below the crown; oversized 1.06 so neighbours fuse seamlessly.
+  const bodyMat = new THREE.MeshLambertMaterial({ color: FOG_BODY, flatShading: true, transparent: true, opacity: 1 })
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.34, 1.06), bodyMat)
+  body.position.y = 0.12
+  body.castShadow = false
+  body.receiveShadow = false
+  ;(body.userData as ToneUserData).noTone = true
   g.add(body)
 
-  // Chest — warm gold glow
-  const chest = sphere(g, 0.1, P.gold, [0, 0.22, 0.1], 0.25, 0xffcb6b, 0)
-  chest.scale.set(0.9, 1, 0.7)
-
-  // Head + beak
-  sphere(g, 0.105, P.emberSoft, [0, 0.47, 0.1], 0, 0xffcb6b, 0)
-  cone(g, 0.035, 0.09, P.goldSoft, [0, 0.46, 0.23], 5).rotation.x = Math.PI / 2
-
-  // Flame crest — three little fire tongues
-  cone(g, 0.035, 0.12, P.emberDeep, [0, 0.58, 0.04], 5)
-  const c2 = cone(g, 0.03, 0.14, P.ember, [0, 0.6, 0.09], 5)
-  c2.rotation.x = 0.25
-  const c3 = sphere(g, 0.028, P.goldSoft, [0, 0.64, 0.12], 0.9)
-  c3.name = 'torch-tip' // crest tip carries the torch glow
-
-  // Wings — swept flame triangles (named for flap animation)
-  const wingGeo = new THREE.ConeGeometry(0.07, 0.26, 4)
-  for (const side of [-1, 1] as const) {
-    const mat = lambert(P.emberDeep)
-    const wing = new THREE.Mesh(wingGeo, mat)
-    wing.position.set(side * 0.16, 0.3, -0.02)
-    wing.rotation.z = side * (Math.PI / 2 + 0.5)
-    wing.rotation.y = side * 0.25
-    register(wing, mat)
-    wing.name = side === -1 ? 'wing-l' : 'wing-r'
-    g.add(wing)
+  // Crown — rolling top; heights from the shared world-noise field = no seams.
+  const half = 0.54
+  const N = 2
+  const pos: number[] = []
+  const idx: number[] = []
+  const at = (i: number, j: number) => i * (N + 1) + j
+  for (let i = 0; i <= N; i++) {
+    for (let j = 0; j <= N; j++) {
+      const lx = -half + (i / N) * 2 * half
+      const lz = -half + (j / N) * 2 * half
+      pos.push(lx, fogTopY(wx + lx, wz + lz), lz)
+    }
   }
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      idx.push(at(i, j), at(i, j + 1), at(i + 1, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1))
+    }
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  geo.setIndex(idx)
+  geo.computeVertexNormals()
+  const crownMat = new THREE.MeshLambertMaterial({ color: FOG_CROWN, flatShading: true, transparent: true, opacity: 1, side: THREE.DoubleSide })
+  const crown = new THREE.Mesh(geo, crownMat)
+  crown.castShadow = false
+  crown.receiveShadow = false
+  ;(crown.userData as ToneUserData).noTone = true
+  g.add(crown)
 
-  // Tail — three trailing flame feathers, gold → ember
-  const tail = new THREE.Group()
-  tail.name = 'tail'
-  const t1 = cone(tail, 0.035, 0.24, P.goldSoft, [0, 0, 0], 5)
-  t1.rotation.x = -2.3
-  const t2 = cone(tail, 0.03, 0.2, P.ember, [0.05, 0.01, -0.02], 5)
-  t2.rotation.x = -2.5
-  t2.rotation.z = -0.2
-  const t3 = cone(tail, 0.03, 0.2, P.ember, [-0.05, 0.01, -0.02], 5)
-  t3.rotation.x = -2.5
-  t3.rotation.z = 0.2
-  tail.position.set(0, 0.3, -0.16)
-  g.add(tail)
+  return g
+}
 
-  // Tiny feet
-  cyl(g, 0.014, 0.014, 0.08, P.gold, [0.05, 0.04, 0.02], 4)
-  cyl(g, 0.014, 0.014, 0.08, P.gold, [-0.05, 0.04, 0.02], 4)
+// ── Player avatar marker ──────────────────────────────────────────────────────
+// A low-poly map pin whose medallion shows the user's profile picture. The photo
+// lives on a camera-facing sprite (so it never turns away when the player pivots);
+// the pin body is a faceted cone so its rotation is invisible.
+
+/** Draw a circular profile medallion (photo or initial) with an ember ring. */
+function drawAvatarCanvas(img: HTMLImageElement | null, initial: string): HTMLCanvasElement {
+  const S = 168
+  const c = document.createElement('canvas')
+  c.width = S
+  c.height = S
+  const x = c.getContext('2d')!
+  const cx = S / 2
+  const cy = S / 2
+  const r = S / 2 - 12
+  // ember outer ring → ink keyline → photo
+  x.beginPath(); x.arc(cx, cy, r + 9, 0, Math.PI * 2); x.fillStyle = '#F2741E'; x.fill()
+  x.beginPath(); x.arc(cx, cy, r + 4, 0, Math.PI * 2); x.fillStyle = '#3A2A20'; x.fill()
+  x.save()
+  x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.clip()
+  if (img && img.width > 0) {
+    const ar = img.width / img.height
+    let dw = 2 * r
+    let dh = 2 * r
+    let dx = cx - r
+    let dy = cy - r
+    if (ar > 1) { dw = 2 * r * ar; dx = cx - dw / 2 } else { dh = (2 * r) / ar; dy = cy - dh / 2 }
+    x.drawImage(img, dx, dy, dw, dh)
+  } else {
+    x.fillStyle = '#33231A'; x.fillRect(cx - r, cy - r, 2 * r, 2 * r)
+    x.fillStyle = '#F5E6D3'
+    x.font = `700 ${Math.floor(r * 1.1)}px 'Hanken Grotesk', system-ui, sans-serif`
+    x.textAlign = 'center'
+    x.textBaseline = 'middle'
+    x.fillText(initial.toUpperCase(), cx, cy + 2)
+  }
+  x.restore()
+  return c
+}
+
+/**
+ * Paint a medallion onto the avatar sprite. Shows the initial immediately, then
+ * swaps in the real photo once it loads CORS-clean (errors keep the initial).
+ */
+export function applyAvatarToSprite(sprite: THREE.Sprite, url: string | null, initial: string): void {
+  const mat = sprite.material as THREE.SpriteMaterial
+  const placeholder = new THREE.CanvasTexture(drawAvatarCanvas(null, initial || '◆'))
+  placeholder.colorSpace = THREE.SRGBColorSpace
+  mat.map?.dispose()
+  mat.map = placeholder
+  mat.needsUpdate = true
+  if (!url) return
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.onload = () => {
+    const t = new THREE.CanvasTexture(drawAvatarCanvas(img, initial || '◆'))
+    t.colorSpace = THREE.SRGBColorSpace
+    mat.map?.dispose()
+    mat.map = t
+    mat.needsUpdate = true
+  }
+  img.onerror = () => { /* keep the initial medallion */ }
+  img.src = url
+}
+
+/**
+ * The player marker — a low-poly pin with the user's profile medallion.
+ * (Swap point: everything else references the group + the 'avatar' / 'torch-tip'
+ * named children, not the specific shapes.)
+ */
+export function buildPlayer(opts?: { avatarUrl?: string | null; initial?: string }): THREE.Group {
+  const g = new THREE.Group()
+  const initial = (opts?.initial || '◆').slice(0, 1)
+
+  // Pin body — faceted cone tapering to a point at the ground (rotation-safe).
+  const stem = cone(g, 0.18, 0.44, P.ember, [0, 0.27, 0], 6)
+  stem.rotation.x = Math.PI // tip down
+
+  // Collar ring under the medallion — a low-poly torus of ember.
+  const collarMat = lambert(P.emberDeep)
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.035, 5, 8), collarMat)
+  collar.position.set(0, 0.5, 0)
+  collar.rotation.x = Math.PI / 2
+  register(collar, collarMat)
+  g.add(collar)
+
+  // Glow gem at the tip — carries the torch flicker.
+  const gem = sphere(g, 0.05, P.goldSoft, [0, 0.06, 0], 0.9)
+  gem.name = 'torch-tip'
+
+  // Profile medallion — camera-facing sprite, always readable.
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))
+  sprite.name = 'avatar'
+  sprite.scale.set(0.5, 0.5, 1)
+  sprite.position.set(0, 0.62, 0)
+  sprite.renderOrder = 60
+  ;(sprite.userData as ToneUserData).noTone = true
+  g.add(sprite)
+  applyAvatarToSprite(sprite, opts?.avatarUrl ?? null, initial)
 
   return g
 }
