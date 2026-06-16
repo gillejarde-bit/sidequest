@@ -14,7 +14,7 @@ import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } f
 import { FireLoadingScreen } from '../map/FireLoadingScreen'
 import { getAtmosphere, type Atmosphere, type TimePhase } from './atmosphere'
 import { fetchWeather, weatherLabel, weatherKind, type WeatherNow } from './weather'
-import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning } from 'lucide-react'
+import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning, MapPinOff } from 'lucide-react'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/auth'
@@ -411,8 +411,19 @@ export default function WorldView() {
 
   return (
     <div ref={holderRef} className="relative h-full w-full overflow-hidden touch-none select-none">
-      {/* ── Sky backdrop (time of day); the warm fire glow below stays constant ── */}
-      <div className="pointer-events-none absolute inset-0" style={{ background: atmo.backdropCss, transition: 'background 1.6s ease-in-out' }} />
+      {/* ── Sky backdrop (time of day) — cross-fades between phases so the day
+            visibly turns; the warm fire glow below stays constant ── */}
+      <AnimatePresence>
+        <motion.div
+          key={atmo.phase}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.6, ease: 'easeInOut' }}
+          className="pointer-events-none absolute inset-0"
+          style={{ background: atmo.backdropCss }}
+        />
+      </AnimatePresence>
       {/* Stars — fade in at dusk/night (upper sky only) */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -518,6 +529,12 @@ export default function WorldView() {
                 </span>
               </>
             )}
+          </div>
+        )}
+        {!toast && gps.error && gps.lat == null && (
+          <div className="flex items-center gap-1.5 rounded-[var(--sq-r-pill)] border border-[var(--sq-warning)]/35 bg-[var(--sq-bg)]/80 px-3 py-1 backdrop-blur-sm">
+            <MapPinOff className="h-3 w-3 text-[var(--sq-warning)]" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">Location off · exploring a sample area</span>
           </div>
         )}
       </div>
