@@ -124,7 +124,7 @@ export default function WorldView() {
               for (const [k, v] of chunk.pois) {
                 if (!poisRef.current.has(k)) poisRef.current.set(k, v)
               }
-              engine.setPois(poisRef.current, poisRef.current.size < 12)
+              engine.setPois(poisRef.current, poisRef.current.size === 0)
             })
             .catch(() => undefined)
           reverseGeocode(c.lat, c.lng).then((p) => { if (!cancelled) setPlace(p) }).catch(() => undefined)
@@ -159,8 +159,11 @@ export default function WorldView() {
       .then((chunk) => {
         if (cancelled) return
         poisRef.current = new Map(chunk.pois)
-        engine.setPois(poisRef.current, chunk.count < 12)
-        setSource('osm')
+        // OSM is the source of truth: as long as it returned ANY real places,
+        // use them (+ nature filler). Only fall back to the procedural town when
+        // OSM gives us literally nothing.
+        engine.setPois(poisRef.current, chunk.count === 0)
+        setSource(chunk.count === 0 ? 'fallback' : 'osm')
       })
       .catch(() => {
         if (!cancelled) setSource('fallback')

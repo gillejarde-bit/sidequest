@@ -49,10 +49,32 @@ export function tileToGeo(origin: GeoOrigin, wx: number, wz: number): { lat: num
 
 // ── Overpass fetch ───────────────────────────────────────────────────────────
 
+// Multiple public Overpass mirrors. We try them in order with a hard per-request
+// timeout so one slow/dead mirror can't stall the whole fetch (which would drop us
+// into the fantasy fallback). Order roughly by reliability.
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
 ]
+
+const FETCH_TIMEOUT_MS = 18_000
+
+async function postWithTimeout(url: string, body: string, ms: number): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: ctrl.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 const CACHE_PREFIX = 'sq-world-osm:'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
@@ -125,13 +147,10 @@ export async function fetchOsmChunk(
   const query = buildQuery(lat, lng, radius)
   let elements: OverpassElement[] | null = null
 
+  const body = `data=${encodeURIComponent(query)}`
   for (const endpoint of ENDPOINTS) {
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-      })
+      const res = await postWithTimeout(endpoint, body, FETCH_TIMEOUT_MS)
       if (!res.ok) continue
       const json = (await res.json()) as { elements?: OverpassElement[] }
       if (json.elements) {
@@ -139,7 +158,7 @@ export async function fetchOsmChunk(
         break
       }
     } catch {
-      /* try next endpoint */
+      /* timed out or unreachable — try the next mirror */
     }
   }
 
