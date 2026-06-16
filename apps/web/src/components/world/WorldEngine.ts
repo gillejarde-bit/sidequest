@@ -17,7 +17,7 @@ import {
   disposeObject, setGroupTone, GROUND_COLORS,
 } from './structures'
 import { makeLabel, releaseLabel } from './labels'
-import type { Atmosphere } from './atmosphere'
+import type { Atmosphere, ParticleKind } from './atmosphere'
 
 const GRID_MIN = -3
 const GRID_MAX = 4
@@ -120,6 +120,8 @@ export class WorldEngine {
 
   private embers!: THREE.Points
   private emberData: Array<{ x: number; y: number; z: number; v: number; phase: number }> = []
+  private particleKind: ParticleKind = 'ember'
+  private particleColor = 0xffcb6b
 
   private discovered = new Set<string>()
   private visits = new Map<string, number>()
@@ -152,6 +154,21 @@ export class WorldEngine {
   setAtmosphere(a: Atmosphere, animate = true): void {
     this.atmo = a
     this.applyAtmosphere(a, animate)
+    this.setParticle(a.particle.kind, a.particle.color)
+  }
+
+  /** Switch the ambient particle kind/color (season-driven). */
+  private setParticle(kind: ParticleKind, color: number): void {
+    this.particleKind = kind
+    this.particleColor = color
+    if (!this.embers) return
+    const mat = this.embers.material as THREE.PointsMaterial
+    mat.color.setHex(color)
+    const fall = kind === 'snow' || kind === 'petal' || kind === 'leaf'
+    mat.blending = fall ? THREE.NormalBlending : THREE.AdditiveBlending
+    mat.opacity = fall ? 0.9 : 0.75
+    mat.size = kind === 'snow' || kind === 'leaf' ? 0.075 : kind === 'petal' ? 0.06 : 0.05
+    mat.needsUpdate = true
   }
 
   private applyAtmosphere(a: Atmosphere, animate: boolean): void {
@@ -827,7 +844,7 @@ export class WorldEngine {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     const mat = new THREE.PointsMaterial({
-      color: 0xffcb6b, size: 0.05, transparent: true, opacity: 0.75,
+      color: this.particleColor, size: 0.05, transparent: true, opacity: 0.75,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     })
     this.embers = new THREE.Points(geo, mat)
@@ -862,18 +879,26 @@ export class WorldEngine {
       }
     }
 
-    // Drifting embers around the player
+    // Ambient particles around the player — motion depends on the season kind:
+    // embers rise, fireflies hover/wander, petals/leaves/snow fall and drift.
     if (this.embers) {
       const attr = this.embers.geometry.getAttribute('position') as THREE.BufferAttribute
+      const kind = this.particleKind
+      const fall = kind === 'snow' || kind === 'petal' || kind === 'leaf'
       for (let i = 0; i < this.emberData.length; i++) {
         const e = this.emberData[i]
-        e.y += e.v * dt
-        e.x += Math.sin(t * 0.8 + e.phase) * 0.0025
-        if (e.y > 2.4) {
-          e.y = 0.05
-          e.x = (Math.random() - 0.5) * 7
-          e.z = (Math.random() - 0.5) * 7
-          e.v = 0.12 + Math.random() * 0.3
+        if (fall) {
+          e.y -= e.v * dt * (kind === 'snow' ? 0.5 : 0.8)
+          e.x += Math.sin(t * (kind === 'leaf' ? 1.6 : 0.7) + e.phase) * (kind === 'leaf' ? 0.006 : 0.0035)
+          if (e.y < 0.04) { e.y = 2.4; e.x = (Math.random() - 0.5) * 7; e.z = (Math.random() - 0.5) * 7 }
+        } else if (kind === 'firefly') {
+          e.y += Math.sin(t * 1.3 + e.phase) * 0.004
+          e.x += Math.sin(t * 0.6 + e.phase) * 0.004
+          e.z += Math.cos(t * 0.5 + e.phase * 1.3) * 0.004
+        } else {
+          e.y += e.v * dt
+          e.x += Math.sin(t * 0.8 + e.phase) * 0.0025
+          if (e.y > 2.4) { e.y = 0.05; e.x = (Math.random() - 0.5) * 7; e.z = (Math.random() - 0.5) * 7; e.v = 0.12 + Math.random() * 0.3 }
         }
         attr.setXYZ(i, this.px + e.x, e.y, this.pz + e.z)
       }

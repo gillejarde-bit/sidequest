@@ -12,7 +12,7 @@ import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrig
 import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { FireLoadingScreen } from '../map/FireLoadingScreen'
-import { getAtmosphere } from './atmosphere'
+import { getAtmosphere, type Atmosphere, type TimePhase } from './atmosphere'
 import { fetchWeather, weatherLabel, weatherKind, type WeatherNow } from './weather'
 import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning } from 'lucide-react'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -84,6 +84,15 @@ function exploredRings(discovered: string[], o: GeoOrigin): number[][][] {
   return rings
 }
 
+// Minimap colour grade shifts with the time of day so the flat map matches the mood.
+function minimapFilterFor(phase: TimePhase): string {
+  const base = 'saturate(0.78) sepia(0.18) contrast(1.02)'
+  if (phase === 'night' || phase === 'deepNight') return `${base} brightness(0.62) hue-rotate(-10deg)`
+  if (phase === 'dusk' || phase === 'dawn') return `${base} brightness(0.82)`
+  if (phase === 'golden') return `${base} brightness(0.96) saturate(0.92)`
+  return `${base} brightness(0.95)` // day
+}
+
 export default function WorldView() {
   const holderRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -103,7 +112,7 @@ export default function WorldView() {
   const [source, setSource] = useState<Source>('loading')
   const [ready, setReady] = useState(false)
   const [showLoader, setShowLoader] = useState(true)
-  const [backdrop, setBackdrop] = useState(() => getAtmosphere().backdropCss)
+  const [atmo, setAtmo] = useState<Atmosphere>(() => getAtmosphere(new Date(), gps.lat ?? undefined))
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
   const [weather, setWeather] = useState<WeatherNow | null>(null)
   const [toast, setToast] = useState<DiscoverInfo | null>(null)
@@ -203,7 +212,7 @@ export default function WorldView() {
     lastFetchTile.current = { wx: 0, wz: 0 }
 
     engine.start(holder.clientWidth, holder.clientHeight)
-    engine.setAtmosphere(getAtmosphere(), false) // snap to the current time of day
+    engine.setAtmosphere(getAtmosphere(new Date(), gpsRef.current.lat ?? undefined), false) // snap to now
     setPlayerTile(engine.getPlayerTile())
 
     const ro = new ResizeObserver(() => {
@@ -287,8 +296,8 @@ export default function WorldView() {
   useEffect(() => {
     let first = true
     const apply = () => {
-      const a = getAtmosphere()
-      setBackdrop(a.backdropCss)
+      const a = getAtmosphere(new Date(), gpsRef.current.lat ?? undefined)
+      setAtmo(a)
       setClock(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
       engineRef.current?.setAtmosphere(a, !first)
       first = false
@@ -403,7 +412,40 @@ export default function WorldView() {
   return (
     <div ref={holderRef} className="relative h-full w-full overflow-hidden touch-none select-none">
       {/* ── Sky backdrop (time of day); the warm fire glow below stays constant ── */}
-      <div className="pointer-events-none absolute inset-0" style={{ background: backdrop, transition: 'background 1.6s ease-in-out' }} />
+      <div className="pointer-events-none absolute inset-0" style={{ background: atmo.backdropCss, transition: 'background 1.6s ease-in-out' }} />
+      {/* Stars — fade in at dusk/night (upper sky only) */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          opacity: atmo.stars,
+          transition: 'opacity 1.6s ease-in-out',
+          backgroundRepeat: 'no-repeat',
+          backgroundImage:
+            'radial-gradient(1.5px 1.5px at 18% 12%, rgba(255,255,255,0.9), transparent),' +
+            'radial-gradient(1px 1px at 33% 22%, rgba(255,255,255,0.7), transparent),' +
+            'radial-gradient(1px 1px at 52% 9%, rgba(255,255,255,0.85), transparent),' +
+            'radial-gradient(1.5px 1.5px at 67% 26%, rgba(255,255,255,0.6), transparent),' +
+            'radial-gradient(1px 1px at 78% 14%, rgba(255,255,255,0.8), transparent),' +
+            'radial-gradient(1px 1px at 88% 30%, rgba(255,255,255,0.65), transparent),' +
+            'radial-gradient(1px 1px at 9% 30%, rgba(255,255,255,0.6), transparent),' +
+            'radial-gradient(1.5px 1.5px at 44% 32%, rgba(255,255,255,0.55), transparent)',
+        }}
+      />
+      {/* Moon — fades in at night, upper-right */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          opacity: atmo.moon,
+          transition: 'opacity 1.6s ease-in-out',
+          top: '9%',
+          right: '14%',
+          width: 64,
+          height: 64,
+          borderRadius: '9999px',
+          background: 'radial-gradient(circle at 38% 36%, #fff7e6 0%, #f3e2bd 55%, #d9c49a 100%)',
+          boxShadow: '0 0 30px 8px rgba(246,234,212,0.25)',
+        }}
+      />
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -573,6 +615,7 @@ export default function WorldView() {
         playerGeo={playerGeo}
         quests={questMarkers}
         fog={fog}
+        filter={minimapFilterFor(atmo.phase)}
         onQuestClick={(id) => navigate({ to: '/quest/$id', params: { id } })}
       />
 

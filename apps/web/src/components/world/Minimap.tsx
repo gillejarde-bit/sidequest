@@ -24,6 +24,7 @@ interface MinimapProps {
   playerGeo: { lat: number; lng: number }
   quests: WorldQuestMarker[]
   fog?: FogShapes | null
+  filter?: string // time-of-day colour grade (falls back to the cozy default)
   onQuestClick: (questId: string) => void
 }
 
@@ -88,16 +89,17 @@ function QuestPin({ name, big, onClick }: { name: string; big?: boolean; onClick
   )
 }
 
-export function Minimap({ playerGeo, quests, fog, onQuestClick }: MinimapProps) {
+export function Minimap({ playerGeo, quests, fog, filter, onQuestClick }: MinimapProps) {
   const [expanded, setExpanded] = useState(false)
   const bigMapRef = useRef<MapRef>(null)
+  const grade = filter ?? COZY_FILTER
 
   return (
     <>
       {/* ── Mini map (top-right): locked, mirrors the player from above ── */}
       <div className="absolute right-4 top-4 z-20 pointer-events-auto">
         <div className="relative h-[148px] w-[148px] overflow-hidden rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-bg)] shadow-[var(--sq-shadow-soft)]">
-          <div className="absolute inset-0" style={{ filter: COZY_FILTER }}>
+          <div className="absolute inset-0" style={{ filter: grade }}>
             <Map
               longitude={playerGeo.lng}
               latitude={playerGeo.lat}
@@ -188,7 +190,7 @@ export function Minimap({ playerGeo, quests, fog, onQuestClick }: MinimapProps) 
               </div>
 
               {/* the real map — pan/zoom enabled here */}
-              <div className="relative flex-1" style={{ filter: COZY_FILTER }}>
+              <div className="relative flex-1" style={{ filter: grade }}>
                 <Map
                   ref={bigMapRef}
                   initialViewState={{ longitude: playerGeo.lng, latitude: playerGeo.lat, zoom: 14.6, pitch: 0, bearing: 0 }}
