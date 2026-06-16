@@ -12,8 +12,9 @@ import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrig
 import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { FireLoadingScreen } from '../map/FireLoadingScreen'
-import * as h3 from 'h3-js'
 import { getAtmosphere } from './atmosphere'
+import { fetchWeather, weatherLabel, weatherKind, type WeatherNow } from './weather'
+import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning } from 'lucide-react'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/auth'
@@ -32,6 +33,55 @@ function metersBetween(a: GeoOrigin, b: GeoOrigin): number {
   const dy = (a.lat - b.lat) * 110_540
   const dx = (a.lng - b.lng) * 111_320 * Math.cos((a.lat * Math.PI) / 180)
   return Math.hypot(dx, dy)
+}
+
+// Trace explored tiles into SQUARE-edged rings (the union outline of the board's
+// square tiles), so the minimap reveal mirrors the 3D grid — merged, no hexes.
+// A tile edge is a boundary edge when its neighbour is unexplored; boundary edges
+// are stitched into closed loops, then projected to lng/lat. Corners use doubled
+// integer coords (2x±1) so vertices match exactly across tiles.
+function exploredRings(discovered: string[], o: GeoOrigin): number[][][] {
+  const set = new Set(discovered)
+  const has = (x: number, z: number) => set.has(`${x},${z}`)
+  interface E { ax: number; az: number; bx: number; bz: number }
+  const edges: E[] = []
+  for (const kk of set) {
+    const [x, z] = kk.split(',').map(Number)
+    const x0 = 2 * x - 1
+    const x1 = 2 * x + 1
+    const z0 = 2 * z - 1
+    const z1 = 2 * z + 1
+    if (!has(x, z - 1)) edges.push({ ax: x0, az: z0, bx: x1, bz: z0 }) // top
+    if (!has(x + 1, z)) edges.push({ ax: x1, az: z0, bx: x1, bz: z1 }) // right
+    if (!has(x, z + 1)) edges.push({ ax: x1, az: z1, bx: x0, bz: z1 }) // bottom
+    if (!has(x - 1, z)) edges.push({ ax: x0, az: z1, bx: x0, bz: z0 }) // left
+  }
+  const vkey = (x: number, z: number) => `${x},${z}`
+  const byStart = new Map<string, E[]>()
+  for (const e of edges) {
+    const a = byStart.get(vkey(e.ax, e.az)) ?? []
+    a.push(e)
+    byStart.set(vkey(e.ax, e.az), a)
+  }
+  const used = new Set<E>()
+  const rings: number[][][] = []
+  for (const start of edges) {
+    if (used.has(start)) continue
+    const ring: number[][] = []
+    let e: E | undefined = start
+    let guard = 0
+    while (e && !used.has(e) && guard++ < 200000) {
+      used.add(e)
+      const g = tileToGeo(o, e.ax / 2, e.az / 2)
+      ring.push([g.lng, g.lat])
+      e = byStart.get(vkey(e.bx, e.bz))?.find((n) => !used.has(n))
+    }
+    if (ring.length >= 3) {
+      ring.push(ring[0])
+      rings.push(ring)
+    }
+  }
+  return rings
 }
 
 export default function WorldView() {
@@ -54,6 +104,8 @@ export default function WorldView() {
   const [ready, setReady] = useState(false)
   const [showLoader, setShowLoader] = useState(true)
   const [backdrop, setBackdrop] = useState(() => getAtmosphere().backdropCss)
+  const [clock, setClock] = useState(() => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+  const [weather, setWeather] = useState<WeatherNow | null>(null)
   const [toast, setToast] = useState<DiscoverInfo | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [tileCount, setTileCount] = useState(0)
@@ -203,24 +255,8 @@ export default function WorldView() {
     engine.stepToward(t.wx, t.wz)
   }, [gps.lat, gps.lng])
 
-  // ── Keyboard movement (desktop testing) ────────────────────────────────────
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
-      const engine = engineRef.current
-      if (!engine) return
-      const k = e.key.toLowerCase()
-      if (k === 'arrowup' || k === 'w') engine.move(0, -1)
-      else if (k === 'arrowdown' || k === 's') engine.move(0, 1)
-      else if (k === 'arrowleft' || k === 'a') engine.move(-1, 0)
-      else if (k === 'arrowright' || k === 'd') engine.move(1, 0)
-      else return
-      e.preventDefault()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  // Movement is GPS-only — actual physical movement. (No WASD/keyboard, no
+  // click-to-move; the world reveals as you really walk.)
 
   // ── Keep the player medallion in sync with the user's profile picture ──────
   useEffect(() => {
@@ -253,6 +289,7 @@ export default function WorldView() {
     const apply = () => {
       const a = getAtmosphere()
       setBackdrop(a.backdropCss)
+      setClock(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
       engineRef.current?.setAtmosphere(a, !first)
       first = false
     }
@@ -260,6 +297,22 @@ export default function WorldView() {
     const id = setInterval(apply, 60_000)
     return () => clearInterval(id)
   }, [resetKey])
+
+  // ── Live weather for the HUD (Open-Meteo, keyless, by GPS) ──────────────────
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const o = originRef.current
+      const lat = o?.lat ?? gps.lat
+      const lng = o?.lng ?? gps.lng
+      if (lat == null || lng == null) return
+      const w = await fetchWeather(lat, lng)
+      if (!cancelled && w) setWeather(w)
+    }
+    load()
+    const id = setInterval(load, 15 * 60 * 1000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [resetKey, gps.lat, gps.lng])
 
   // ── Pointer → NDC ──────────────────────────────────────────────────────────
   const downPos = useRef<{ x: number; y: number; t: number } | null>(null)
@@ -286,9 +339,9 @@ export default function WorldView() {
   // ── Minimap fog-of-war ──────────────────────────────────────────────────────
   // True fog: a world-spanning dark fill with the explored area carved out as
   // holes, so fog covers EVERYTHING at any zoom/pan — no finite square to zoom
-  // past. Explored tiles are merged into H3 cells (res 10 ≈ 66 m) for a clean,
-  // gap-free reveal, and the frontier is traced with a warm ember glow. Same
-  // explored set as the 3D board, so both maps reveal identically.
+  // past. The explored tiles are merged into SQUARE-edged rings (see
+  // exploredRings) so the minimap mirrors the 3D square-tile board, and the
+  // frontier is traced with a warm ember glow. Same explored set as the 3D board.
   const fog = useMemo<{ fill: GeoJSON.Feature; line: GeoJSON.Feature }>(() => {
     const WORLD: number[][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
     const fullFog: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD] } }
@@ -299,19 +352,11 @@ export default function WorldView() {
     const { discovered } = eng.getExplored()
     if (discovered.length === 0) return { fill: fullFog, line: noLine }
 
-    const cells = new Set<string>()
-    for (const k of discovered) {
-      const [wx, wz] = k.split(',').map(Number)
-      const c = tileToGeo(o, wx, wz)
-      try { cells.add(h3.latLngToCell(c.lat, c.lng, 10)) } catch { /* skip bad cell */ }
-    }
-    let polys: number[][][][] = []
-    try { polys = h3.cellsToMultiPolygon([...cells], true) as number[][][][] } catch { polys = [] }
-
-    const holes = polys.map((p) => p[0]).filter((r) => r && r.length > 2)
+    const rings = exploredRings(discovered, o)
+    if (rings.length === 0) return { fill: fullFog, line: noLine }
     return {
-      fill: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD, ...holes] } },
-      line: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: polys } },
+      fill: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD, ...rings] } },
+      line: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: rings.map((r) => [r]) } },
     }
   }, [playerTile, tileCount, source])
 
@@ -401,8 +446,8 @@ export default function WorldView() {
         style={{ background: 'radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(20,12,8,0.5) 100%)' }}
       />
 
-      {/* ── Top-center: where you are ── */}
-      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2">
+      {/* ── Top-center: where you are · time · weather ── */}
+      <div className="pointer-events-none absolute left-1/2 top-4 z-20 flex -translate-x-1/2 flex-col items-center gap-1.5">
         <AnimatePresence mode="wait">
           {locationLabel && !toast && (
             <motion.div
@@ -419,6 +464,20 @@ export default function WorldView() {
             </motion.div>
           )}
         </AnimatePresence>
+        {!toast && (
+          <div className="flex items-center gap-2 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-3 py-1 backdrop-blur-sm">
+            <span className="text-[11px] font-bold tabular-nums text-[var(--sq-text-muted)]">{clock}</span>
+            {weather && (
+              <>
+                <span className="h-3 w-px bg-[var(--sq-hairline-strong)]" />
+                <span className="flex items-center gap-1 text-[11px] font-bold text-[var(--sq-text-muted)]">
+                  <WeatherGlyph code={weather.code} />
+                  {weather.tempF}° · {weatherLabel(weather.code)}
+                </span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Top-left: title, source, exploration chip, recent quests ── */}
@@ -673,4 +732,17 @@ function StatCard({ big, label }: { big: string; label: string }) {
       <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--sq-text-muted)]">{label}</div>
     </div>
   )
+}
+
+function WeatherGlyph({ code }: { code: number }) {
+  const kind = weatherKind(code)
+  const Icon =
+    kind === 'clear' ? Sun
+    : kind === 'fog' ? CloudFog
+    : kind === 'rain' ? CloudRain
+    : kind === 'snow' ? CloudSnow
+    : kind === 'storm' ? CloudLightning
+    : Cloud
+  const color = kind === 'clear' ? 'var(--sq-gold-soft)' : kind === 'storm' ? 'var(--sq-ember-400)' : 'var(--sq-text-muted)'
+  return <Icon className="h-3.5 w-3.5" style={{ color }} />
 }
