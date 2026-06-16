@@ -284,11 +284,18 @@ export function FeedCard({ event }: { event: FeedEvent }) {
           <button
             onClick={async () => {
               try {
-                const { error } = await (supabase.from as any)('quest_invites').insert({
-                  quest_id: payload.quest_id,
-                  user_id: event.actor_id,
-                  status: 'accepted'
-                })
+                // Following a trail adds *you* (the viewer) to the quest — not the
+                // friend who already completed it. Upsert keyed on (quest_id,user_id)
+                // so following again is a no-op instead of a duplicate-key crash.
+                const me = useAuthStore.getState().user?.id
+                if (!me) {
+                  alert('Sign in to follow trails.')
+                  return
+                }
+                const { error } = await (supabase.from as any)('quest_invites').upsert(
+                  { quest_id: payload.quest_id, user_id: me, status: 'accepted' },
+                  { onConflict: 'quest_id,user_id', ignoreDuplicates: true }
+                )
                 if (!error) {
                   alert('Trail followed! Added to your schedule.')
                 } else {
