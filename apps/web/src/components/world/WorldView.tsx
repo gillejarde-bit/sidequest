@@ -12,6 +12,8 @@ import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrig
 import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { FireLoadingScreen } from '../map/FireLoadingScreen'
+import * as h3 from 'h3-js'
+import { getAtmosphere } from './atmosphere'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/auth'
@@ -51,6 +53,7 @@ export default function WorldView() {
   const [source, setSource] = useState<Source>('loading')
   const [ready, setReady] = useState(false)
   const [showLoader, setShowLoader] = useState(true)
+  const [backdrop, setBackdrop] = useState(() => getAtmosphere().backdropCss)
   const [toast, setToast] = useState<DiscoverInfo | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [tileCount, setTileCount] = useState(0)
@@ -148,6 +151,7 @@ export default function WorldView() {
     lastFetchTile.current = { wx: 0, wz: 0 }
 
     engine.start(holder.clientWidth, holder.clientHeight)
+    engine.setAtmosphere(getAtmosphere(), false) // snap to the current time of day
     setPlayerTile(engine.getPlayerTile())
 
     const ro = new ResizeObserver(() => {
@@ -242,6 +246,21 @@ export default function WorldView() {
     return () => clearTimeout(t)
   }, [resetKey])
 
+  // ── Living map: ease the sky + light toward the real time of day ────────────
+  // Re-checked each minute; the engine tweens the change so the day visibly turns.
+  useEffect(() => {
+    let first = true
+    const apply = () => {
+      const a = getAtmosphere()
+      setBackdrop(a.backdropCss)
+      engineRef.current?.setAtmosphere(a, !first)
+      first = false
+    }
+    apply()
+    const id = setInterval(apply, 60_000)
+    return () => clearInterval(id)
+  }, [resetKey])
+
   // ── Pointer → NDC ──────────────────────────────────────────────────────────
   const downPos = useRef<{ x: number; y: number; t: number } | null>(null)
   const lastHover = useRef(0)
@@ -264,43 +283,36 @@ export default function WorldView() {
     [recentQuests],
   )
 
-  // ── Minimap fog: unexplored tiles around the player as GL fill squares ──────
-  // Same explored set as the 3D board, so both maps reveal identically. Squares
-  // are slightly oversized so neighbours overlap into one seamless fog sheet.
-  const fogData = useMemo<GeoJSON.FeatureCollection>(() => {
+  // ── Minimap fog-of-war ──────────────────────────────────────────────────────
+  // True fog: a world-spanning dark fill with the explored area carved out as
+  // holes, so fog covers EVERYTHING at any zoom/pan — no finite square to zoom
+  // past. Explored tiles are merged into H3 cells (res 10 ≈ 66 m) for a clean,
+  // gap-free reveal, and the frontier is traced with a warm ember glow. Same
+  // explored set as the 3D board, so both maps reveal identically.
+  const fog = useMemo<{ fill: GeoJSON.Feature; line: GeoJSON.Feature }>(() => {
+    const WORLD: number[][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
+    const fullFog: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD] } }
+    const noLine: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: [] } }
     const o = originRef.current
     const eng = engineRef.current
-    if (!o || !eng) return { type: 'FeatureCollection', features: [] }
-    const { px, pz, discovered } = eng.getExplored()
-    const seen = new Set(discovered)
-    const R = 13
-    const half = (TILE_METERS * 1.12) / 2
-    const features: GeoJSON.Feature[] = []
-    for (let dx = -R; dx <= R; dx++) {
-      for (let dz = -R; dz <= R; dz++) {
-        const wx = px + dx
-        const wz = pz + dz
-        if (seen.has(tileKey(wx, wz))) continue
-        const c = tileToGeo(o, wx, wz)
-        const dLat = half / 110_540
-        const dLng = half / (111_320 * Math.cos((c.lat * Math.PI) / 180))
-        features.push({
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [c.lng - dLng, c.lat - dLat],
-              [c.lng + dLng, c.lat - dLat],
-              [c.lng + dLng, c.lat + dLat],
-              [c.lng - dLng, c.lat + dLat],
-              [c.lng - dLng, c.lat - dLat],
-            ]],
-          },
-        })
-      }
+    if (!o || !eng) return { fill: fullFog, line: noLine }
+    const { discovered } = eng.getExplored()
+    if (discovered.length === 0) return { fill: fullFog, line: noLine }
+
+    const cells = new Set<string>()
+    for (const k of discovered) {
+      const [wx, wz] = k.split(',').map(Number)
+      const c = tileToGeo(o, wx, wz)
+      try { cells.add(h3.latLngToCell(c.lat, c.lng, 10)) } catch { /* skip bad cell */ }
     }
-    return { type: 'FeatureCollection', features }
+    let polys: number[][][][] = []
+    try { polys = h3.cellsToMultiPolygon([...cells], true) as number[][][][] } catch { polys = [] }
+
+    const holes = polys.map((p) => p[0]).filter((r) => r && r.length > 2)
+    return {
+      fill: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD, ...holes] } },
+      line: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: polys } },
+    }
   }, [playerTile, tileCount, source])
 
   const origin = originRef.current
@@ -345,8 +357,8 @@ export default function WorldView() {
 
   return (
     <div ref={holderRef} className="relative h-full w-full overflow-hidden touch-none select-none">
-      {/* ── Warm fire backdrop (behind the transparent canvas) ── */}
-      <div className="pointer-events-none absolute inset-0" style={{ background: '#16100B' }} />
+      {/* ── Sky backdrop (time of day); the warm fire glow below stays constant ── */}
+      <div className="pointer-events-none absolute inset-0" style={{ background: backdrop, transition: 'background 1.6s ease-in-out' }} />
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -501,7 +513,7 @@ export default function WorldView() {
       <Minimap
         playerGeo={playerGeo}
         quests={questMarkers}
-        fog={fogData}
+        fog={fog}
         onQuestClick={(id) => navigate({ to: '/quest/$id', params: { id } })}
       />
 

@@ -17,6 +17,7 @@ import {
   disposeObject, setGroupTone, GROUND_COLORS,
 } from './structures'
 import { makeLabel, releaseLabel } from './labels'
+import type { Atmosphere } from './atmosphere'
 
 const GRID_MIN = -3
 const GRID_MAX = 4
@@ -111,6 +112,8 @@ export class WorldEngine {
   private torch!: THREE.PointLight
   private torchTip: THREE.Mesh | null = null
   private dirLight!: THREE.DirectionalLight
+  private hemiLight!: THREE.HemisphereLight
+  private atmo: Atmosphere | null = null
   private shadowPlane!: THREE.Mesh
   private camTarget = new THREE.Vector3()
   private isoOffset = new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(26)
@@ -142,6 +145,50 @@ export class WorldEngine {
     if (!this.player) return
     const sprite = this.player.getObjectByName('avatar') as THREE.Sprite | null
     if (sprite) applyAvatarToSprite(sprite, this.avatar.url, this.avatar.initial)
+  }
+
+  /** Ease the sky + sun/moon light toward a time-of-day atmosphere. The fire
+   *  (torch, quest flames, ember glow) is deliberately untouched. */
+  setAtmosphere(a: Atmosphere, animate = true): void {
+    this.atmo = a
+    this.applyAtmosphere(a, animate)
+  }
+
+  private applyAtmosphere(a: Atmosphere, animate: boolean): void {
+    const hemi = this.hemiLight
+    const dl = this.dirLight
+    const r = this.renderer
+    if (!hemi || !dl || !r) return // not started yet — start() applies this.atmo
+    const toHemiSky = new THREE.Color(a.hemiSky)
+    const toHemiGround = new THREE.Color(a.hemiGround)
+    const toDir = new THREE.Color(a.dirColor)
+    if (!animate) {
+      hemi.color.copy(toHemiSky)
+      hemi.groundColor.copy(toHemiGround)
+      hemi.intensity = a.hemiIntensity
+      dl.color.copy(toDir)
+      dl.intensity = a.dirIntensity
+      r.toneMappingExposure = a.exposure
+      return
+    }
+    const fromHemiSky = hemi.color.clone()
+    const fromHemiGround = hemi.groundColor.clone()
+    const fromDir = dl.color.clone()
+    const s = { hi: hemi.intensity, di: dl.intensity, exp: r.toneMappingExposure }
+    const p = { t: 0 }
+    this.ctx.add(() => {
+      gsap.to(p, {
+        t: 1, duration: 1.6, ease: 'sine.inOut',
+        onUpdate: () => {
+          hemi.color.copy(fromHemiSky).lerp(toHemiSky, p.t)
+          hemi.groundColor.copy(fromHemiGround).lerp(toHemiGround, p.t)
+          hemi.intensity = s.hi + (a.hemiIntensity - s.hi) * p.t
+          dl.color.copy(fromDir).lerp(toDir, p.t)
+          dl.intensity = s.di + (a.dirIntensity - s.di) * p.t
+          r.toneMappingExposure = s.exp + (a.exposure - s.exp) * p.t
+        },
+      })
+    })
   }
 
   /** Adopt a saved origin when it's nearby so discovered tiles stay aligned. */
@@ -186,8 +233,9 @@ export class WorldEngine {
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 100)
     this.resize(width, height)
 
-    // Lights — perpetual cozy dusk
-    this.scene.add(new THREE.HemisphereLight(0xffd2a0, 0x241a12, 0.75))
+    // Lights — start at the cozy-dusk defaults; setAtmosphere() drives time of day.
+    this.hemiLight = new THREE.HemisphereLight(0xffd2a0, 0x241a12, 0.75)
+    this.scene.add(this.hemiLight)
     this.dirLight = new THREE.DirectionalLight(0xffd9a8, 1.6)
     this.dirLight.castShadow = true
     this.dirLight.shadow.mapSize.set(1024, 1024)
@@ -196,6 +244,7 @@ export class WorldEngine {
     this.dirLight.shadow.bias = -0.0005
     this.scene.add(this.dirLight)
     this.scene.add(this.dirLight.target)
+    if (this.atmo) this.applyAtmosphere(this.atmo, false)
 
     // Shadow-catcher void plane under the floating board
     const shadowMat = new THREE.ShadowMaterial({ opacity: 0.28 })

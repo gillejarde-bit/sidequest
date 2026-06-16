@@ -15,10 +15,15 @@ export interface WorldQuestMarker {
   lng: number
 }
 
+export interface FogShapes {
+  fill: GeoJSON.Feature // world box with explored area carved out as holes
+  line: GeoJSON.Feature // explored boundary, for the frontier glow
+}
+
 interface MinimapProps {
   playerGeo: { lat: number; lng: number }
   quests: WorldQuestMarker[]
-  fog?: GeoJSON.FeatureCollection
+  fog?: FogShapes | null
   onQuestClick: (questId: string) => void
 }
 
@@ -27,12 +32,22 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 // Warm desaturated grade over Mapbox so it sits inside the game world.
 const COZY_FILTER = 'saturate(0.78) sepia(0.18) brightness(0.92) contrast(1.02)'
 
-// Native GL fog paint — the unexplored squares fed from the engine. Blocky on
-// purpose so it reads like the low-poly fog bank on the 3D board.
-const FOG_PAINT = {
-  'fill-color': '#15100B',
-  'fill-opacity': 0.82,
-  'fill-outline-color': '#15100B',
+// Native GL fog-of-war: a warm dark veil over the whole world with the explored
+// area cut out, plus a soft ember glow tracing the frontier. `prefix` keeps the
+// source/layer ids unique between the mini and expanded map instances.
+function FogLayers({ fog, prefix }: { fog?: FogShapes | null; prefix: string }) {
+  if (!fog) return null
+  return (
+    <>
+      <Source id={`${prefix}-fog-fill`} type="geojson" data={fog.fill}>
+        <Layer id={`${prefix}-fog-fill-l`} type="fill" paint={{ 'fill-color': '#140D09', 'fill-opacity': 0.86 }} />
+      </Source>
+      <Source id={`${prefix}-fog-line`} type="geojson" data={fog.line}>
+        <Layer id={`${prefix}-fog-glow`} type="line" paint={{ 'line-color': 'rgba(238,140,70,0.5)', 'line-width': 5, 'line-blur': 6 }} />
+        <Layer id={`${prefix}-fog-edge`} type="line" paint={{ 'line-color': 'rgba(240,180,92,0.7)', 'line-width': 1.4 }} />
+      </Source>
+    </>
+  )
 }
 
 function PlayerDot({ size = 16 }: { size?: number }) {
@@ -99,11 +114,7 @@ export function Minimap({ playerGeo, quests, fog, onQuestClick }: MinimapProps) 
               keyboard={false}
               style={{ width: '100%', height: '100%' }}
             >
-              {fog && (
-                <Source id="sq-minimap-fog-src" type="geojson" data={fog}>
-                  <Layer id="sq-minimap-fog" type="fill" paint={FOG_PAINT} />
-                </Source>
-              )}
+              <FogLayers fog={fog} prefix="mini" />
               {quests.map((q) => (
                 <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="center">
                   <QuestPin name={q.name} />
@@ -186,11 +197,7 @@ export function Minimap({ playerGeo, quests, fog, onQuestClick }: MinimapProps) 
                   attributionControl={false}
                   style={{ width: '100%', height: '100%' }}
                 >
-                  {fog && (
-                    <Source id="sq-minimap-fog-src-big" type="geojson" data={fog}>
-                      <Layer id="sq-minimap-fog-big" type="fill" paint={FOG_PAINT} />
-                    </Source>
-                  )}
+                  <FogLayers fog={fog} prefix="big" />
                   {quests.map((q) => (
                     <Marker key={q.id} longitude={q.lng} latitude={q.lat} anchor="bottom">
                       <QuestPin name={q.name} big onClick={() => onQuestClick(q.id)} />
