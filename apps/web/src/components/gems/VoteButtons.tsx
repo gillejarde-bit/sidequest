@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, X } from 'lucide-react'
 import ConfettiExplosion from 'react-confetti-explosion'
+import { CheckIcon, CloseIcon } from '../icons'
 
 interface VoteButtonsProps {
   onVote: (vote: number) => void
@@ -21,26 +21,28 @@ export function VoteButtons({ onVote, disabled }: VoteButtonsProps) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-4">
-      {isExploding && <ConfettiExplosion force={0.8} duration={3000} particleCount={250} width={1600} />}
+    <div className="relative flex items-center justify-center gap-3">
+      {isExploding && <ConfettiExplosion force={0.8} duration={3000} particleCount={180} width={1200} />}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        type="button"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
         onClick={handleSkip}
         disabled={disabled}
-        className="flex items-center gap-2 rounded-full border border-gray-700 bg-gray-800 px-6 py-3 font-semibold text-gray-300 transition-colors hover:bg-gray-700 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] px-5 py-3 text-[13px] font-medium text-[var(--sq-text-muted)] transition-colors hover:bg-[var(--sq-card-hover)] disabled:opacity-50"
       >
-        <X className="h-5 w-5" />
-        Skip
+        <CloseIcon size={20} withShadow={false} />
+        Not quite
       </motion.button>
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        type="button"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
         onClick={handleApprove}
         disabled={disabled}
-        className="flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:bg-emerald-600 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/25 bg-[var(--sq-ember-500)] px-5 py-3 text-[13px] font-medium text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] transition-colors hover:bg-[var(--sq-ember-600)] disabled:opacity-50"
       >
-        <Check className="h-5 w-5" />
+        <CheckIcon size={20} active withShadow={false} />
         Approve
       </motion.button>
     </div>
