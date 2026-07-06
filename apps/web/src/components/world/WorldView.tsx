@@ -12,6 +12,7 @@ import { fetchOsmChunk, geoToTile, tileKey, tileToGeo, TILE_METERS, type GeoOrig
 import { Minimap, type WorldQuestMarker } from './Minimap'
 import { computeStats, formatArea, formatPct, reverseGeocode, type PlaceInfo } from './worldStats'
 import { FireLoadingScreen } from '../map/FireLoadingScreen'
+import { FOG_OF_WAR_ENABLED } from '../map/fog/config'
 import { getAtmosphere, type Atmosphere, type TimePhase } from './atmosphere'
 import { fetchWeather, weatherLabel, weatherKind, type WeatherNow } from './weather'
 import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning, MapPinOff } from 'lucide-react'
@@ -351,7 +352,9 @@ export default function WorldView() {
   // past. The explored tiles are merged into SQUARE-edged rings (see
   // exploredRings) so the minimap mirrors the 3D square-tile board, and the
   // frontier is traced with a warm ember glow. Same explored set as the 3D board.
-  const fog = useMemo<{ fill: GeoJSON.Feature; line: GeoJSON.Feature }>(() => {
+  const fog = useMemo<{ fill: GeoJSON.Feature; line: GeoJSON.Feature } | null>(() => {
+    if (!FOG_OF_WAR_ENABLED) return null
+
     const WORLD: number[][] = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
     const fullFog: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD] } }
     const noLine: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: [] } }

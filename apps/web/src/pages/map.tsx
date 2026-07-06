@@ -28,7 +28,7 @@ import { FogLayer } from '../components/map/fog/FogLayer'
 import { FogHexCanvas } from '../components/map/fog/FogHexCanvas'
 import { FireLoadingScreen } from '../components/map/FireLoadingScreen'
 import { useCoverage } from '../hooks/useCoverage'
-import { FOG_CONFIG } from '../components/map/fog/config'
+import { FOG_CONFIG, FOG_OF_WAR_ENABLED } from '../components/map/fog/config'
 import * as h3 from 'h3-js'
 
 // Pursuit system imports (quest markers show the pursuit pip)
@@ -152,7 +152,7 @@ export function MapPage() {
   const [firstFogPainted, setFirstFogPainted] = useState(false)
   const [showLoadingScreen, setShowLoadingScreen] = useState(true)
 
-  const isAppReady = mapLoaded && firstFogPainted
+  const isAppReady = mapLoaded && (!FOG_OF_WAR_ENABLED || firstFogPainted)
 
   const hasCenteredOnUserRef = useRef(false)
 
@@ -426,10 +426,6 @@ export function MapPage() {
 
 
 
-  // Map coordinates types safely to FogLayer
-  const fogUserLocation = useMemo(() => {
-    return { lat: activeUserLat, lng: activeUserLng }
-  }, [activeUserLat, activeUserLng])
 
   // ── Derived bottom sheet state ─────────────────────────────────────────────
   const sheetMode = selectedLocation ? 'location' : selectedQuest ? 'quest' : selectedGem ? 'gem' : null
@@ -600,12 +596,14 @@ export function MapPage() {
         minPitch={0}
         interactiveLayerIds={[]}
         onIdle={() => {
-          setFirstFogPainted(true)
+          if (!FOG_OF_WAR_ENABLED) {
+            setFirstFogPainted(true)
+          }
         }}
       >
         {/* Hex fog-of-war canvas: cached-bitmap transform during gestures (no flash),
             LOD rebuild + crossfade at rest (hexes merge as you zoom out) */}
-        {mapLoaded && mapInstance && (
+        {FOG_OF_WAR_ENABLED && mapLoaded && mapInstance && (
           <FogHexCanvas
             map={mapInstance}
             revealSet={revealSet}
@@ -616,10 +614,9 @@ export function MapPage() {
         )}
 
         {/* Drifting ember particles above the fog */}
-        {mapLoaded && mapInstance && (
+        {FOG_OF_WAR_ENABLED && mapLoaded && mapInstance && (
           <FogLayer
             map={mapInstance}
-            userLocation={fogUserLocation}
             onFirstFramePaint={() => setFirstFogPainted(true)}
           />
         )}

@@ -1,3 +1,7 @@
+// Temporary release switch for fog-of-war. Keep shared so flat map and
+// world/minimap can be reverted together with a one-line change.
+export const FOG_OF_WAR_ENABLED = false
+
 export const FOG_CONFIG = {
   // H3 indexing parameters
   H3_RESOLUTION: 10,           // Resolution ~10 (~65m edge-to-edge size)
