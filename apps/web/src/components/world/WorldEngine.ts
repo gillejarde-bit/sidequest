@@ -105,6 +105,9 @@ export class WorldEngine {
 
   private px = 0
   private pz = 0
+  private viewX = 0
+  private viewZ = 0
+  private followPlayer = true
   private moving = false
   private disposed = false
 
@@ -134,10 +137,12 @@ export class WorldEngine {
 
   private canvas: HTMLCanvasElement
   private events: EngineEvents
+  private fogOfWarEnabled: boolean
 
-  constructor(canvas: HTMLCanvasElement, events: EngineEvents, opts?: { avatarUrl?: string | null; initial?: string }) {
+  constructor(canvas: HTMLCanvasElement, events: EngineEvents, opts?: { avatarUrl?: string | null; initial?: string; fogOfWarEnabled?: boolean }) {
     this.canvas = canvas
     this.events = events
+    this.fogOfWarEnabled = opts?.fogOfWarEnabled ?? true
     this.avatar = { url: opts?.avatarUrl ?? null, initial: opts?.initial || '◆' }
   }
 
@@ -280,9 +285,11 @@ export class WorldEngine {
     this.player.add(this.torch)
     this.scene.add(this.player)
     this.visits.set(tileKey(this.px, this.pz), Math.max(1, this.visits.get(tileKey(this.px, this.pz)) ?? 0))
+    this.viewX = this.px
+    this.viewZ = this.pz
 
     this.buildEmbers()
-    this.rebuildWindow(true)
+    this.syncVisibleTiles(true, true)
     this.updateCamera(true)
 
     this.clock.start()
@@ -346,10 +353,12 @@ export class WorldEngine {
     const dx = wx - this.px
     const dz = wz - this.pz
     if (dx >= CORE_MIN && dx <= CORE_MAX && dz >= CORE_MIN && dz <= CORE_MAX) return 'core'
+    if (!this.fogOfWarEnabled) return 'memory'
     return this.discovered.has(tileKey(wx, wz)) ? 'memory' : 'fog'
   }
 
   private toneFor(zone: Zone): { b: number; d: number } {
+    if (!this.fogOfWarEnabled) return { b: 1, d: 0 }
     if (zone === 'core') return { b: 1, d: 0 }
     if (zone === 'memory') return { b: 0.48, d: 0.45 }
     return { b: 0.2, d: 0.75 }
@@ -634,18 +643,34 @@ export class WorldEngine {
     })
   }
 
-  private rebuildWindow(initial: boolean): void {
+  private syncVisibleTiles(initial: boolean, persist = false, announce = false): void {
+    const centerX = Math.round(this.viewX)
+    const centerZ = Math.round(this.viewZ)
+
+    for (const tile of [...this.tiles.values()]) {
+      const ox = tile.wx - centerX
+      const oz = tile.wz - centerZ
+      if (ox < GRID_MIN || ox > GRID_MAX || oz < GRID_MIN || oz > GRID_MAX) {
+        this.removeTile(tile, !initial && this.followPlayer)
+      }
+    }
+
     for (let dx = GRID_MIN; dx <= GRID_MAX; dx++) {
       for (let dz = GRID_MIN; dz <= GRID_MAX; dz++) {
-        const wx = this.px + dx
-        const wz = this.pz + dz
+        const wx = centerX + dx
+        const wz = centerZ + dz
         if (!this.tiles.has(tileKey(wx, wz))) {
           if (initial) this.spawnTile(wx, wz, Math.abs(dx) + Math.abs(dz))
           else this.buildTile(wx, wz)
         }
       }
     }
-    this.persist()
+
+    for (const tile of this.tiles.values()) {
+      this.setZone(tile, this.zoneFor(tile.wx, tile.wz), announce)
+    }
+
+    if (persist) this.persist()
   }
 
   private setZone(tile: Tile, zone: Zone, announce: boolean): void {
@@ -704,25 +729,11 @@ export class WorldEngine {
     this.px += Math.sign(dx)
     this.pz += Math.sign(dz)
 
-    // Despawn tiles that left the window; spawn the incoming edge.
-    for (const tile of [...this.tiles.values()]) {
-      const ox = tile.wx - this.px
-      const oz = tile.wz - this.pz
-      if (ox < GRID_MIN || ox > GRID_MAX || oz < GRID_MIN || oz > GRID_MAX) {
-        this.removeTile(tile, true)
-      }
+    if (this.followPlayer) {
+      this.viewX = this.px
+      this.viewZ = this.pz
     }
-    let order = 0
-    for (let a = GRID_MIN; a <= GRID_MAX; a++) {
-      for (let b = GRID_MIN; b <= GRID_MAX; b++) {
-        const wx = this.px + a
-        const wz = this.pz + b
-        if (!this.tiles.has(tileKey(wx, wz))) this.spawnTile(wx, wz, order++)
-      }
-    }
-    for (const tile of this.tiles.values()) {
-      this.setZone(tile, this.zoneFor(tile.wx, tile.wz), true)
-    }
+    this.syncVisibleTiles(false, false, true)
 
     // Footsteps wear a path: count the visit, refresh this tile + neighbors
     const landedKey = tileKey(this.px, this.pz)
@@ -750,7 +761,7 @@ export class WorldEngine {
       tl.to(this.player.scale, { y: 1, x: 1, z: 1, duration: 0.18, ease: 'elastic.out(1.2, 0.6)' }, 0.47)
     })
 
-    this.updateCamera(false)
+    if (this.followPlayer) this.updateCamera(false)
     this.persist()
   }
 
@@ -764,12 +775,36 @@ export class WorldEngine {
     else this.move(0, Math.sign(dz))
   }
 
+  setFollowPlayer(follow: boolean, snap = false): void {
+    this.followPlayer = follow
+    if (!follow) return
+    this.viewX = this.px
+    this.viewZ = this.pz
+    this.syncVisibleTiles(false)
+    this.updateCamera(snap)
+  }
+
+  panByScreenDelta(deltaX: number, deltaY: number, width: number, height: number): void {
+    if (!this.camera || width <= 0 || height <= 0) return
+    this.followPlayer = false
+    const worldX = (deltaX / width) * (this.camera.right - this.camera.left)
+    const worldY = (deltaY / height) * (this.camera.top - this.camera.bottom)
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0)
+    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1)
+    const shift = right.multiplyScalar(-worldX).add(up.multiplyScalar(worldY))
+    this.viewX += shift.x
+    this.viewZ += shift.z
+    this.syncVisibleTiles(false)
+    this.updateCamera(true)
+  }
+
   private updateCamera(snap: boolean): void {
-    const cx = this.px + (GRID_MIN + GRID_MAX) / 2
-    const cz = this.pz + (GRID_MIN + GRID_MAX) / 2
+    const cx = this.viewX + (GRID_MIN + GRID_MAX) / 2
+    const cz = this.viewZ + (GRID_MIN + GRID_MAX) / 2
     const apply = () => {
       this.camera.position.copy(this.camTarget).add(this.isoOffset)
       this.camera.lookAt(this.camTarget)
+      this.camera.updateMatrixWorld()
       this.dirLight.position.set(this.camTarget.x + 5, 9, this.camTarget.z + 2)
       this.dirLight.target.position.set(this.camTarget.x, 0, this.camTarget.z)
       this.shadowPlane.position.set(this.camTarget.x, -0.6, this.camTarget.z)
@@ -814,7 +849,7 @@ export class WorldEngine {
       const def = TEMPLATES[tile.spec.template]
       this.events.onHover?.(tile.spec.name ? `${tile.spec.name} — ${def.title}` : `${def.title} · ${def.subtitle}`)
     } else {
-      this.events.onHover?.(tile.zone === 'fog' ? 'Unexplored' : null)
+      this.events.onHover?.(tile.zone === 'fog' && this.fogOfWarEnabled ? 'Unexplored' : null)
     }
   }
 

@@ -15,7 +15,7 @@ import { FireLoadingScreen } from '../map/FireLoadingScreen'
 import { FOG_OF_WAR_ENABLED } from '../map/fog/config'
 import { getAtmosphere, type Atmosphere, type TimePhase } from './atmosphere'
 import { fetchWeather, weatherLabel, weatherKind, type WeatherNow } from './weather'
-import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning, MapPinOff } from 'lucide-react'
+import { Sun, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning, Locate, MapPinOff } from 'lucide-react'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/auth'
@@ -121,6 +121,7 @@ export default function WorldView() {
   const [tileCount, setTileCount] = useState(0)
   const [showHint, setShowHint] = useState(true)
   const [playerTile, setPlayerTile] = useState({ wx: 0, wz: 0 })
+  const [followingPlayer, setFollowingPlayer] = useState(true)
   const [place, setPlace] = useState<PlaceInfo | null>(null)
   const [statsOpen, setStatsOpen] = useState(false)
 
@@ -204,6 +205,7 @@ export default function WorldView() {
     }, {
       avatarUrl: initialProfile?.avatar_url ?? null,
       initial: (initialProfile?.display_name || initialProfile?.username || '◆').slice(0, 1),
+      fogOfWarEnabled: FOG_OF_WAR_ENABLED,
     })
     engineRef.current = engine
 
@@ -325,7 +327,7 @@ export default function WorldView() {
   }, [resetKey, gps.lat, gps.lng])
 
   // ── Pointer → NDC ──────────────────────────────────────────────────────────
-  const downPos = useRef<{ x: number; y: number; t: number } | null>(null)
+  const downPos = useRef<{ x: number; y: number; lastX: number; lastY: number; t: number; dragged: boolean; pointerId: number } | null>(null)
   const lastHover = useRef(0)
 
   const toNdc = (e: ReactPointerEvent) => {
@@ -476,6 +478,21 @@ export default function WorldView() {
         ref={canvasRef}
         className="relative block h-full w-full"
         onPointerMove={(e) => {
+          const d = downPos.current
+          if (d && d.pointerId === e.pointerId) {
+            const rect = holderRef.current?.getBoundingClientRect()
+            const dx = e.clientX - d.lastX
+            const dy = e.clientY - d.lastY
+            const total = Math.hypot(e.clientX - d.x, e.clientY - d.y)
+            d.lastX = e.clientX
+            d.lastY = e.clientY
+            if (rect && total > 4) {
+              d.dragged = true
+              setFollowingPlayer(false)
+              engineRef.current?.panByScreenDelta(dx, dy, rect.width, rect.height)
+            }
+            return
+          }
           const now = performance.now()
           if (now - lastHover.current < 40) return // throttle raycasts for smoothness
           lastHover.current = now
@@ -483,16 +500,22 @@ export default function WorldView() {
           if (ndc) engineRef.current?.hoverAt(ndc.x, ndc.y)
         }}
         onPointerDown={(e) => {
-          downPos.current = { x: e.clientX, y: e.clientY, t: performance.now() }
+          e.currentTarget.setPointerCapture(e.pointerId)
+          downPos.current = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, t: performance.now(), dragged: false, pointerId: e.pointerId }
         }}
         onPointerUp={(e) => {
           const d = downPos.current
           downPos.current = null
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
           if (!d) return
           const dist = Math.hypot(e.clientX - d.x, e.clientY - d.y)
-          if (dist > 10 || performance.now() - d.t > 500) return
+          if (d.dragged || dist > 10 || performance.now() - d.t > 500) return
           const ndc = toNdc(e)
           if (ndc) engineRef.current?.tapAt(ndc.x, ndc.y)
+        }}
+        onPointerCancel={(e) => {
+          downPos.current = null
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
         }}
       />
 
@@ -567,7 +590,7 @@ export default function WorldView() {
             className="cursor-pointer rounded-[var(--sq-r-pill)] border border-[var(--sq-gold)]/30 bg-[var(--sq-bg)]/85 px-2.5 py-1.5 text-left backdrop-blur-sm transition-transform hover:scale-[1.03] active:scale-95"
           >
             <span className="text-[10px] font-black uppercase tracking-wider text-[var(--sq-gold-soft)]">
-              ⬡ {tileCount} tiles uncovered
+              ⬡ {tileCount} tiles explored
             </span>
             <span className="block text-[8px] font-bold uppercase tracking-wider text-[var(--sq-text-faint)]">
               ≈ {formatArea(stats)} · tap for stats
@@ -640,6 +663,18 @@ export default function WorldView() {
       />
 
       {/* ── Bottom-left: scale legend ── */}
+      <button
+        type="button"
+        onClick={() => {
+          engineRef.current?.setFollowPlayer(true)
+          setFollowingPlayer(true)
+        }}
+        className="absolute bottom-28 right-4 z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)]/90 text-[var(--sq-text)] shadow-[var(--sq-shadow-soft)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+        title={followingPlayer ? 'Following your location' : 'Recenter on your location'}
+      >
+        <Locate className={`h-5 w-5 ${followingPlayer ? 'text-[var(--sq-ember-400)]' : 'text-[var(--sq-text-muted)]'}`} />
+      </button>
+
       <div className="pointer-events-none absolute bottom-28 left-4 z-20 flex flex-col gap-1 rounded-[var(--sq-r-md)] border border-[var(--sq-hairline)] bg-[var(--sq-bg)]/80 px-3 py-2 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px] border border-[var(--sq-gold)]/60 bg-[var(--sq-gold)]/20" />
@@ -715,7 +750,7 @@ export default function WorldView() {
             className="pointer-events-none absolute bottom-28 left-1/2 z-20 -translate-x-1/2"
           >
             <div className="rounded-[var(--sq-r-pill)] border border-[var(--sq-ember-500)]/30 bg-[var(--sq-surface)]/90 px-4 py-2 text-[11px] font-medium text-[var(--sq-text-muted)] backdrop-blur-sm whitespace-nowrap shadow-[var(--sq-shadow-glow)]">
-              Use WASD or walk to explore · tap a quest flag to open it
+              Drag to browse · tap a quest flag to open it
             </div>
           </motion.div>
         )}
@@ -743,7 +778,7 @@ export default function WorldView() {
               <h3 className="mb-4 text-lg font-black text-[var(--sq-text)]">Your explored world</h3>
 
               <div className="mb-4 grid grid-cols-2 gap-2">
-                <StatCard big={String(stats.tiles)} label="tiles uncovered" />
+                <StatCard big={String(stats.tiles)} label="tiles explored" />
                 <StatCard big={formatArea(stats)} label={`${stats.areaKm2 >= 0.01 ? `${stats.areaKm2.toFixed(2)} km² · ` : ''}real ground`} />
                 <StatCard big={stats.footballFields >= 1 ? stats.footballFields.toFixed(1) : stats.footballFields.toFixed(2)} label="football fields" />
                 <StatCard big={stats.cityBlocks >= 1 ? stats.cityBlocks.toFixed(1) : stats.cityBlocks.toFixed(2)} label="city blocks" />
@@ -764,7 +799,7 @@ export default function WorldView() {
                     />
                   </div>
                   <div className="mt-1.5 text-[9px] font-medium leading-relaxed text-[var(--sq-text-muted)]">
-                    Every tile is ~{TILE_METERS} m of real {stats.stateName}. Keep walking — the fog remembers.
+                    Every tile is ~{TILE_METERS} m of real {stats.stateName}. Walking keeps your trail growing.
                   </div>
                 </div>
               )}
