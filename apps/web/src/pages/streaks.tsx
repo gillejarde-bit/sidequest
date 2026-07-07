@@ -1,22 +1,22 @@
-import { useState, useEffect, useRef } from 'react'
+import { type ChangeEvent, type FormEvent, type MouseEvent, type TouchEvent, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useAuthStore } from '../stores/auth'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  CloseIcon,
+  CrewIcon,
+  FriendsIcon,
+  HeartIcon,
+  PlusIcon,
+  ScissorsIcon,
+  StreakFlameIcon,
+  UploadIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from '../components/icons'
 import { supabase } from '../lib/supabase'
-import { 
-  Flame, 
-  Users, 
-  Plus, 
-  AlertTriangle, 
-  Sparkles, 
-  Loader2,
-  ChevronLeft,
-  Heart,
-  ZoomIn,
-  ZoomOut,
-  Scissors,
-  Upload
-} from 'lucide-react'
+import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toastStore'
 
 interface StreakGroup {
@@ -34,26 +34,54 @@ interface StreakGroup {
   is_at_risk: boolean
 }
 
+interface StreakProfileExtras {
+  lives?: number
+  previous_streak?: number
+}
+
+interface RestoreStreakResponse {
+  success?: boolean
+  restored_streak?: number
+  new_lives?: number
+  error?: string
+}
+
+const presetColors = [
+  'var(--sq-ember-500)',
+  'var(--sq-gold)',
+  'var(--sq-sage-500)',
+  'var(--sq-heart)',
+  'var(--sq-warning)',
+  'var(--sq-ember-600)',
+]
+
+function LoadingSpinner({ label }: { label?: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 text-[13px] font-medium text-[var(--sq-text-muted)]">
+      <span className="h-4 w-4 animate-spin rounded-[var(--sq-r-pill)] border-2 border-[var(--sq-ember-500)] border-t-transparent" />
+      {label && <span>{label}</span>}
+    </div>
+  )
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 export function StreaksPage() {
   const { profile, user } = useAuthStore()
   const { addToast } = useToastStore()
   const [streaks, setStreaks] = useState<StreakGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  
-  // Create group form state
   const [groupName, setGroupName] = useState('')
   const [groupDesc, setGroupDesc] = useState('')
-  const [groupColor, setGroupColor] = useState('#6C63FF')
+  const [groupColor, setGroupColor] = useState(presetColors[0])
   const [creating, setCreating] = useState(false)
   const [restoring, setRestoring] = useState(false)
-
-  // Crew Avatar states
   const [crewAvatarUrl, setCrewAvatarUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Cropper states
   const [cropImage, setCropImage] = useState<string | null>(null)
   const [cropZoom, setCropZoom] = useState(1.0)
   const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 })
@@ -61,8 +89,7 @@ export function StreaksPage() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [popupMessage, setPopupMessage] = useState<string | null>(null)
 
-  // File selection triggers cropper instead of direct uploading
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     try {
       if (!e.target.files || e.target.files.length === 0) return
       const file = e.target.files[0]
@@ -73,13 +100,12 @@ export function StreaksPage() {
         setCropOffset({ x: 0, y: 0 })
       }
       reader.readAsDataURL(file)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      setPopupMessage(`File selection error: ${err.message}`)
+      setPopupMessage(`File selection error: ${getErrorMessage(err, 'Unable to select this file')}`)
     }
   }
 
-  // Perform crop on HTML5 Canvas and upload to Supabase Storage
   const handlePerformCrop = async () => {
     if (!cropImage || !user) return
     setUploading(true)
@@ -101,33 +127,21 @@ export function StreaksPage() {
       const targetSize = 400
       canvas.width = targetSize
       canvas.height = targetSize
-
       ctx.fillStyle = 'rgba(0, 0, 0, 0)'
       ctx.fillRect(0, 0, targetSize, targetSize)
 
-      const previewSize = 256 // matches w-64 preview
+      const previewSize = 256
       const ratio = targetSize / previewSize
-
       ctx.save()
       ctx.translate(targetSize / 2, targetSize / 2)
       ctx.translate(cropOffset.x * ratio, cropOffset.y * ratio)
       ctx.scale(cropZoom, cropZoom)
 
       const imgRatio = img.naturalWidth / img.naturalHeight
-      let drawW = previewSize
-      let drawH = previewSize
-
-      if (imgRatio > 1) {
-        drawW = previewSize
-        drawH = previewSize / imgRatio
-      } else {
-        drawH = previewSize
-        drawW = previewSize * imgRatio
-      }
-
+      const drawW = imgRatio > 1 ? previewSize : previewSize * imgRatio
+      const drawH = imgRatio > 1 ? previewSize / imgRatio : previewSize
       const finalW = drawW * ratio
       const finalH = drawH * ratio
-
       ctx.drawImage(img, -finalW / 2, -finalH / 2, finalW, finalH)
       ctx.restore()
 
@@ -142,49 +156,41 @@ export function StreaksPage() {
           const fileName = `${user.id}/crew-${Date.now()}.png`
           const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(fileName, blob, { 
-              contentType: 'image/png',
-              upsert: true 
-            })
+            .upload(fileName, blob, { contentType: 'image/png', upsert: true })
 
           if (uploadError) throw uploadError
 
           const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
           setCrewAvatarUrl(data.publicUrl)
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(err)
-          setPopupMessage(`Upload failed: ${err.message}`)
+          setPopupMessage(`Upload failed: ${getErrorMessage(err, 'Unable to upload this image')}`)
         } finally {
           setUploading(false)
         }
       }, 'image/png')
-
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      setPopupMessage(`Crop failed: ${err.message}`)
+      setPopupMessage(`Crop failed: ${getErrorMessage(err, 'Unable to crop this image')}`)
       setUploading(false)
     }
   }
 
-  // Mouse & Touch Drag Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: MouseEvent) => {
     setIsDragging(true)
     setDragStart({ x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y })
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging) return
-    setCropOffset({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    })
+    setCropOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
   }
 
   const handleMouseUp = () => {
     setIsDragging(false)
   }
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length === 1) {
       setIsDragging(true)
       setDragStart({
@@ -194,42 +200,10 @@ export function StreaksPage() {
     }
   }
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = (e: TouchEvent) => {
     if (!isDragging || e.touches.length !== 1) return
-    setCropOffset({
-      x: e.touches[0].clientX - dragStart.x,
-      y: e.touches[0].clientY - dragStart.y
-    })
+    setCropOffset({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y })
   }
-
-  const handleRestoreStreak = async () => {
-    try {
-      setRestoring(true)
-      const { data, error } = await supabase.rpc('restore_streak_with_life' as any)
-      if (error) throw error
-      const res = data as any
-      if (res && res.success) {
-        addToast({
-          message: `✨ Streak revived to ${res.restored_streak} days! Remaining: ${res.new_lives} ❤️`,
-        })
-        fetchStreaksData()
-        if (user) {
-          await useAuthStore.getState().fetchProfile(user.id)
-        }
-      } else {
-        throw new Error(res?.error || 'Failed to restore streak')
-      }
-    } catch (err: any) {
-      console.error(err)
-      addToast({
-        message: err.message || 'Failed to restore streak'
-      })
-    } finally {
-      setRestoring(false)
-    }
-  }
-
-  const presetColors = ['#58CC02', '#6C63FF', '#FF6B6B', '#FFD93D', '#3498DB', '#E67E22']
 
   const fetchStreaksData = async () => {
     try {
@@ -237,25 +211,61 @@ export function StreaksPage() {
       const { data, error } = await supabase.rpc('get_my_streaks')
       if (error) throw error
       setStreaks(data as StreakGroup[] || [])
-    } catch (err: any) {
-      console.error('Error fetching streaks:', err.message)
+    } catch (err: unknown) {
+      console.error('Error fetching streaks:', getErrorMessage(err, 'Unable to fetch streaks'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchStreaksData()
+    let isMounted = true
+
+    void supabase.rpc('get_my_streaks').then(({ data, error }) => {
+      if (!isMounted) return
+      if (error) {
+        console.error('Error fetching streaks:', error.message)
+        setLoading(false)
+        return
+      }
+      setStreaks(data as StreakGroup[] || [])
+      setLoading(false)
+    })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
+  const handleRestoreStreak = async () => {
+    try {
+      setRestoring(true)
+      const { data, error } = await supabase.rpc('restore_streak_with_life' as never)
+      if (error) throw error
+      const res = data as RestoreStreakResponse
+      if (res && res.success) {
+        addToast({ message: `Streak revived to ${res.restored_streak} days. Remaining lives: ${res.new_lives}` })
+        fetchStreaksData()
+        if (user) {
+          await useAuthStore.getState().fetchProfile(user.id)
+        }
+      } else {
+        throw new Error(res?.error || 'Failed to restore streak')
+      }
+    } catch (err: unknown) {
+      console.error(err)
+      addToast({ message: getErrorMessage(err, 'Failed to restore streak') })
+    } finally {
+      setRestoring(false)
+    }
+  }
+
+  const handleCreateGroup = async (e: FormEvent) => {
     e.preventDefault()
     if (!groupName.trim()) return
 
     try {
       setCreating(true)
-      
-      // 1. Insert the quest group
       const { data: newGroup, error: groupErr } = await supabase
         .from('quest_groups')
         .insert({
@@ -273,7 +283,6 @@ export function StreaksPage() {
 
       if (groupErr) throw groupErr
 
-      // 2. Insert creator into group members
       const { error: memberErr } = await supabase
         .from('group_members')
         .insert({
@@ -284,482 +293,260 @@ export function StreaksPage() {
 
       if (memberErr) throw memberErr
 
-      addToast({
-        message: `🔥 The ${groupName} flame is lit! Keep it fed.`,
-      })
-
+      addToast({ message: `The ${groupName} flame is lit. Keep it fed.` })
       setGroupName('')
       setGroupDesc('')
       setCrewAvatarUrl('')
+      setGroupColor(presetColors[0])
       setIsCreateModalOpen(false)
       fetchStreaksData()
-    } catch (err: any) {
-      console.error('Error creating group:', err.message)
-      addToast({
-        message: err.message || 'Failed to create group',
-      })
+    } catch (err: unknown) {
+      console.error('Error creating group:', getErrorMessage(err, 'Failed to create group'))
+      addToast({ message: getErrorMessage(err, 'Failed to create group') })
     } finally {
       setCreating(false)
     }
   }
 
-  // Flame tiers — every crew flame has a name worth chasing
   const getFlameStyles = (streak: number) => {
-    if (streak <= 2) return { color: '#A8A8B3', tier: 'Cold Coals', bgClass: 'bg-gray-100 dark:bg-gray-800 text-gray-400' }
-    if (streak <= 6) return { color: '#E67E22', tier: 'Kindling', bgClass: 'bg-orange-100 dark:bg-orange-950/30 text-orange-500' }
-    if (streak <= 13) return { color: '#FF6B35', tier: 'Steady Burn', bgClass: 'bg-amber-100 dark:bg-amber-950/30 text-amber-500 font-bold' }
-    if (streak <= 29) return { color: '#FF3B30', tier: 'Roaring Fire', bgClass: 'bg-red-100 dark:bg-red-950/30 text-red-500 font-bold shadow-lg shadow-red-500/20' }
-    if (streak <= 49) return { color: '#FFD93D', tier: 'Wildfire', bgClass: 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-500 font-bold shadow-lg shadow-yellow-500/20 animate-pulse' }
-    return { color: 'rainbow', tier: 'Eternal Flame', bgClass: 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' }
+    if (streak <= 2) return { tier: 'Cold coals', tone: 'text-[var(--sq-text-faint)]', fill: false }
+    if (streak <= 6) return { tier: 'Kindling', tone: 'text-[var(--sq-ember-300)]', fill: true }
+    if (streak <= 13) return { tier: 'Steady burn', tone: 'text-[var(--sq-ember-400)]', fill: true }
+    if (streak <= 29) return { tier: 'Roaring fire', tone: 'text-[var(--sq-ember-500)]', fill: true }
+    if (streak <= 49) return { tier: 'Wildfire', tone: 'text-[var(--sq-gold-soft)]', fill: true }
+    return { tier: 'Eternal flame', tone: 'text-[var(--sq-banner)]', fill: true }
   }
 
   const overallStreak = profile?.current_streak || 0
   const overallLongest = profile?.longest_streak || 0
+  const profileExtras = profile as unknown as StreakProfileExtras | null
+  const lives = profileExtras?.lives ?? 3
+  const livesPercent = Math.round((lives / 3) * 100)
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <Link 
-            to="/map"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 active:scale-95 transition-transform"
-          >
-            <ChevronLeft className="w-5 h-5" />
+    <div className="min-h-[100dvh] bg-[var(--sq-bg)] pb-32 text-[var(--sq-text)]">
+      <header className="sticky top-0 z-40 border-b border-[var(--sq-hairline)] bg-[var(--sq-overlay-heavy)] px-4 pb-4 pt-[max(16px,env(safe-area-inset-top))] shadow-[var(--sq-shadow-soft)] backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-md items-center justify-between">
+          <Link to="/map" aria-label="Back to map" className="flex h-11 w-11 items-center justify-center rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] active:scale-95">
+            <ChevronLeftIcon size={26} withShadow={false} />
           </Link>
           <div className="flex items-center gap-2">
-            <Flame className="w-6 h-6 text-orange-500 animate-bounce" fill="currentColor" />
-            <h1 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">The Crew Flame</h1>
+            <StreakFlameIcon size={34} active withShadow={false} />
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--sq-ember-300)]">Streaks hub</p>
+              <h1 className="text-[22px] font-medium">Crew flame</h1>
+            </div>
           </div>
-          <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 text-primary active:scale-95 transition-transform"
-          >
-            <Plus className="w-5 h-5" strokeWidth={2.5} />
+          <button type="button" aria-label="Create crew" onClick={() => setIsCreateModalOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/35 bg-[var(--sq-ember-500)] shadow-[var(--sq-shadow-sticker)] active:scale-95">
+            <PlusIcon size={24} active withShadow={false} />
           </button>
         </div>
       </header>
 
-      {/* Main Content Container */}
-      <main className="max-w-md mx-auto p-4 pt-6 pb-32 space-y-6">
-        
-        {/* RPG Lives Status Tracking (Absolute Top) */}
-        {(() => {
-          const lives = (profile as any)?.lives ?? 3
-          const livesPercent = Math.round((lives / 3) * 100)
-          return (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/80"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500">
-                    <Heart className="w-5 h-5" fill="currentColor" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
-                      Hearth Lives
-                      <span className="text-[10px] font-black bg-red-100 dark:bg-red-950 text-red-500 px-2 py-0.5 rounded-md">
-                        Burning
-                      </span>
-                    </h3>
-                    <p className="text-xs text-gray-400 font-bold mt-0.5">{lives} of 3 hearts still glowing</p>
-                  </div>
-                </div>
-                
-                {/* Visual Hearts Row */}
-                <div className="flex items-center gap-1.5">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Heart 
-                      key={i} 
-                      className={`w-5 h-5 transition-all ${
-                        i < lives 
-                          ? 'text-red-500 fill-current animate-pulse' 
-                          : 'text-gray-300 dark:text-gray-600'
-                      }`}
-                      style={i < lives ? { animationDelay: `${i * 0.2}s` } : {}}
-                    />
-                  ))}
-                </div>
+      <main className="mx-auto max-w-md space-y-6 px-4 pt-6">
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-5 shadow-[var(--sq-shadow-soft)]">
+          <div className="absolute -right-8 -top-8 h-28 w-28 rounded-[var(--sq-r-pill)] bg-[var(--sq-ember-500)]/20" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[var(--sq-r-lg)] border border-[var(--sq-keyline)]/20 bg-[var(--sq-surface)]">
+                <HeartIcon size={32} active={lives > 0} withShadow={false} />
               </div>
-              
-              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-                <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-red-500 rounded-full transition-all duration-500" 
-                    style={{ width: `${livesPercent}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-gray-400 dark:text-gray-300 font-semibold mt-2.5 leading-relaxed">
-                  Skip a planned quest and a heart turns to ash. Rekindle them by showing up for your crew or verifying hidden gems in the wild.
-                </p>
+              <div>
+                <h2 className="text-[18px] font-medium">Hearth lives</h2>
+                <p className="mt-1 text-[13px] text-[var(--sq-text-muted)]">{lives} of 3 hearts still glowing</p>
               </div>
-            </motion.div>
-          )
-        })()}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <HeartIcon key={i} size={24} active={i < lives} withShadow={false} />
+              ))}
+            </div>
+          </div>
+          <div className="relative mt-4 border-t border-[var(--sq-hairline)] pt-3">
+            <div className="h-2.5 overflow-hidden rounded-[var(--sq-r-pill)] bg-[var(--sq-surface)]">
+              <div className="h-full rounded-[var(--sq-r-pill)] bg-[var(--sq-heart)] transition-all duration-500" style={{ width: `${livesPercent}%` }} />
+            </div>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--sq-text-muted)]">Skip a planned quest and a heart cools down. Show up with your crew to keep the fire alive.</p>
+          </div>
+        </motion.section>
 
-        {/* Streak Restoration Alert Card */}
-        {profile && profile.current_streak === 0 && (profile as any).previous_streak > 0 && (profile as any).lives > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-3xl p-5 shadow-lg flex flex-col items-center text-center space-y-4"
-          >
-            <div className="w-12 h-12 bg-red-100 dark:bg-red-950/40 rounded-full flex items-center justify-center text-red-500">
-              <Heart className="w-6 h-6 animate-bounce" fill="currentColor" />
+        {profile && profile.current_streak === 0 && (profileExtras?.previous_streak ?? 0) > 0 && (profileExtras?.lives ?? 0) > 0 && (
+          <motion.section initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="rounded-[var(--sq-r-xl)] border border-[var(--sq-heart)]/35 bg-[var(--sq-heart)]/10 p-5 text-center shadow-[var(--sq-shadow-soft)]">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/20 bg-[var(--sq-surface)]">
+              <HeartIcon size={36} active withShadow={false} />
             </div>
-            <div>
-              <h3 className="font-black text-gray-900 dark:text-white text-base">Your flame went out 🕯️</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
-                The embers of your <span className="text-orange-500">{(profile as any).previous_streak}-day flame</span> are still warm. One life brings it roaring back — wait too long and it goes cold for good.
-              </p>
-            </div>
-            <button
-              onClick={handleRestoreStreak}
-              disabled={restoring}
-              className="w-full py-3.5 bg-red-500 hover:bg-red-650 disabled:opacity-50 text-white font-extrabold rounded-2xl active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-500/25"
-            >
-              {restoring ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+            <h3 className="text-[18px] font-medium text-[var(--sq-text)]">Your flame went out</h3>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--sq-text-muted)]">The embers of your {profileExtras?.previous_streak}-day flame are still warm. One life brings it back.</p>
+            <button type="button" onClick={handleRestoreStreak} disabled={restoring} className="mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--sq-r-pill)] bg-[var(--sq-heart)] px-4 py-3 text-[13px] font-medium text-[var(--sq-text)] transition-opacity disabled:opacity-50">
+              {restoring ? <LoadingSpinner /> : (
                 <>
-                  <Heart className="w-4.5 h-4.5 fill-current" />
-                  Rekindle with 1 Life
+                  <HeartIcon size={22} active withShadow={false} />
+                  Rekindle with 1 life
                 </>
               )}
             </button>
-          </motion.div>
+          </motion.section>
         )}
 
-        {/* Personal Streak Hero Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/10"
-        >
-          {/* Decorative Sparkles */}
-          <div className="absolute top-2 right-2 opacity-35">
-            <Sparkles className="w-16 h-16 text-white/40" />
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="relative overflow-hidden rounded-[var(--sq-r-xl)] border border-[var(--sq-keyline)]/20 bg-[radial-gradient(circle_at_78%_12%,var(--sq-gold-soft)_0,transparent_28%),linear-gradient(135deg,var(--sq-ember-600),var(--sq-card)_58%,var(--sq-surface))] p-6 shadow-[var(--sq-shadow-glow)]">
+          <div className="absolute right-4 top-4 opacity-70">
+            <StreakFlameIcon size={76} active withShadow />
           </div>
-
-          <div className="flex items-start justify-between">
+          <p className="relative inline-flex rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/20 bg-[var(--sq-bg)]/35 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-banner)]">Your flame has burned for</p>
+          <div className="relative mt-4 flex items-baseline gap-2">
+            <span className="text-[64px] font-bold leading-none text-[var(--sq-text)]">{overallStreak}</span>
+            <span className="text-[22px] font-medium text-[var(--sq-banner)]">days</span>
+          </div>
+          <div className="relative mt-6 flex items-end justify-between border-t border-[var(--sq-keyline)]/15 pt-4">
             <div>
-              <span className="text-xs font-black tracking-wider uppercase bg-white/20 px-2.5 py-1 rounded-full text-white/95">
-                Your flame has burned for
-              </span>
-              <div className="flex items-baseline gap-2 mt-4">
-                <span className="text-6xl font-black tracking-tight">{overallStreak}</span>
-                <span className="text-xl font-bold text-orange-100">days</span>
-              </div>
+              <p className="text-[13px] text-[var(--sq-text-muted)]">Brightest blaze</p>
+              <p className="mt-1 text-[18px] font-medium text-[var(--sq-text)]">{overallLongest} days</p>
             </div>
-            
-            {/* Animated Flame Icon */}
-            <motion.div
-              animate={{ 
-                scale: [1, 1.08, 0.96, 1.04, 1],
-                rotate: [0, 3, -3, 1, 0]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="p-3 bg-white/20 rounded-2xl"
-            >
-              <Flame className="w-12 h-12 text-white" fill="currentColor" />
-            </motion.div>
+            {overallStreak >= 5 && <span className="rounded-[var(--sq-r-pill)] bg-[var(--sq-sage-600)] px-3 py-1 text-[11px] font-medium text-[var(--sq-sage-100)]">Blazing</span>}
           </div>
+        </motion.section>
 
-          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm text-orange-50">
-            <div>
-              <p className="opacity-75">Brightest blaze</p>
-              <p className="font-extrabold text-white text-lg">{overallLongest} days 🔥</p>
-            </div>
-            {overallStreak >= 5 && (
-              <span className="bg-emerald-500/30 px-3 py-1 rounded-xl text-xs font-black">
-                BLAZING
-              </span>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Section Title */}
-        <div className="flex items-center justify-between pt-2">
-          <h2 className="text-lg font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
-            Crew Flames
+        <div className="flex items-center justify-between pt-1">
+          <h2 className="flex items-center gap-2 text-[18px] font-medium">
+            <FriendsIcon size={26} active withShadow={false} />
+            Crew flames
           </h2>
-          <span className="text-xs text-gray-400 font-bold bg-gray-200/50 dark:bg-gray-800 px-2 py-1 rounded-lg">
-            {streaks.length} {streaks.length === 1 ? 'crew' : 'crews'}
-          </span>
+          <span className="rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline)] bg-[var(--sq-surface)] px-3 py-1 text-[11px] font-medium text-[var(--sq-text-muted)]">{streaks.length} {streaks.length === 1 ? 'crew' : 'crews'}</span>
         </div>
 
-        {/* Loading / Empty states */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-gray-400 font-semibold">Stoking the coals...</p>
+          <div className="rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline)] bg-[var(--sq-card)] py-12">
+            <LoadingSpinner label="Stoking the coals..." />
           </div>
         ) : streaks.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-4 shadow-sm"
-          >
-            <p className="text-gray-400 font-bold">No crew, no fire. Light one with your people — every quest you finish together feeds the same shared flame.</p>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-6 py-3 bg-primary hover:bg-[#46A302] text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
-            >
-              Light a Crew Flame
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-[var(--sq-r-xl)] border border-dashed border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-8 text-center shadow-[var(--sq-shadow-soft)]">
+            <CrewIcon size={58} active withShadow />
+            <p className="mt-4 text-[13px] font-medium leading-6 text-[var(--sq-text-muted)]">No crew, no fire. Light one with your people and every quest you finish together feeds the same shared flame.</p>
+            <button type="button" onClick={() => setIsCreateModalOpen(true)} className="mt-5 inline-flex items-center gap-2 rounded-[var(--sq-r-pill)] bg-[var(--sq-ember-500)] px-5 py-3 text-[13px] font-medium text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] active:scale-95">
+              <PlusIcon size={20} active withShadow={false} />
+              Light a crew flame
             </button>
-          </motion.div>
+          </motion.section>
         ) : (
           <div className="space-y-4">
             {streaks.map((crew, idx) => {
-              const { color: flameColor, bgClass, tier } = getFlameStyles(crew.current_streak)
+              const flame = getFlameStyles(crew.current_streak)
               const percent = Math.min(100, Math.round((crew.current_streak / crew.next_milestone) * 100))
-              const isRainbow = flameColor === 'rainbow'
               const lastQuestDate = crew.last_quest_at ? new Date(crew.last_quest_at).toLocaleDateString() : 'Never'
 
               return (
-                <motion.div
-                  key={crew.group_id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700/80 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow"
-                >
+                <motion.article key={crew.group_id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="relative overflow-hidden rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-5 shadow-[var(--sq-shadow-soft)]">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      {/* Crew Badge/Color */}
-                      <div 
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg relative overflow-hidden shrink-0"
-                        style={{ backgroundColor: crew.group_color }}
-                      >
-                        {crew.group_avatar ? (
-                          <img src={crew.group_avatar} className="w-full h-full object-cover" />
-                        ) : (
-                          crew.group_name[0].toUpperCase()
-                        )}
-                        {crew.streak_frozen && (
-                          <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 text-[8px] z-10">
-                            ❄️
-                          </span>
-                        )}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[var(--sq-r-lg)] border border-[var(--sq-keyline)]/25 text-[18px] font-medium text-[var(--sq-text)]" style={{ backgroundColor: crew.group_color }}>
+                        {crew.group_avatar ? <img src={crew.group_avatar} alt="" className="h-full w-full object-cover" /> : crew.group_name[0]?.toUpperCase()}
+                        {crew.streak_frozen && <span className="absolute -right-1 -top-1 rounded-[var(--sq-r-pill)] bg-[var(--sq-sage-600)] px-1.5 py-0.5 text-[9px] text-[var(--sq-sage-100)]">Safe</span>}
                       </div>
-
-                      <div>
-                        <h3 className="font-black text-gray-900 dark:text-white group-hover:text-primary transition-colors">
-                          {crew.group_name}
-                        </h3>
-                        <p className="text-xs text-gray-400 font-semibold flex items-center gap-1.5 mt-0.5">
-                          <Users className="w-3.5 h-3.5" />
-                          {crew.member_count} {crew.member_count === 1 ? 'keeper' : 'keepers'} · last fed {lastQuestDate}
+                      <div className="min-w-0">
+                        <h3 className="truncate text-[18px] font-medium text-[var(--sq-text)]">{crew.group_name}</h3>
+                        <p className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--sq-text-faint)]">
+                          <FriendsIcon size={16} withShadow={false} />
+                          {crew.member_count} {crew.member_count === 1 ? 'keeper' : 'keepers'} - last fed {lastQuestDate}
                         </p>
                       </div>
                     </div>
-
-                    {/* Streak Badge */}
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <div className={`flex items-center gap-1 px-3 py-1.5 rounded-2xl ${isRainbow ? 'bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-extrabold shadow-lg animate-pulse' : bgClass}`}>
-                        <motion.div
-                          animate={{ 
-                            scale: [1, 1.08, 0.96, 1.04, 1],
-                            rotate: [0, 3, -3, 1, 0]
-                          }}
-                          transition={{
-                            duration: 1.5 + Math.random(),
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                        >
-                          <Flame 
-                            className="w-4.5 h-4.5" 
-                            fill={isRainbow ? 'currentColor' : flameColor} 
-                            stroke={isRainbow ? 'none' : flameColor} 
-                          />
-                        </motion.div>
-                        <span className="text-sm font-black tracking-tight">{crew.current_streak}</span>
+                    <div className="shrink-0 text-right">
+                      <div className="inline-flex items-center gap-1 rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/20 bg-[var(--sq-surface)] px-3 py-1.5">
+                        <StreakFlameIcon size={20} active={flame.fill} withShadow={false} />
+                        <span className={`text-[14px] font-medium ${flame.tone}`}>{crew.current_streak}</span>
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">{tier}</span>
-                      {crew.is_at_risk && (
-                        <div className="flex items-center gap-1 text-[9px] text-red-500 font-black bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-lg border border-red-100 dark:border-red-950/50 mt-1">
-                          <Heart className="w-2.5 h-2.5 fill-current" />
-                          <span>-1 Life</span>
-                        </div>
-                      )}
+                      <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-faint)]">{flame.tier}</p>
                     </div>
                   </div>
 
-                  {/* Warning message if at risk */}
                   {crew.is_at_risk && (
-                    <div className="mt-3 flex flex-col gap-1 bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 p-2.5 rounded-2xl text-xs font-bold border border-red-100 dark:border-red-950/30">
-                      <div className="flex items-center gap-1.5">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
-                        <span>The flame is flickering — quest soon or it costs a heart</span>
+                    <div className="mt-4 rounded-[var(--sq-r-lg)] border border-[var(--sq-heart)]/35 bg-[var(--sq-heart)]/10 p-3 text-[13px] text-[var(--sq-text-muted)]">
+                      <div className="flex items-center gap-2 font-medium text-[var(--sq-heart)]">
+                        <HeartIcon size={18} active withShadow={false} />
+                        The flame is flickering
                       </div>
-                      <span className="text-[10px] text-gray-400 dark:text-gray-300 pl-5">
-                        {crew.days_until_break} {crew.days_until_break === 1 ? 'day' : 'days'} to feed the fire
-                      </span>
+                      <p className="mt-1 pl-7 text-[12px]">{crew.days_until_break} {crew.days_until_break === 1 ? 'day' : 'days'} to feed the fire before it costs a life.</p>
                     </div>
                   )}
 
-                  {/* Progress Milestone Bar */}
-                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-                    <div className="flex items-center justify-between text-xs font-bold text-gray-400 dark:text-gray-500 mb-1.5">
+                  <div className="mt-4 border-t border-[var(--sq-hairline)] pt-3">
+                    <div className="mb-2 flex items-center justify-between text-[12px] font-medium text-[var(--sq-text-faint)]">
                       <span>Next blaze at {crew.next_milestone} days</span>
                       <span>{percent}%</span>
                     </div>
-                    <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percent}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-[#8BF131]"
-                        style={isRainbow ? { background: 'linear-gradient(90deg, #ff007f, #7f00ff, #007fff)' } : {}}
-                      />
+                    <div className="h-2.5 overflow-hidden rounded-[var(--sq-r-pill)] bg-[var(--sq-surface)]">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className="h-full rounded-[var(--sq-r-pill)] bg-gradient-to-r from-[var(--sq-ember-500)] to-[var(--sq-gold-soft)]" />
                     </div>
                   </div>
-                </motion.div>
+                </motion.article>
               )
             })}
           </div>
         )}
-
       </main>
 
-      {/* Create Group Modal Dialog */}
       <AnimatePresence>
         {isCreateModalOpen && (
           <>
-            {/* Scrim */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCreateModalOpen(false)}
-              className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm"
-            />
-            {/* Dialog Panel */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="fixed inset-x-4 bottom-8 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700 focus:outline-none"
-            >
-              <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                <Flame className="w-6 h-6 text-primary" fill="currentColor" />
-                Light a New Crew Flame
-              </h2>
-              <p className="text-xs font-semibold text-gray-400 mb-5">
-                Gather your people. Every quest you finish together feeds one shared flame — keep it alive and the whole crew earns the glory. Let it die, and everyone feels the cold.
-              </p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCreateModalOpen(false)} className="fixed inset-0 z-50 bg-[rgba(30,20,14,0.65)] backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', stiffness: 350, damping: 25 }} className="fixed inset-x-4 bottom-8 z-50 max-w-md rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-6 shadow-[var(--sq-shadow-soft)] sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-ember-300)]">New crew</p>
+                  <h2 className="mt-1 flex items-center gap-2 text-[22px] font-medium">
+                    <StreakFlameIcon size={30} active withShadow={false} />
+                    Light a crew flame
+                  </h2>
+                  <p className="mt-2 text-[13px] leading-6 text-[var(--sq-text-muted)]">Gather your people. Every quest you finish together feeds one shared flame.</p>
+                </div>
+                <button type="button" aria-label="Close create crew dialog" onClick={() => setIsCreateModalOpen(false)} className="rounded-[var(--sq-r-pill)] bg-[var(--sq-surface)] p-2">
+                  <CloseIcon size={22} withShadow={false} />
+                </button>
+              </div>
 
               <form onSubmit={handleCreateGroup} className="space-y-4">
-                <div className="flex flex-col items-center gap-2.5 mb-6">
-                  {/* Group Icon Circular Selector Container */}
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="relative w-24 h-24 rounded-full border-4 border-dashed border-gray-200 dark:border-gray-700/85 bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center text-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-colors shadow-inner"
-                    style={crewAvatarUrl ? { borderStyle: 'solid', borderColor: groupColor } : {}}
-                  >
+                <div className="flex flex-col items-center gap-2.5">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="relative flex h-24 w-24 flex-col items-center justify-center overflow-hidden rounded-[var(--sq-r-pill)] border-4 border-dashed border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] text-center transition-colors hover:bg-[var(--sq-card-hover)]" style={crewAvatarUrl ? { borderStyle: 'solid', borderColor: groupColor } : {}}>
                     {crewAvatarUrl ? (
-                      <img src={crewAvatarUrl} alt="Group Icon Preview" className="w-full h-full object-cover" />
+                      <img src={crewAvatarUrl} alt="Group icon preview" className="h-full w-full object-cover" />
                     ) : (
                       <>
-                        <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500 mb-1 group-hover:text-primary transition-colors" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Crew Crest</span>
+                        <UploadIcon size={28} active withShadow={false} />
+                        <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-faint)]">Crew crest</span>
                       </>
                     )}
-                    {uploading && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold">
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-xs font-black text-primary hover:text-[#46A302] active:scale-95 transition-all"
-                  >
-                    {crewAvatarUrl ? 'Change Photo' : 'Choose a Crew Crest'}
+                    {uploading && <div className="absolute inset-0 flex items-center justify-center bg-[var(--sq-bg)]/70"><LoadingSpinner /></div>}
                   </button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleFileChange}
-                  />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[13px] font-medium text-[var(--sq-ember-300)] active:scale-95">{crewAvatarUrl ? 'Change photo' : 'Choose a crew crest'}</button>
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Crew Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="e.g. The Taco Tuesday Alliance"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm"
-                  />
+                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-text-faint)]">Crew name</label>
+                  <input type="text" required value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="The taco Tuesday alliance" className="w-full rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] px-4 py-3 text-[var(--sq-text)] placeholder:text-[var(--sq-text-faint)] focus:border-[var(--sq-ember-400)] focus:outline-none focus:ring-1 focus:ring-[var(--sq-ember-400)]" />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Crew Vibe
-                  </label>
-                  <textarea
-                    value={groupDesc}
-                    onChange={(e) => setGroupDesc(e.target.value)}
-                    placeholder="What does this crew chase? Food spots, night hikes, arcade raids..."
-                    rows={2}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl font-semibold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
-                  />
+                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-text-faint)]">Crew vibe</label>
+                  <textarea value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} placeholder="Food spots, night hikes, arcade raids..." rows={2} className="w-full resize-none rounded-[var(--sq-r-lg)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] px-4 py-3 text-[var(--sq-text)] placeholder:text-[var(--sq-text-faint)] focus:border-[var(--sq-ember-400)] focus:outline-none focus:ring-1 focus:ring-[var(--sq-ember-400)]" />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1.5">
-                    Crew Color
-                  </label>
+                  <label className="mb-2 block text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-text-faint)]">Crew color</label>
                   <div className="flex items-center gap-2.5">
                     {presetColors.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setGroupColor(color)}
-                        className={`w-8 h-8 rounded-full transition-transform active:scale-90 ${groupColor === color ? 'ring-4 ring-primary ring-offset-2 dark:ring-offset-gray-800 scale-105' : ''}`}
-                        style={{ backgroundColor: color }}
-                      />
+                      <button key={color} type="button" aria-label="Choose crew color" onClick={() => setGroupColor(color)} className={`h-8 w-8 rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/20 transition-transform active:scale-90 ${groupColor === color ? 'ring-4 ring-[var(--sq-ember-300)] ring-offset-2 ring-offset-[var(--sq-card)]' : ''}`} style={{ backgroundColor: color }} />
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="w-1/2 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 font-extrabold rounded-2xl active:scale-95 transition-all text-sm cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="w-1/2 py-3 bg-primary hover:bg-[#46A302] disabled:bg-primary/50 text-white font-extrabold rounded-2xl active:scale-95 transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-primary/25"
-                  >
-                    {creating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
+                <div className="flex items-center gap-3 pt-2">
+                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-1/2 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] py-3 text-[13px] font-medium text-[var(--sq-text-muted)] active:scale-95">Cancel</button>
+                  <button type="submit" disabled={creating} className="flex w-1/2 items-center justify-center gap-2 rounded-[var(--sq-r-pill)] bg-[var(--sq-ember-500)] py-3 text-[13px] font-medium text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] active:scale-95 disabled:opacity-50">
+                    {creating ? <LoadingSpinner /> : (
                       <>
-                        <Flame className="w-4 h-4" fill="currentColor" />
-                        Light the Flame
+                        <StreakFlameIcon size={20} active withShadow={false} />
+                        Light flame
                       </>
                     )}
                   </button>
@@ -770,142 +557,72 @@ export function StreaksPage() {
         )}
       </AnimatePresence>
 
-      {/* Premium Glassmorphic in-page popup modal replacing ugly browser alerts */}
       <AnimatePresence>
         {popupMessage && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 pointer-events-auto"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="max-w-sm w-full bg-white dark:bg-gray-950 p-6 rounded-3xl border border-gray-200 dark:border-gray-900 shadow-2xl text-center flex flex-col gap-4"
-            >
-              <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto">
-                <AlertTriangle className="w-6 h-6" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(30,20,14,0.65)] px-4 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="flex w-full max-w-sm flex-col gap-4 rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-card)] p-6 text-center shadow-[var(--sq-shadow-soft)]">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--sq-r-pill)] bg-[var(--sq-heart)]/10 text-[var(--sq-heart)]">
+                <HeartIcon size={30} active withShadow={false} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-foreground">Notice</h3>
-                <p className="text-sm text-muted mt-2 leading-relaxed">
-                  {popupMessage}
-                </p>
+                <h3 className="text-[18px] font-medium text-[var(--sq-text)]">Notice</h3>
+                <p className="mt-2 text-[13px] leading-6 text-[var(--sq-text-muted)]">{popupMessage}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setPopupMessage(null)}
-                className="w-full bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold p-3.5 rounded-2xl shadow-md cursor-pointer transition-all active:scale-98"
-              >
-                Got it
-              </button>
+              <button type="button" onClick={() => setPopupMessage(null)} className="w-full rounded-[var(--sq-r-pill)] bg-[var(--sq-ember-500)] p-3.5 text-[13px] font-medium text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] active:scale-95">Got it</button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Premium Full-Screen Dedicated Photo Cropper Page */}
       <AnimatePresence>
         {cropImage && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 z-[150] flex flex-col justify-between bg-[#0a0d18] text-white select-none"
-          >
-            {/* Top Bar Header */}
-            <div className="w-full flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gray-950/20 backdrop-blur-md">
-              <button 
-                type="button" 
-                onClick={() => setCropImage(null)}
-                className="text-white/60 hover:text-white text-sm font-extrabold flex items-center gap-1 active:scale-95 transition-transform"
-              >
-                ← Back
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[150] flex select-none flex-col justify-between bg-[var(--sq-bg)] text-[var(--sq-text)]">
+            <div className="flex w-full items-center justify-between border-b border-[var(--sq-hairline)] bg-[var(--sq-overlay-heavy)] px-6 py-5 backdrop-blur-md">
+              <button type="button" onClick={() => setCropImage(null)} className="flex items-center gap-1 text-[13px] font-medium text-[var(--sq-text-muted)] active:scale-95">
+                <ChevronLeftIcon size={22} withShadow={false} />
+                Back
               </button>
-              <h3 className="text-lg font-black tracking-tight text-center text-white flex items-center gap-2">
-                <Scissors className="w-5 h-5 text-[#58CC02]" /> Edit Group Icon
+              <h3 className="flex items-center gap-2 text-center text-[18px] font-medium">
+                <ScissorsIcon size={24} active withShadow={false} />
+                Edit crew icon
               </h3>
-              <div className="w-12" /> {/* spacer for center alignment */}
+              <div className="w-12" />
             </div>
 
-            {/* Main Crop Viewport Center Container */}
-            <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-6 relative min-h-0">
-              <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[#58CC02] shadow-[0_0_30px_rgba(88,204,2,0.2)] bg-gray-950 cursor-move flex items-center justify-center select-none"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleMouseUp}
-              >
-                <img
-                  src={cropImage}
-                  alt="Crop preview"
-                  style={{
-                    transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`,
-                    transformOrigin: 'center center',
-                  }}
-                  className="absolute w-full h-full object-contain pointer-events-none select-none"
-                />
-
-                {/* Aesthetic alignment overlay rules */}
-                <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />
-                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/10 pointer-events-none" />
-                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/10 pointer-events-none" />
+            <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center p-2 sm:p-6">
+              <div className="relative flex h-64 w-64 cursor-move select-none items-center justify-center overflow-hidden rounded-[var(--sq-r-pill)] border-4 border-[var(--sq-ember-500)] bg-[var(--sq-surface)] shadow-[var(--sq-shadow-glow)]" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleMouseUp}>
+                <img src={cropImage} alt="Crop preview" style={{ transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`, transformOrigin: 'center center' }} className="pointer-events-none absolute h-full w-full select-none object-contain" />
+                <div className="pointer-events-none absolute inset-0 rounded-[var(--sq-r-pill)] border border-[var(--sq-keyline)]/20" />
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-[var(--sq-keyline)]/10" />
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-[var(--sq-keyline)]/10" />
               </div>
-              <p className="text-xs text-white/50 mt-4 sm:mt-6 tracking-wide uppercase font-bold">
-                Drag to Reposition
-              </p>
+              <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-text-faint)]">Drag to reposition</p>
             </div>
 
-            {/* Bottom Controls Panel */}
-            <div className="w-full max-w-md mx-auto px-6 pb-4 sm:pb-8 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-[#0a0d18] to-transparent shrink-0">
-              {/* Zoom slider controls */}
-              <div className="w-full flex flex-col gap-2 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <div className="flex justify-between items-center text-xs text-white/60 font-black px-1">
-                  <span>ZOOM LEVEL</span>
+            <div className="mx-auto flex w-full max-w-md shrink-0 flex-col gap-4 px-6 pb-6">
+              <div className="rounded-[var(--sq-r-xl)] border border-[var(--sq-hairline)] bg-[var(--sq-card)] p-4">
+                <div className="flex items-center justify-between px-1 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--sq-text-faint)]">
+                  <span>Zoom level</span>
                   <span>{Math.round(cropZoom * 100)}%</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <ZoomOut className="w-4 h-4 text-white/40" />
-                  <input 
-                    type="range" 
-                    min="1.0" 
-                    max="3.0" 
-                    step="0.05"
-                    value={cropZoom}
-                    onChange={(e) => setCropZoom(parseFloat(e.target.value))}
-                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#58CC02] focus:outline-none"
-                  />
-                  <ZoomIn className="w-4 h-4 text-white/40" />
+                <div className="mt-3 flex items-center gap-3">
+                  <ZoomOutIcon size={22} withShadow={false} />
+                  <input type="range" min="1.0" max="3.0" step="0.05" value={cropZoom} onChange={(e) => setCropZoom(parseFloat(e.target.value))} className="h-1.5 flex-1 cursor-pointer appearance-none rounded-[var(--sq-r-pill)] bg-[var(--sq-surface)] accent-[var(--sq-ember-500)] focus:outline-none" />
+                  <ZoomInIcon size={22} withShadow={false} />
                 </div>
               </div>
 
-              {/* Actions button panel */}
-              <div className="flex gap-4 w-full">
-                <button
-                  type="button"
-                  onClick={() => setCropImage(null)}
-                  className="flex-1 border border-white/10 hover:bg-white/5 text-white font-extrabold py-4 rounded-2xl transition-colors cursor-pointer text-center text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePerformCrop}
-                  className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-bottom-[4px] border-[#46A302] text-white font-extrabold py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
-                >
-                  Save & Continue
+              <div className="flex w-full gap-4">
+                <button type="button" onClick={() => setCropImage(null)} className="flex-1 rounded-[var(--sq-r-pill)] border border-[var(--sq-hairline-strong)] bg-[var(--sq-surface)] py-4 text-center text-[13px] font-medium text-[var(--sq-text-muted)]">Cancel</button>
+                <button type="button" onClick={handlePerformCrop} className="flex flex-1 items-center justify-center gap-2 rounded-[var(--sq-r-pill)] bg-[var(--sq-ember-500)] py-4 text-center text-[13px] font-medium text-[var(--sq-text)] shadow-[var(--sq-shadow-sticker)] active:scale-[0.98]">
+                  <CheckIcon size={20} active withShadow={false} />
+                  Save and continue
                 </button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   )
 }
